@@ -1,0 +1,25 @@
+{
+  "job": {
+    "title": "Desarrollador Python Senior",
+    "description": "Buscamos un desarrollador Python con experiencia en FastAPI, DDD y microservicios.",
+    "required_skills": ["Python", "FastAPI", "DDD", "Microservicios", "PostgreSQL"],
+    "experience_min": 3,
+    "career": "Ingeniería de Sistemas"
+  },
+  "candidates": [
+    {
+      "user_id": "cand-001",
+      "name": "Carlos García",
+      "skills": ["Python", "FastAPI", "DDD", "Microservicios", "PostgreSQL", "Docker"],
+      "experience_years": 5,
+      "career": "Ingeniería de Sistemas"
+    },
+    {
+      "user_id": "cand-002",
+      "name": "María López",
+      "skills": ["Java", "Spring", "SQL"],
+      "experience_years": 2,
+      "career": "Ingeniería Informática"
+    }
+  ]
+}

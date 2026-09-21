@@ -1,0 +1,158 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: achanvear-postgres
+    environment:
+      POSTGRES_DB: achanvear
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-Lopez2003}
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d achanvear"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - achanvear-network
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: achanvear-redis
+    ports:
+      - "6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - achanvear-network
+    restart: unless-stopped
+
+  ai-agent:
+    build:
+      context: ../agentpython
+      dockerfile: Dockerfile
+    image: roberto523/achanvear-ai-agent:latest
+    container_name: achanvear-ai-agent
+    depends_on:
+      redis:
+        condition: service_started
+    environment:
+      LLM_PROVIDER: ${LLM_PROVIDER:-deepseek}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-sk-c77de3a541d742b48cbd907ab908f81b}
+      DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-deepseek-chat}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.0-flash}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      GROQ_MODEL: ${GROQ_MODEL:-llama-3.3-70b-versatile}
+      ENV: ${ENV:-docker}
+      REDIS_URL: redis://redis:6379
+      MOCK_LLM: ${MOCK_LLM:-false}
+      MAX_CONCURRENT_INTERVIEWS: ${MAX_CONCURRENT_INTERVIEWS:-4}
+      THEORY_PASS_SCORE_THRESHOLD: ${THEORY_PASS_SCORE_THRESHOLD:-75}
+      SCREENING_MAX_CANDIDATES: ${SCREENING_MAX_CANDIDATES:-16}
+      EVOLUTION_API_URL: ${EVOLUTION_API_URL:-}
+      EVOLUTION_API_KEY: ${EVOLUTION_API_KEY:-}
+      EVOLUTION_INSTANCE_NAME: ${EVOLUTION_INSTANCE_NAME:-agent01}
+      WHATSAPP_FB_TOKEN: ${WHATSAPP_FB_TOKEN:-}
+      N8N_PROJECT_ID: ${N8N_PROJECT_ID:-}
+      N8N_WHATSAPP_WEBHOOK: ${N8N_WHATSAPP_WEBHOOK:-}
+      N8N_EMAIL_WEBHOOK: ${N8N_EMAIL_WEBHOOK:-}
+      DATABASE_URL: ${DATABASE_URL:-}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION:-us-east-1}
+      AWS_S3_RECORDINGS_BUCKET: ${AWS_S3_RECORDINGS_BUCKET:-}
+      VAPI_API_KEY: ${VAPI_API_KEY:-}
+      VAPI_ORGANIZATION_ID: ${VAPI_ORGANIZATION_ID:-}
+      VAPI_WALLET_ID: ${VAPI_WALLET_ID:-}
+      VAPI_PUBLIC_KEY: ${VAPI_PUBLIC_KEY:-}
+      ELEVENLABS_API_KEY: ${ELEVENLABS_API_KEY:-}
+      VOICE_ID_CARLOS: ${VOICE_ID_CARLOS:-QIhD5ivPGEoYZQDocuHI}
+      VOICE_ID_ANA: ${VOICE_ID_ANA:-0rEo3eAjssGDUCXHYENf}
+      VOICE_ID_DIEGO: ${VOICE_ID_DIEGO:-4632xAJ5i6b4rvu0blu7}
+      VOICE_ID_SOFIA: ${VOICE_ID_SOFIA:-rBqbBncz61jpuaOTI1GW}
+      MAILERLITE_API_KEY: ${MAILERLITE_API_KEY:-}
+    ports:
+      - "8001:8001"
+    networks:
+      - achanvear-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 15s
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: roberto523/achanvear-backend:latest
+    container_name: achanvear-backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      ai-agent:
+        condition: service_started
+    environment:
+      PORT: 8081
+      SPRING_PROFILES_ACTIVE: docker
+      DB_URL: jdbc:postgresql://postgres:5432/achanvear
+      DB_USERNAME: ${DB_USERNAME:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-Lopez2003}
+      JWT_SECRET: ${JWT_SECRET:-my-super-secret-key-min-32-chars-long-for-dev-only}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      AWS_DEFAULT_REGION: ${AWS_REGION:-us-east-1}
+      AWS_S3_BUCKET_NAME: ${AWS_S3_BUCKET_NAME:-}
+      MP_PUBLIC_KEY: ${MP_PUBLIC_KEY:-TEST-7c056e9c-ee8b-4711-b803-8f057abc5bb1}
+      MP_ACCESS_TOKEN: ${MP_ACCESS_TOKEN:-TEST-140685990943776-082500-4484eedb437f589364a5b1cdf3538dcf-3157090819}
+      BREVO_API_KEY: ${BREVO_API_KEY:-}
+      BREVO_SENDER_EMAIL: ${BREVO_SENDER_EMAIL:-cevillaboni@gmail.com}
+      BREVO_SENDER_NAME: ${BREVO_SENDER_NAME:-Achanvear}
+      AI_API_URL: http://ai-agent:8001
+      APIS_PERU_TOKEN: ${APIS_PERU_TOKEN:-}
+      APIS_PERU_BASE_URL: ${APIS_PERU_BASE_URL:-https://apiperu.dev/api}
+      AI_PROVIDER: ${AI_PROVIDER:-groq}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      GROQ_MODEL: ${GROQ_MODEL:-llama-3.3-70b-versatile}
+      GROQ_BASE_URL: ${GROQ_BASE_URL:-https://api.groq.com/openai/v1}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.0-flash}
+      N8N_NOTIFICATIONS_WEBHOOK_URL: ${N8N_NOTIFICATIONS_WEBHOOK_URL:-http://host.docker.internal:5678/webhook/notifications}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "8081:8081"
+    networks:
+      - achanvear-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/api/v1/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+volumes:
+  postgres_data:
+
+networks:
+  achanvear-network:
+    driver: bridge

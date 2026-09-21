@@ -1,0 +1,12 @@
+spring:
+  config:
+    activate:
+      on-profile: docker
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://postgres:5432/achanvear}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:Lopez2003}
+
+ai:
+  api:
+    url: ${AI_API_URL:http://ai-agent:8001}

@@ -1,0 +1,21 @@
+package achanvear.peru.jobs.web.request;
+
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+
+import java.math.BigDecimal;
+
+public record UpdateJobRequest(
+        @NotBlank @Size(min = 5, max = 150) String title,
+        @NotBlank @Size(min = 20, max = 5000) String description,
+        @NotBlank @Size(min = 2, max = 120) String location,
+        @NotBlank String type,
+        @NotNull @DecimalMin("0.00") BigDecimal salaryMin,
+        @NotNull @DecimalMin("0.00") BigDecimal salaryMax,
+        @NotBlank String currency,
+        @NotNull @Min(1) Integer vacancies
+) {
+}

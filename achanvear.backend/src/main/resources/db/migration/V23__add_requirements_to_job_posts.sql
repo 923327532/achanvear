@@ -1,0 +1,1 @@
+ALTER TABLE job_posts ADD COLUMN IF NOT EXISTS requirements VARCHAR(5000);

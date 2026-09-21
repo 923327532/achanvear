@@ -1,0 +1,151 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: achanvear-postgres
+    profiles:
+      - local-db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-achanvear}
+      POSTGRES_USER: ${DB_USERNAME:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-change-me}
+    ports:
+      - "${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-postgres} -d ${POSTGRES_DB:-achanvear}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - achanvear-network
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: achanvear-redis
+    ports:
+      - "${REDIS_PORT:-6380}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - achanvear-network
+    restart: unless-stopped
+
+  ai-agent:
+    build:
+      context: ./agentpython
+      dockerfile: Dockerfile
+    image: ${AI_AGENT_IMAGE:-achanvear-ai-agent:local}
+    container_name: achanvear-ai-agent
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      ENV: ${ENV:-docker}
+      REDIS_URL: redis://redis:6379
+      LLM_PROVIDER: ${LLM_PROVIDER:-groq}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-deepseek-chat}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.0-flash}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      GROQ_MODEL: ${GROQ_MODEL:-llama-3.3-70b-versatile}
+      MOCK_LLM: ${MOCK_LLM:-false}
+      MAX_CONCURRENT_INTERVIEWS: ${MAX_CONCURRENT_INTERVIEWS:-4}
+      THEORY_PASS_SCORE_THRESHOLD: ${THEORY_PASS_SCORE_THRESHOLD:-75}
+      SCREENING_MAX_CANDIDATES: ${SCREENING_MAX_CANDIDATES:-16}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_DEFAULT_REGION: ${AWS_REGION:-us-east-1}
+      AWS_S3_RECORDINGS_BUCKET: ${AWS_S3_RECORDINGS_BUCKET:-}
+      VAPI_API_KEY: ${VAPI_API_KEY:-}
+      VAPI_ORGANIZATION_ID: ${VAPI_ORGANIZATION_ID:-}
+      VAPI_WALLET_ID: ${VAPI_WALLET_ID:-}
+      VAPI_PUBLIC_KEY: ${VAPI_PUBLIC_KEY:-}
+      ELEVENLABS_API_KEY: ${ELEVENLABS_API_KEY:-}
+      COMPANY_REPORT_EMAIL: ${COMPANY_REPORT_EMAIL:-}
+      VOICE_ID_CARLOS: ${VOICE_ID_CARLOS:-QIhD5ivPGEoYZQDocuHI}
+      VOICE_ID_ANA: ${VOICE_ID_ANA:-0rEo3eAjssGDUCXHYENf}
+      VOICE_ID_DIEGO: ${VOICE_ID_DIEGO:-4632xAJ5i6b4rvu0blu7}
+      VOICE_ID_SOFIA: ${VOICE_ID_SOFIA:-rBqbBncz61jpuaOTI1GW}
+    ports:
+      - "${AI_AGENT_PORT:-8001}:8001"
+    networks:
+      - achanvear-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+
+  backend:
+    build:
+      context: ./achanvear.backend
+      dockerfile: Dockerfile
+    image: ${BACKEND_IMAGE:-achanvear-backend:local}
+    container_name: achanvear-backend
+    depends_on:
+      redis:
+        condition: service_healthy
+      ai-agent:
+        condition: service_started
+    environment:
+      PORT: 8081
+      SPRING_PROFILES_ACTIVE: docker
+      DB_URL: ${DB_URL:?DB_URL is required. Set the Neon JDBC URL in the root .env file}
+      DB_USERNAME: ${DB_USERNAME:?DB_USERNAME is required. Set it in the root .env file}
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required. Set it in the root .env file}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required. Set it in the root .env file}
+      APP_FRONTEND_URL: ${APP_FRONTEND_URL:-http://localhost:3000}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
+      CULQI_PUBLIC_KEY: ${CULQI_PUBLIC_KEY:-pk_test_3GaFfV2020niFpxr}
+      CULQI_SECRET_KEY: ${CULQI_SECRET_KEY:-sk_test_PoHjHT7obOWW12yq}
+      CULQI_BASE_URL: ${CULQI_BASE_URL:-https://api.culqi.com/v2}
+      CULQI_CURRENCY_CODE: ${CULQI_CURRENCY_CODE:-PEN}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      AWS_DEFAULT_REGION: ${AWS_REGION:-us-east-1}
+      AWS_S3_BUCKET_NAME: ${AWS_S3_BUCKET_NAME:-}
+      BREVO_API_KEY: ${BREVO_API_KEY:-}
+      BREVO_SENDER_EMAIL: ${BREVO_SENDER_EMAIL:-}
+      BREVO_SENDER_NAME: ${BREVO_SENDER_NAME:-Achanvear}
+      AI_API_URL: http://ai-agent:8001
+      APIS_PERU_TOKEN: ${APIS_PERU_TOKEN:-}
+      APIS_PERU_BASE_URL: ${APIS_PERU_BASE_URL:-https://apiperu.dev/api}
+      AI_PROVIDER: ${AI_PROVIDER:-groq}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      GROQ_MODEL: ${GROQ_MODEL:-llama-3.3-70b-versatile}
+      GROQ_BASE_URL: ${GROQ_BASE_URL:-https://api.groq.com/openai/v1}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.0-flash}
+      N8N_NOTIFICATIONS_WEBHOOK_URL: ${N8N_NOTIFICATIONS_WEBHOOK_URL:-}
+      COMPANY_REPORT_EMAIL: ${COMPANY_REPORT_EMAIL:-}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    ports:
+      - "${BACKEND_PORT:-8081}:8081"
+    networks:
+      - achanvear-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/api/v1/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+volumes:
+  postgres_data:
+
+networks:
+  achanvear-network:
+    driver: bridge

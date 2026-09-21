@@ -1,0 +1,33 @@
+# ENV
+.env
+.env.*
+
+# NODE
+node_modules/
+.next/
+dist/
+build/
+
+# JAVA
+target/
+*.class
+
+# PYTHON
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# LOGS
+*.log
+
+# FIREBASE
+firebase-service-account.json
