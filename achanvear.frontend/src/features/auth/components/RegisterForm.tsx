@@ -104,6 +104,7 @@ export function RegisterForm() {
     isValidatingDni,
     isValidatingRepDni,
     isSubmitting,
+    canSubmit,
     errors,
     handleRoleChange,
     handleDniBlur,
@@ -113,6 +114,8 @@ export function RegisterForm() {
     repDniValue,
     isGoogleSignUp,
     isHydrated,
+    validatedDni,
+    validatedRepDni,
   } = useRegister();
 
   const { signInWithGoogle, isLoading: googleLoading, error: googleError } = useGoogleLogin();
@@ -208,6 +211,9 @@ export function RegisterForm() {
                 {isValidatingDni && (
                   <p className="mt-1 text-xs text-slate-400">Validando DNI...</p>
                 )}
+                {validatedDni === dniValue && (
+                  <p className="mt-1 text-xs text-emerald-600">DNI validado correctamente.</p>
+                )}
               </div>
 
               <Input
@@ -216,6 +222,7 @@ export function RegisterForm() {
                 placeholder="Juan Pérez García"
                 {...register("fullName" as any)}
                 error={(errors as any).fullName?.message}
+                readOnly={validatedDni === dniValue}
               />
 
               {isHydrated && isGoogleSignUp ? (
@@ -294,6 +301,9 @@ export function RegisterForm() {
                 {isValidatingRepDni && (
                   <p className="mt-1 text-xs text-slate-400">Validando representante...</p>
                 )}
+                {validatedRepDni === repDniValue && (
+                  <p className="mt-1 text-xs text-emerald-600">Representante validado correctamente.</p>
+                )}
               </div>
 
               <Input
@@ -302,6 +312,7 @@ export function RegisterForm() {
                 placeholder="María Torres Rojas"
                 {...register("representanteLegal" as any)}
                 error={(errors as any).representanteLegal?.message}
+                readOnly={validatedRepDni === repDniValue}
               />
 
               {isHydrated && isGoogleSignUp ? (
@@ -395,14 +406,14 @@ export function RegisterForm() {
           {/* Submit */}
           <button
             type="submit"
-            disabled={isSubmitting}
+            disabled={isSubmitting || !canSubmit}
             className="w-full rounded-xl py-3 text-sm font-semibold text-white transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
             style={{ backgroundColor: "#1B3A6B" }}
             onMouseEnter={(e) => {
-              if (!isSubmitting) e.currentTarget.style.backgroundColor = "#0EA5A0";
+              if (!isSubmitting && canSubmit) e.currentTarget.style.backgroundColor = "#0EA5A0";
             }}
             onMouseLeave={(e) => {
-              if (!isSubmitting) e.currentTarget.style.backgroundColor = "#1B3A6B";
+              if (!isSubmitting && canSubmit) e.currentTarget.style.backgroundColor = "#1B3A6B";
             }}
           >
             {isSubmitting ? "Creando cuenta..." : "Crear cuenta"}

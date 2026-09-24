@@ -6,7 +6,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { dniService } from "@/features/auth/api/dniApi";
-import { professionalSchema, companySchema } from "@/features/auth/schemas/auth.schema";
 import type { ProfessionalFormData, CompanyFormData, UserRole } from "@/features/auth/schemas/auth.schema";
 import { getFriendlyErrorMessage } from "@/lib/friendlyErrors";
 import { setAuthToken, clearAuthToken } from "@/lib/storage";
@@ -60,11 +59,14 @@ export function useRegister() {
   const [isValidatingRepDni, setIsValidatingRepDni] = useState(false);
   const [isGoogleSignUp, setIsGoogleSignUp] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
+  const [validatedDni, setValidatedDni] = useState<string | null>(null);
+  const [validatedRepDni, setValidatedRepDni] = useState<string | null>(null);
 
   const isCompany = selectedRole === "COMPANY";
 
   const form = useForm<any>({
     mode: "onChange",
+    resolver: zodResolver(unifiedSchema),
     defaultValues: {
       role: "FREELANCER",
       dni: "",
@@ -106,6 +108,8 @@ export function useRegister() {
   const handleRoleChange = (role: UserRole) => {
     setSelectedRole(role);
     setFormError(null);
+    setValidatedDni(null);
+    setValidatedRepDni(null);
     form.reset({
       role,
       dni: "",
@@ -123,14 +127,20 @@ export function useRegister() {
   };
 
   const handleDniBlur = async (dni: string) => {
+    setValidatedDni(null);
     if (selectedRole !== "FREELANCER" || dni.length !== 8) return;
     setIsValidatingDni(true);
     setFormError(null);
     try {
       const dniData = await dniService.validateDni(dni);
-      const fullName = `${dniData.nombres} ${dniData.apellidoPaterno} ${dniData.apellidoMaterno}`;
-      form.setValue("fullName" as keyof (ProfessionalFormData | CompanyFormData), fullName as never);
+      const fullName = `${dniData.nombres} ${dniData.apellidoPaterno} ${dniData.apellidoMaterno}`.replace(/\s+/g, " ").trim();
+      form.setValue("fullName" as keyof (ProfessionalFormData | CompanyFormData), fullName as never, { shouldValidate: true });
+      form.clearErrors("dni");
+      form.clearErrors("fullName");
+      setValidatedDni(dni);
     } catch (err) {
+      form.setValue("fullName" as keyof (ProfessionalFormData | CompanyFormData), "" as never, { shouldValidate: true });
+      form.setError("dni" as any, { type: "validate", message: getFriendlyErrorMessage(err) });
       setFormError(getFriendlyErrorMessage(err));
     } finally {
       setIsValidatingDni(false);
@@ -138,14 +148,20 @@ export function useRegister() {
   };
 
   const handleRepDniBlur = async (dni: string) => {
+    setValidatedRepDni(null);
     if (selectedRole !== "COMPANY" || dni.length !== 8) return;
     setIsValidatingRepDni(true);
     setFormError(null);
     try {
       const dniData = await dniService.validateDni(dni);
-      const fullName = `${dniData.nombres} ${dniData.apellidoPaterno} ${dniData.apellidoMaterno}`;
-      form.setValue("representanteLegal" as keyof (ProfessionalFormData | CompanyFormData), fullName as never);
+      const fullName = `${dniData.nombres} ${dniData.apellidoPaterno} ${dniData.apellidoMaterno}`.replace(/\s+/g, " ").trim();
+      form.setValue("representanteLegal" as keyof (ProfessionalFormData | CompanyFormData), fullName as never, { shouldValidate: true });
+      form.clearErrors("representanteDni");
+      form.clearErrors("representanteLegal");
+      setValidatedRepDni(dni);
     } catch (err) {
+      form.setValue("representanteLegal" as keyof (ProfessionalFormData | CompanyFormData), "" as never, { shouldValidate: true });
+      form.setError("representanteDni" as any, { type: "validate", message: getFriendlyErrorMessage(err) });
       setFormError(getFriendlyErrorMessage(err));
     } finally {
       setIsValidatingRepDni(false);
@@ -156,6 +172,18 @@ export function useRegister() {
     try {
       setFormError(null);
       clearAuthToken(); // Limpiar sesión anterior antes de registrar
+
+      if (data.role === "FREELANCER" && validatedDni !== data.dni) {
+        form.setError("dni" as any, { type: "validate", message: "Valida un DNI existente antes de continuar" });
+        setFormError("Valida un DNI existente antes de continuar");
+        return;
+      }
+
+      if (data.role === "COMPANY" && validatedRepDni !== data.representanteDni) {
+        form.setError("representanteDni" as any, { type: "validate", message: "Valida el DNI del representante antes de continuar" });
+        setFormError("Valida el DNI del representante antes de continuar");
+        return;
+      }
 
       if (isGoogleSignUp) {
         const googleData = sessionStorage.getItem("googleSignUp");
@@ -242,6 +270,7 @@ export function useRegister() {
     isValidatingDni,
     isValidatingRepDni,
     isSubmitting: form.formState.isSubmitting,
+    canSubmit: !isValidatingDni && !isValidatingRepDni,
     errors: form.formState.errors,
     handleRoleChange,
     handleDniBlur,
@@ -251,5 +280,7 @@ export function useRegister() {
     repDniValue: form.watch("representanteDni" as any),
     isGoogleSignUp,
     isHydrated,
+    validatedDni,
+    validatedRepDni,
   };
 }

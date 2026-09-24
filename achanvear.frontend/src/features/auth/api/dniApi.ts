@@ -42,13 +42,27 @@ publicApi.interceptors.response.use(
 
 export const dniService = {
   validateDni: async (dni: string): Promise<DniResponse> => {
+    if (!/^\d{8}$/.test(dni)) {
+      throw new ApiError("El DNI debe tener 8 digitos");
+    }
+
     const response = await publicApi.get<ApiResponse<DniResponse>>(`/integration/dni/${dni}`);
     // La respuesta puede venir envuelta en ApiResponse o directamente como DniResponse
     const data = response.data;
     // Si tiene la estructura ApiResponse, extraemos data.data
-    if (data && typeof data === "object" && "success" in data && "data" in data) {
-      return (data as ApiResponse<DniResponse>).data;
+    const dniData = data && typeof data === "object" && "success" in data && "data" in data
+      ? (data as ApiResponse<DniResponse>).data
+      : data as unknown as DniResponse;
+
+    if (
+      !dniData?.numeroDocumento ||
+      !dniData?.nombres ||
+      !dniData?.apellidoPaterno ||
+      !dniData?.apellidoMaterno
+    ) {
+      throw new ApiError("No encontramos una persona registrada con ese DNI");
     }
-    return data as unknown as DniResponse;
+
+    return dniData;
   },
 };
