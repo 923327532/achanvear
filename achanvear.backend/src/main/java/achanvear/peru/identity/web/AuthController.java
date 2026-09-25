@@ -80,7 +80,7 @@ public class AuthController {
     }
 
     @PostMapping("/register")
-    public ResponseEntity<ApiResponse<UserResponse>> register(
+    public ResponseEntity<ApiResponse<LoginResponse>> register(
             @Valid @RequestBody RegisterRequest request
     ) {
         RegisterUserCommand command = new RegisterUserCommand(
@@ -99,7 +99,15 @@ public class AuthController {
                 request.privacyVersion()
         );
 
-        UserResponse response = registerUserUseCase.execute(command);
+        UserResponse userResponse = registerUserUseCase.execute(command);
+        User user = userRepository.findById(UserId.from(userResponse.id()))
+                .orElseThrow(() -> new IllegalArgumentException("No se pudo iniciar la sesion despues del registro"));
+
+        LoginResponse response = new LoginResponse(
+                jwtTokenProvider.generateAccessToken(user, null),
+                "Bearer",
+                userResponse
+        );
 
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(response, "User registered successfully"));

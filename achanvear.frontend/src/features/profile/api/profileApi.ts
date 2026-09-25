@@ -36,6 +36,14 @@ export const profileApi = {
   // ── Storage / presigned URLs ───────────────────────────────────────────────
 
   // POST /profiles/storage/presigned-url — para foto de perfil
+  getPresignedUrl: async (fileName: string, contentType: string, folder: StorageFolder): Promise<PresignedUrlResponse> => {
+    const response = await api.post<ApiResponse<PresignedUrlResponse>>(
+      "/profiles/storage/presigned-url",
+      { fileName, contentType, folder }
+    );
+    return parseResponse(response);
+  },
+
   getPhotoPresignedUrl: async (fileName: string, contentType: string): Promise<PresignedUrlResponse> => {
     const response = await api.post<ApiResponse<PresignedUrlResponse>>(
       "/profiles/storage/presigned-url",

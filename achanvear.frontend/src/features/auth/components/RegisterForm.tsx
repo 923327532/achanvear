@@ -125,10 +125,10 @@ export function RegisterForm() {
   const passwordValue = form.watch("password") ?? "";
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-slate-50 px-4 py-12">
+    <div className="flex min-h-screen flex-col items-center justify-start bg-slate-50 px-3 py-6 sm:justify-center sm:px-4 sm:py-12">
 
       {/* Logo */}
-      <Link href="/" className="mb-8 flex items-center gap-2.5">
+      <Link href="/" className="mb-6 flex items-center gap-2.5 sm:mb-8">
         <div
           className="flex h-10 w-10 items-center justify-center rounded-xl text-sm font-bold text-white"
           style={{ backgroundColor: "#1B3A6B" }}
@@ -139,7 +139,7 @@ export function RegisterForm() {
       </Link>
 
       {/* Card */}
-      <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 shadow-lg">
+      <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-4 shadow-lg sm:p-8">
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-slate-900">Crea tu cuenta</h1>
           <p className="mt-1 text-sm text-slate-500">Comienza tu camino profesional hoy</p>
@@ -157,11 +157,11 @@ export function RegisterForm() {
         )}
 
         {/* Selector de rol */}
-        <div className="mb-6 grid grid-cols-2 gap-3">
+        <div className="mb-6 grid grid-cols-1 gap-3 min-[380px]:grid-cols-2">
           <button
             type="button"
             onClick={() => handleRoleChange("FREELANCER")}
-            className="flex flex-col items-start gap-2 rounded-xl border-2 p-4 text-left transition-all"
+            className="flex min-h-[128px] flex-col items-start gap-2 rounded-xl border-2 p-4 text-left transition-all"
             style={{
               borderColor: !isCompany ? "#1B3A6B" : "#E2E8F0",
               backgroundColor: !isCompany ? "#EEF2FF" : "#FFFFFF",
@@ -177,7 +177,7 @@ export function RegisterForm() {
           <button
             type="button"
             onClick={() => handleRoleChange("COMPANY")}
-            className="flex flex-col items-start gap-2 rounded-xl border-2 p-4 text-left transition-all"
+            className="flex min-h-[128px] flex-col items-start gap-2 rounded-xl border-2 p-4 text-left transition-all"
             style={{
               borderColor: isCompany ? "#1B3A6B" : "#E2E8F0",
               backgroundColor: isCompany ? "#EEF2FF" : "#FFFFFF",

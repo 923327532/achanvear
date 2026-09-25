@@ -242,7 +242,6 @@ export function useRegister() {
         registerPayload.ruc = (data as any).ruc || undefined;
       }
 
-      console.log("📤 Payload:", registerPayload);
       await registerUser(registerPayload);
 
       // Guardar datos de empresa en sessionStorage para el onboarding wizard

@@ -17,7 +17,7 @@ export default function Page() {
   }, [user, router]);
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       <CompanySettingsPage />
     </div>
   );

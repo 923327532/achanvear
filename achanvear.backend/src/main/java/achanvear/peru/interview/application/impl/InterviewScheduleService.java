@@ -185,7 +185,8 @@ public class InterviewScheduleService implements
                       <body style="font-family: Arial, sans-serif; background-color: #f4f4f4; padding: 20px;">
                         <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 10px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
                           <h2 style="color: #1565c0;">Hola %s!</h2>
-                          <p>Has sido preseleccionado para la <strong>entrevista %s</strong> para el puesto de <strong>%s</strong> en <strong>Achanvear</strong>.</p>
+                          <p><strong>Felicidades, tu perfil ha sido calificado para una entrevista.</strong></p>
+                          <p>Continuas a la <strong>entrevista %s</strong> para el puesto de <strong>%s</strong> en <strong>Achanvear</strong>.</p>
                           <p>Elige uno de los siguientes horarios para tu entrevista. Solo puedes elegir uno y no se puede cambiar despues.</p>
                           <div style="margin: 20px 0;">
                             %s

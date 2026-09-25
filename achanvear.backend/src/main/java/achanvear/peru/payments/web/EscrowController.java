@@ -32,6 +32,28 @@ public class EscrowController {
     /**
      * Obtiene el estado del escrow para un milestone específico.
      */
+    @GetMapping
+    public ResponseEntity<ApiResponse<List<EscrowStatusResponse>>> getMyEscrows(
+            @AuthenticationPrincipal AuthenticatedUser user
+    ) {
+        List<Escrow> escrows = new java.util.ArrayList<>();
+        escrows.addAll(escrowRepository.findByClientUserId(user.getUserId()));
+        escrows.addAll(escrowRepository.findByFreelancerUserId(user.getUserId()));
+
+        List<EscrowStatusResponse> response = escrows.stream()
+                .collect(Collectors.toMap(
+                        escrow -> escrow.getId().value(),
+                        escrow -> escrow,
+                        (first, ignored) -> first
+                ))
+                .values()
+                .stream()
+                .map(this::toResponse)
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(ApiResponse.success(response, "Escrows retrieved"));
+    }
+
     @GetMapping("/milestones/{milestoneId}")
     public ResponseEntity<ApiResponse<EscrowStatusResponse>> getEscrowByMilestone(
             @PathVariable UUID milestoneId
@@ -88,9 +110,9 @@ public class EscrowController {
     private EscrowStatusResponse toResponse(Escrow escrow) {
         var formatter = DateTimeFormatter.ISO_INSTANT;
         return new EscrowStatusResponse(
-                escrow.getId().value().toString(),
-                escrow.getMilestoneId().toString(),
-                escrow.getProjectId().toString(),
+                escrow.getId() != null ? escrow.getId().value().toString() : null,
+                escrow.getMilestoneId() != null ? escrow.getMilestoneId().toString() : null,
+                escrow.getProjectId() != null ? escrow.getProjectId().toString() : null,
                 escrow.getAmount(),
                 escrow.getPlatformCommission(),
                 escrow.getMpCommission(),

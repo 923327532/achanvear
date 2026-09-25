@@ -186,8 +186,9 @@ public class WalletService {
     /**
      * Obtiene las transacciones de wallet de un usuario.
      */
+    @Transactional
     public List<WalletTransaction> getWalletTransactions(UUID userId) {
-        Wallet wallet = getWallet(userId);
+        Wallet wallet = getOrCreateWallet(userId);
         return walletTransactionRepository.findByWalletId(wallet.getId().value());
     }
 

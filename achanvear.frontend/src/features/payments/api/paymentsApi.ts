@@ -14,6 +14,7 @@ import type {
   FreelancerWalletSummary,
   PayoutMethod,
   Payout,
+  SavedCard,
 } from "../types/payments.types";
 
 // ─── Wallet API ───────────────────────────────────────────────────────────────
@@ -134,7 +135,32 @@ export const localPaymentMethodsApi = {
   // GET /payments/local-methods
   getLocalMethods: async (): Promise<PaymentMethod[]> => {
     const res = await api.get<ApiResponse<PaymentMethod[]>>("/payments/local-methods");
-    return parseResponse(res);
+    const methods = parseResponse(res) as unknown as Array<{
+      id: string;
+      methodType?: string;
+      type?: string;
+      phoneNumber?: string;
+      accountHolderName?: string | null;
+      isDefault?: boolean;
+      isPrimary?: boolean;
+      isActive?: boolean;
+    }>;
+
+    return methods
+      .filter((method) => method.isActive !== false)
+      .map((method) => {
+        const type = (method.methodType ?? method.type ?? "YAPE") as PaymentMethod["type"];
+        const label = type === "PLIN" ? "Plin" : type === "YAPE" ? "Yape" : type;
+        const phone = method.phoneNumber ? `+51 ${method.phoneNumber}` : "Sin numero";
+
+        return {
+          id: method.id,
+          type,
+          label,
+          detail: method.accountHolderName ? `${phone} - ${method.accountHolderName}` : phone,
+          isPrimary: method.isDefault ?? method.isPrimary ?? false,
+        };
+      });
   },
 
   // POST /payments/local-methods
@@ -155,6 +181,37 @@ export const localPaymentMethodsApi = {
   // POST /payments/local-methods/{methodId}/default
   setDefaultMethod: async (methodId: string): Promise<void> => {
     await api.post(`/payments/local-methods/${methodId}/default`);
+  },
+};
+
+// ─── Card API (Culqi Checkout tokenization) ───────────────────────────────────
+
+export const cardApi = {
+  // POST /payments/methods/save-culqi-card
+  saveCulqiCard: async (data: {
+    token: string;
+    email?: string;
+    cardholderName?: string;
+    phoneNumber?: string;
+  }): Promise<SavedCard> => {
+    const res = await api.post<ApiResponse<SavedCard>>("/payments/methods/save-culqi-card", data);
+    return parseResponse(res);
+  },
+
+  // GET /payments/methods
+  getCards: async (): Promise<SavedCard[]> => {
+    const res = await api.get<ApiResponse<SavedCard[]>>("/payments/methods");
+    return parseResponse(res);
+  },
+
+  // DELETE /payments/methods/{paymentMethodId}
+  removeCard: async (paymentMethodId: string): Promise<void> => {
+    await api.delete(`/payments/methods/${paymentMethodId}`);
+  },
+
+  // POST /payments/methods/{paymentMethodId}/default
+  setDefaultCard: async (paymentMethodId: string): Promise<void> => {
+    await api.post(`/payments/methods/${paymentMethodId}/default`);
   },
 };
 

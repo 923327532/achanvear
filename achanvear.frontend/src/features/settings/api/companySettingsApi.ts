@@ -23,7 +23,7 @@ import type {
 // GET  /payments/overview          → PaymentsOverview
 // GET  /payments/wallet            → WalletInfo
 // GET  /payments/transactions      → PaymentTransactionPageResponse
-// GET  /companies/{id}/payment-methods → PaymentMethod[]
+// GET  /payments/local-methods       → PaymentMethod[]
 // POST /auth/reset-password        → void
 
 export const companySettingsApi = {
@@ -82,7 +82,7 @@ export const companySettingsApi = {
     return parseResponse(res);
   },
 
-  // Compra de un paquete de créditos con Mercado Pago (checkout)
+  // Compra de un paquete de creditos con checkout del proveedor configurado
   checkoutCreditPackage: async (packageId: string, clientEmail: string): Promise<string> => {
     const res = await api.post<ApiResponse<string>>(
       `/payments/credit-packages/${packageId}/checkout`,
@@ -93,11 +93,27 @@ export const companySettingsApi = {
 
   // ─── Métodos de pago ───────────────────────────────────────────────────────
 
-  getPaymentMethods: async (companyId: string): Promise<CompanyPaymentMethod[]> => {
-    const res = await api.get<ApiResponse<CompanyPaymentMethod[]>>(
-      `/companies/${companyId}/payment-methods`
-    );
-    return parseResponse(res);
+  getPaymentMethods: async (_companyId: string): Promise<CompanyPaymentMethod[]> => {
+    const res = await api.get<ApiResponse<Array<{
+      id: string;
+      methodType?: string;
+      phoneNumber?: string;
+      accountHolderName?: string | null;
+      isDefault?: boolean;
+      isActive?: boolean;
+    }>>>("/payments/local-methods");
+    const methods = parseResponse(res);
+
+    return methods
+      .filter((method) => method.isActive !== false)
+      .map((method) => ({
+        id: method.id,
+        brand: method.methodType === "PLIN" ? "Plin" : "Yape",
+        detail: method.accountHolderName
+          ? `+51 ${method.phoneNumber} - ${method.accountHolderName}`
+          : `+51 ${method.phoneNumber}`,
+        isDefault: method.isDefault ?? false,
+      }));
   },
 
   // ─── Colaboradores / Team ──────────────────────────────────────────────────

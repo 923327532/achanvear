@@ -139,6 +139,20 @@ export type AddMethodTab = "TARJETA" | "CUENTA_BANCARIA" | "YAPE_PLIN";
 export type YapePlinSubtype = "YAPE" | "PLIN";
 export type AccountType = "AHORRO" | "CORRIENTE";
 
+// ─── Tarjetas guardadas (Culqi) ───────────────────────────────────────────────
+
+export interface SavedCard {
+  id: string;
+  paymentType: string;
+  lastFourDigits: string | null;
+  cardholderName: string | null;
+  expirationDate: string | null;
+  issuerName: string | null;
+  isDefault: boolean;
+  isActive: boolean;
+  createdAt: string | null;
+}
+
 // ─── Mercado Pago ─────────────────────────────────────────────────────────────
 
 export interface MercadoPagoPreference {

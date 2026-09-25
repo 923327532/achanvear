@@ -43,10 +43,10 @@ export function CompanyDashboardHome() {
   };
 
   return (
-    <div className="p-8">
-      <div className="space-y-8">
+    <div className="p-4 sm:p-6 lg:p-8">
+      <div className="space-y-6 lg:space-y-8">
         {/* Header principal */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-2xl font-bold text-[#1e3a8a]">Panel de Control</h1>
             <p className="text-sm text-slate-500 mt-1">
@@ -55,7 +55,7 @@ export function CompanyDashboardHome() {
           </div>
           <a
             href="/company/jobs/create"
-            className="inline-flex items-center gap-2 bg-[#1e3a8a] text-white font-semibold px-5 py-2.5 rounded-xl hover:bg-[#162f58] transition-all shadow-sm"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#1e3a8a] px-5 py-2.5 font-semibold text-white shadow-sm transition-all hover:bg-[#162f58] sm:w-auto"
           >
             <Plus className="w-5 h-5" />
             Publicar nuevo empleo

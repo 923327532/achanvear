@@ -79,9 +79,10 @@ export interface PaymentsOverview {
 export interface CompanyPaymentMethod {
   id: string;
   brand: string;
-  last4: string;
-  expMonth: number;
-  expYear: number;
+  last4?: string;
+  expMonth?: number;
+  expYear?: number;
+  detail?: string;
   isDefault: boolean;
 }
 

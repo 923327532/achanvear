@@ -46,6 +46,46 @@ public class CulqiGateway {
                 .body(CulqiChargeResponse.class);
     }
 
+    /**
+     * Registra un cliente en Culqi para poder asociarle tarjetas (cargo one-click).
+     * POST /customers
+     */
+    public CulqiCustomerResponse createCustomer(
+            String firstName,
+            String lastName,
+            String email,
+            String address,
+            String phoneNumber
+    ) {
+        var request = new CulqiCustomerRequest(
+                firstName,
+                lastName,
+                email,
+                address,
+                phoneNumber
+        );
+
+        return restClient.post()
+                .uri("/customers")
+                .body(request)
+                .retrieve()
+                .body(CulqiCustomerResponse.class);
+    }
+
+    /**
+     * Registra una tarjeta a partir del token generado por Culqi Checkout.
+     * POST /cards
+     */
+    public CulqiCardResponse createCard(String customerId, String tokenId) {
+        var request = new CulqiCardRequest(customerId, tokenId);
+
+        return restClient.post()
+                .uri("/cards")
+                .body(request)
+                .retrieve()
+                .body(CulqiCardResponse.class);
+    }
+
     public CulqiChargeResponse getCharge(String chargeId) {
         return restClient.get()
                 .uri("/charges/{id}", chargeId)

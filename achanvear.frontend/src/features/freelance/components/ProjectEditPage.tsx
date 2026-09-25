@@ -239,7 +239,7 @@ export function ProjectEditPage() {
   }
 
   return (
-    <div className="p-8 max-w-4xl mx-auto">
+    <div className="mx-auto max-w-4xl p-4 sm:p-6 lg:p-8">
       {/* ── Header ─────────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between mb-8">
         <div>
@@ -289,7 +289,7 @@ export function ProjectEditPage() {
       </div>
 
       {/* ── Form Steps ─────────────────────────────────────────────────── */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8">
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6 lg:p-8">
         {/* Step 1: Detalles del Proyecto */}
         {currentStep === 1 && (
           <div className="space-y-6">
@@ -325,7 +325,7 @@ export function ProjectEditPage() {
               </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-1.5">
                   Categoría <span className="text-red-400">*</span>
@@ -357,7 +357,7 @@ export function ProjectEditPage() {
         {/* Step 2: Presupuesto y Plazos */}
         {currentStep === 2 && (
           <div className="space-y-6">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-1.5">
                   Moneda
@@ -396,7 +396,7 @@ export function ProjectEditPage() {
               <label className="block text-sm font-semibold text-slate-700 mb-1.5">
                 Tipo de Presupuesto
               </label>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 {BUDGET_TYPES.map((bt) => (
                   <button
                     key={bt.value}
@@ -416,7 +416,7 @@ export function ProjectEditPage() {
             </div>
 
             {budgetType === "FIXED" && (
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-1.5">
                     Presupuesto Mínimo ({currencySymbol})
@@ -445,7 +445,7 @@ export function ProjectEditPage() {
             )}
 
             {budgetType === "HOURLY" && (
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
                   <label className="block text-sm font-semibold text-slate-700 mb-1.5">
                     Tarifa Mínima por Hora ({currencySymbol})
@@ -508,7 +508,7 @@ export function ProjectEditPage() {
               <label className="block text-sm font-semibold text-slate-700 mb-1.5">
                 Nivel de Experiencia
               </label>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 {EXPERIENCE_LEVELS.map((el) => (
                   <button
                     key={el.value}
@@ -532,7 +532,7 @@ export function ProjectEditPage() {
               <label className="block text-sm font-semibold text-slate-700 mb-1.5">
                 Modalidad de Trabajo
               </label>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 {MODALITIES.map((m) => (
                   <button
                     key={m.value}
@@ -555,7 +555,7 @@ export function ProjectEditPage() {
               <label className="block text-sm font-semibold text-slate-700 mb-1.5">
                 Tipo de Proveedor
               </label>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 {PROVIDER_TYPES.map((pt) => (
                   <button
                     key={pt.value}
@@ -632,7 +632,7 @@ export function ProjectEditPage() {
             </div>
 
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
                   <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Título</p>
                   <p className="text-sm font-medium text-slate-900 mt-1">{title}</p>
@@ -648,7 +648,7 @@ export function ProjectEditPage() {
                 <p className="text-sm text-slate-700 mt-1 line-clamp-3">{description}</p>
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                 <div>
                   <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Presupuesto</p>
                   <p className="text-sm font-semibold text-emerald-600 mt-1">

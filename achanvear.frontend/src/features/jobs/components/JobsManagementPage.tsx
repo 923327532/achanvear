@@ -434,7 +434,7 @@ export function JobsManagementPage() {
   }
 
   return (
-    <div className="p-8 space-y-6">
+    <div className="space-y-6 p-4 sm:p-6 lg:p-8">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

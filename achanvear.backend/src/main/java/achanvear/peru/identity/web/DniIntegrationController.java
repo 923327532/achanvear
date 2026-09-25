@@ -19,8 +19,19 @@ public class DniIntegrationController {
 
     @GetMapping("/{dni}")
     public ResponseEntity<DniValidationResponse> validateDni(@PathVariable String dni) {
+        if (dni == null || !dni.matches("\\d{8}")) {
+            throw new IllegalArgumentException("El DNI debe tener 8 digitos");
+        }
+
         PeruvianDocumentValidationPort.DniValidationResult validation =
                 peruvianDocumentValidationPort.validateDni(dni);
+
+        if (!validation.success() || !validation.valid()
+                || validation.names() == null || validation.names().isBlank()
+                || validation.paternalSurname() == null || validation.paternalSurname().isBlank()
+                || validation.maternalSurname() == null || validation.maternalSurname().isBlank()) {
+            throw new IllegalArgumentException("No encontramos una persona registrada con ese DNI");
+        }
 
         DniValidationResponse response = new DniValidationResponse(
                 validation.documentNumber(),

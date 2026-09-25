@@ -108,7 +108,12 @@ n8n:
 ai:
   api:
     url: ${AI_API_URL:http://localhost:8001}
-  provider: ${AI_PROVIDER:groq}
+  provider: ${AI_PROVIDER:deepseek}
+
+deepseek:
+  api-key: ${DEEPSEEK_API_KEY:}
+  model: ${DEEPSEEK_MODEL:deepseek-chat}
+  base-url: ${DEEPSEEK_BASE_URL:https://api.deepseek.com}
 
 groq:
   api-key: ${GROQ_API_KEY:}

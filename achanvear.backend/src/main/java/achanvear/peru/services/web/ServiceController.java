@@ -23,10 +23,14 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @RestController
 @RequestMapping("/services")
 public class ServiceController {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(ServiceController.class);
 
     private final ServiceJpaRepository serviceRepository;
     private final ServicePlanJpaRepository planRepository;
@@ -292,13 +296,113 @@ public class ServiceController {
             - Todos los textos en español.
             """;
 
-        AiSuggestResponse suggestion = jobAiSuggestionService.suggest(
-                request.prompt(),
-                systemPrompt,
-                AiSuggestResponse.class
-        );
+        AiSuggestResponse suggestion;
+        try {
+            suggestion = jobAiSuggestionService.suggest(
+                    request.prompt(),
+                    systemPrompt,
+                    AiSuggestResponse.class
+            );
+        } catch (RuntimeException exception) {
+            LOGGER.warn("AI service suggestion failed. Returning local fallback. Cause: {}", exception.getMessage());
+            suggestion = buildFallbackServiceSuggestion(request.prompt());
+        }
 
         return ResponseEntity.ok(ApiResponse.success(suggestion, "AI suggestion generated successfully"));
+    }
+
+    private AiSuggestResponse buildFallbackServiceSuggestion(String prompt) {
+        String cleanPrompt = prompt == null ? "" : prompt.trim().replaceAll("\\s+", " ");
+        String titleBase = cleanPrompt.isBlank() ? "Servicio profesional personalizado" : cleanPrompt;
+        String title = titleBase.length() > 80 ? titleBase.substring(0, 77).trim() + "..." : titleBase;
+        String lowerPrompt = titleBase.toLowerCase(Locale.ROOT);
+
+        String category = inferServiceCategory(lowerPrompt);
+        String subcategory = switch (category) {
+            case "TECHNOLOGY" -> "Desarrollo y soporte digital";
+            case "MARKETING" -> "Marketing digital";
+            case "DESIGN" -> "Diseno grafico y branding";
+            case "LEGAL" -> "Asesoria legal";
+            case "ACCOUNTING" -> "Contabilidad y finanzas";
+            case "EDUCATION" -> "Capacitacion personalizada";
+            case "CONSTRUCTION" -> "Servicios tecnicos";
+            case "LOGISTICS" -> "Operacion y logistica";
+            case "HEALTH" -> "Bienestar y salud";
+            default -> "Consultoria especializada";
+        };
+
+        List<String> tags = new ArrayList<>(List.of(subcategory, "Servicio profesional", "Freelance"));
+        String description = """
+                Ofrezco un servicio profesional orientado a resolver la necesidad indicada por el cliente: %s.
+
+                La propuesta incluye levantamiento de requerimientos, ejecucion ordenada, comunicacion constante y entrega final con recomendaciones claras para que puedas continuar el trabajo sin fricciones.
+                """.formatted(titleBase.isBlank() ? "un requerimiento especializado" : titleBase);
+
+        AiPlanSuggestion basicPlan = new AiPlanSuggestion(
+                "Basico",
+                "Revision inicial, ejecucion del alcance principal y entrega final.",
+                BigDecimal.valueOf(150),
+                5,
+                List.of("Analisis de requerimientos", "Entrega principal", "Una ronda de ajustes")
+        );
+
+        return new AiSuggestResponse(
+                title,
+                "Servicio profesional con alcance claro, entrega ordenada y comunicacion constante.",
+                description,
+                category,
+                subcategory,
+                tags,
+                "REMOTE",
+                "NATIONAL",
+                "Atencion remota para clientes en Peru.",
+                "Lunes a viernes de 9:00 a.m. a 6:00 p.m.",
+                5,
+                true,
+                BigDecimal.valueOf(150),
+                "PER_PROJECT",
+                "PEN",
+                List.of(basicPlan),
+                "",
+                "",
+                "",
+                "En menos de 24 horas",
+                "[{\"question\":\"Que necesito para empezar?\",\"answer\":\"Una descripcion breve del objetivo, referencias y cualquier material disponible.\"}]",
+                "Incluye una ronda de ajustes sobre el alcance acordado.",
+                "La cancelacion se coordina segun el avance realizado.",
+                "Soporte por mensaje durante la ejecucion del servicio."
+        );
+    }
+
+    private String inferServiceCategory(String prompt) {
+        if (prompt.contains("web") || prompt.contains("app") || prompt.contains("software") || prompt.contains("sistema") || prompt.contains("program")) {
+            return "TECHNOLOGY";
+        }
+        if (prompt.contains("marketing") || prompt.contains("redes") || prompt.contains("publicidad") || prompt.contains("ventas")) {
+            return "MARKETING";
+        }
+        if (prompt.contains("logo") || prompt.contains("diseno") || prompt.contains("diseño") || prompt.contains("marca") || prompt.contains("ux")) {
+            return "DESIGN";
+        }
+        if (prompt.contains("legal") || prompt.contains("contrato") || prompt.contains("abogado")) {
+            return "LEGAL";
+        }
+        if (prompt.contains("contable") || prompt.contains("contabilidad") || prompt.contains("tribut")) {
+            return "ACCOUNTING";
+        }
+        if (prompt.contains("clase") || prompt.contains("curso") || prompt.contains("capacit")) {
+            return "EDUCATION";
+        }
+        if (prompt.contains("obra") || prompt.contains("constru")) {
+            return "CONSTRUCTION";
+        }
+        if (prompt.contains("logistica") || prompt.contains("logística") || prompt.contains("transporte")) {
+            return "LOGISTICS";
+        }
+        if (prompt.contains("salud") || prompt.contains("nutric") || prompt.contains("psic")) {
+            return "HEALTH";
+        }
+        return "CONSULTING";
     }
     
     // ─── DELETE /services/{id} ─────────────────────────────────────────────────

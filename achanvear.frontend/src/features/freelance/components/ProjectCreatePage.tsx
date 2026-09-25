@@ -390,7 +390,7 @@ export function ProjectCreatePage() {
   // ─── Render helpers ────────────────────────────────────────────────────────
 
   const renderStepIndicator = () => (
-    <div className="flex items-center gap-2 mb-8">
+    <div className="mb-8 flex items-center gap-2 overflow-x-auto pb-2">
       {STEPS.map((s, idx) => (
         <div key={s.id} className="flex items-center gap-2">
           <button
@@ -660,7 +660,7 @@ export function ProjectCreatePage() {
             <Wallet className="w-4 h-4 inline -ml-0.5 text-blue-600" />
             {' '}Moneda
           </label>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {CURRENCIES.map((cur) => {
               const isSelected = form.currency === cur.value;
               return (
@@ -688,7 +688,7 @@ export function ProjectCreatePage() {
             <Languages className="w-4 h-4 inline -ml-0.5 text-blue-600" />
             {' '}Idioma
           </label>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {LANGUAGES.map((lang) => {
               const isSelected = form.language === lang.value;
               return (
@@ -738,7 +738,7 @@ export function ProjectCreatePage() {
               </div>
               {renderError("budget")}
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1.5">Presupuesto Mín. ({currencySymbol})</label>
                 <div className="relative">
@@ -774,7 +774,7 @@ export function ProjectCreatePage() {
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
           <h3 className="text-sm font-bold text-slate-900 mb-4">Tarifa por Hora</h3>
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1.5">
                   Tarifa Mín. ({currencySymbol}/hora) <span className="text-red-500">*</span>
@@ -929,7 +929,7 @@ export function ProjectCreatePage() {
         </label>
         <div
           onClick={() => fileInputRef.current?.click()}
-          className="border-2 border-dashed border-slate-300 rounded-xl p-8 text-center cursor-pointer hover:border-[#1e3a8a] hover:bg-blue-50/30 transition"
+          className="cursor-pointer rounded-xl border-2 border-dashed border-slate-300 p-4 text-center transition hover:border-[#1e3a8a] hover:bg-blue-50/30 sm:p-8"
         >
           <Upload className="w-8 h-8 mx-auto text-slate-400 mb-2" />
           <p className="text-sm font-medium text-slate-600">
@@ -1005,7 +1005,7 @@ export function ProjectCreatePage() {
             </div>
 
             {/* Categoría */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Categoría</p>
                 <span className="inline-block px-3 py-1 bg-blue-50 text-blue-700 rounded-lg text-xs font-medium">
@@ -1045,7 +1045,7 @@ export function ProjectCreatePage() {
             <hr className="border-slate-100" />
 
             {/* Presupuesto y Duración */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Presupuesto</p>
                 <p className="text-xl font-bold text-emerald-600">
@@ -1070,7 +1070,7 @@ export function ProjectCreatePage() {
             </div>
 
             {/* Moneda e Idioma */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Moneda</p>
                 <span className="inline-block px-2.5 py-1 bg-blue-50 text-blue-700 rounded-lg text-xs font-medium">
@@ -1088,7 +1088,7 @@ export function ProjectCreatePage() {
             <hr className="border-slate-100" />
 
             {/* Modalidad, Proveedor, Experiencia */}
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <div>
                 <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Modalidad</p>
                 <span className="inline-block px-2.5 py-1 bg-cyan-50 text-cyan-700 rounded-lg text-xs font-medium">
@@ -1168,7 +1168,7 @@ export function ProjectCreatePage() {
   // MAIN RENDER
   // ═══════════════════════════════════════════════════════════════════════════
   return (
-    <div className="p-8 space-y-8">
+    <div className="space-y-6 p-4 sm:p-6 lg:space-y-8 lg:p-8">
       {/* Back button */}
       <button
         onClick={() => router.push("/company")}
@@ -1199,7 +1199,7 @@ export function ProjectCreatePage() {
       </div>
 
       {/* Navigation buttons */}
-      <div className="flex items-center justify-between pt-6 border-t border-slate-200">
+      <div className="flex items-center justify-between gap-3 border-t border-slate-200 pt-6">
         <button
           type="button"
           onClick={handleBack}

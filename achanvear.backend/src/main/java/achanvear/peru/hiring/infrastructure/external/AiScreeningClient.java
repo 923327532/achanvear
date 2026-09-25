@@ -6,36 +6,15 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 /**
  * Cliente HTTP que conecta con el Agente Python (FastAPI)
  * para evaluar candidatos en el screening inicial.
- * 
+ *
  * Endpoint Python: POST /screening/evaluate
- * 
- * Respuesta esperada del agente:
- * {
- *   "selected_candidates": [{
- *     "user_id": "...",
- *     "name": "...",
- *     "score": 95,
- *     "session_id": "uuid",
- *     "notified_whatsapp": false,
- *     "notified_email": false
- *   }],
- *   "rejected_candidates": [{
- *     "user_id": "...",
- *     "name": "...",
- *     "score": 15,
- *     "match_percentage": 15,
- *     "reason": "...",
- *     "recommended": false
- *   }],
- *   "total_evaluated": 2,
- *   "total_selected": 1
- * }
  */
 @Component
 public class AiScreeningClient {
@@ -51,29 +30,32 @@ public class AiScreeningClient {
 
     public ScreeningResult evaluate(StartScreeningCommand command) {
         try {
-            // Construir payload para el agente Python
-            Map<String, Object> job = Map.of(
-                    "title", command.jobTitle(),
-                    "description", command.jobDescription(),
-                    "required_skills", command.requiredSkills(),
-                    "experience_min", command.experienceMin(),
-                    "career", command.career()
-            );
+            Map<String, Object> job = new LinkedHashMap<>();
+            job.put("title", text(command.jobTitle()));
+            job.put("description", text(command.jobDescription()));
+            job.put("required_skills", list(command.requiredSkills()));
+            job.put("experience_min", number(command.experienceMin()));
+            job.put("career", text(command.career()));
 
-            Map<String, Object> candidate = Map.of(
-                    "user_id", command.candidateId(),
-                    "name", command.candidateName(),
-                    "skills", command.candidateSkills(),
-                    "experience_years", command.candidateExperienceYears(),
-                    "career", command.candidateCareer()
-            );
+            Map<String, Object> candidate = new LinkedHashMap<>();
+            candidate.put("user_id", text(command.candidateId()));
+            candidate.put("name", text(command.candidateName()));
+            candidate.put("skills", list(command.candidateSkills()));
+            candidate.put("experience_years", number(command.candidateExperienceYears()));
+            candidate.put("career", text(command.candidateCareer()));
+            candidate.put("biography", text(command.candidateBiography()));
+            candidate.put("cv_url", text(command.candidateCvUrl()));
+            candidate.put("cv_data", text(command.candidateCvData()));
+            candidate.put("cover_letter", text(command.coverLetter()));
 
-            // Llamar al agente Python
             var response = restClient.post()
                     .uri("/screening/evaluate")
                     .body(Map.of(
                             "job", job,
-                            "candidates", List.of(candidate)
+                            "candidates", List.of(candidate),
+                            "required_score_threshold", command.requiredScoreThreshold() != null
+                                    ? command.requiredScoreThreshold()
+                                    : 70.0
                     ))
                     .retrieve()
                     .body(ScreeningApiResponse.class);
@@ -84,17 +66,15 @@ public class AiScreeningClient {
                 Map<String, Object> selected = (Map<String, Object>) response.selected_candidates().get(0);
                 double score = ((Number) selected.getOrDefault("score", 0)).doubleValue();
                 String sessionId = (String) selected.getOrDefault("session_id", "");
-                boolean isSelected = score >= 70;
 
                 return new ScreeningResult(
                         command.candidateId(),
-                        isSelected,
+                        true,
                         score,
-                        "Seleccionado con score: " + score + " | Sesión: " + sessionId
+                        "Seleccionado con score: " + score + " | Sesion: " + sessionId
                 );
             }
 
-            // Si hay rejected_candidates, tomamos la información
             if (response != null && response.rejected_candidates() != null
                     && !response.rejected_candidates().isEmpty()) {
                 @SuppressWarnings("unchecked")
@@ -110,7 +90,6 @@ public class AiScreeningClient {
                 );
             }
 
-            // Fallback si no hay respuesta del agente
             return new ScreeningResult(
                     command.candidateId(),
                     false,
@@ -119,14 +98,25 @@ public class AiScreeningClient {
             );
 
         } catch (Exception e) {
-            // Fallback seguro si el agente Python no está disponible
             return new ScreeningResult(
                     command.candidateId(),
-                    true,
-                    75.0,
-                    "Evaluación temporal (agente IA no disponible): " + e.getMessage()
+                    false,
+                    0.0,
+                    "Evaluacion IA no disponible. La postulacion queda sin entrevista automatica: " + e.getMessage()
             );
         }
+    }
+
+    private String text(String value) {
+        return value == null ? "" : value;
+    }
+
+    private int number(Integer value) {
+        return value == null ? 0 : value;
+    }
+
+    private List<String> list(List<String> value) {
+        return value == null ? List.of() : value;
     }
 
     @SuppressWarnings("rawtypes")

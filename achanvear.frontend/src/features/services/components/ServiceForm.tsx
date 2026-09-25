@@ -143,6 +143,7 @@ export function ServiceForm({ service, onSubmit, isSubmitting, freelancerProfile
   const [showAiChat, setShowAiChat] = useState(false);
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
 
   // Cargar datos del perfil del freelancer al inicio
   useEffect(() => {
@@ -280,6 +281,7 @@ export function ServiceForm({ service, onSubmit, isSubmitting, freelancerProfile
     const trimmed = aiPrompt.trim();
     if (!trimmed || aiLoading) return;
     setAiLoading(true);
+    setAiError(null);
     try {
       const { serviceApi } = await import("../api/serviceApi");
       const suggestion = await serviceApi.aiSuggest(trimmed);
@@ -321,7 +323,7 @@ export function ServiceForm({ service, onSubmit, isSubmitting, freelancerProfile
       setAiPrompt("");
       setShowAiChat(false);
     } catch {
-      // Silencio
+      setAiError("No pudimos completar la sugerencia. Intenta nuevamente en unos segundos.");
     } finally {
       setAiLoading(false);
     }
@@ -1142,7 +1144,7 @@ export function ServiceForm({ service, onSubmit, isSubmitting, freelancerProfile
 
       {/* Chat IA que se abre al hacer clic en el ícono 🤖 */}
       {showAiChat && (
-        <div className="fixed bottom-24 right-6 w-[340px] bg-white rounded-2xl border border-slate-200 shadow-2xl overflow-hidden z-[70]">
+        <div className="fixed bottom-24 left-3 right-3 bg-white rounded-2xl border border-slate-200 shadow-2xl overflow-hidden z-[70] sm:left-auto sm:right-6 sm:w-[340px]">
           <div className="flex items-center justify-between px-4 py-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white">
             <div className="flex items-center gap-2">
               <Bot className="w-5 h-5" />
@@ -1156,6 +1158,11 @@ export function ServiceForm({ service, onSubmit, isSubmitting, freelancerProfile
             <p className="text-xs text-slate-500 leading-relaxed mb-4">
               Describe tu servicio profesional y la IA autocompletará todos los campos del formulario.
             </p>
+            {aiError && (
+              <p className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">
+                {aiError}
+              </p>
+            )}
             <div className="flex items-center gap-2">
               <input
                 type="text"

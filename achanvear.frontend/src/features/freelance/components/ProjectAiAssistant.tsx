@@ -100,7 +100,7 @@ export function ProjectAiAssistant({ onApplySuggestion }: ProjectAiAssistantProp
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-50">
+    <div className="fixed bottom-4 right-4 z-50 sm:bottom-6 sm:right-6">
       {/* Boton flotante tipo WhatsApp */}
       {!isOpen && (
         <button
@@ -113,7 +113,7 @@ export function ProjectAiAssistant({ onApplySuggestion }: ProjectAiAssistantProp
 
       {/* Modal del asistente */}
       {isOpen && (
-        <div className="w-[380px] bg-white rounded-2xl border border-slate-200 shadow-2xl overflow-hidden">
+        <div className="w-[calc(100vw-2rem)] max-w-[380px] rounded-2xl border border-slate-200 bg-white shadow-2xl overflow-hidden">
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white">
             <div className="flex items-center gap-2">

@@ -77,7 +77,7 @@ export function CompanyBillingSection() {
     }
     setSubscribeError(null);
     try {
-      // Compra del paquete con Mercado Pago: crea la preferencia y redirige al checkout.
+      // Compra del paquete con el checkout del proveedor configurado.
       const initPoint = await checkoutCreditPackage({
         packageId: selectedPackage,
         clientEmail: companyEmail.trim(),
@@ -290,8 +290,8 @@ export function CompanyBillingSection() {
         )}
       </section>
 
-      {/* Payment Method Selection — solo para planes de suscripción */}
-      {selectedPlan && (
+      {/* Payment Method Selection */}
+      {(selectedPlan || selectedPackage) && (
         <section>
           <h2 className="text-2xl font-bold text-[#0F172A] mb-6">Método de Pago</h2>
           {isLoadingPaymentMethods ? (
@@ -318,10 +318,12 @@ export function CompanyBillingSection() {
                       </div>
                       <div>
                         <span className="font-semibold text-[#0F172A] block">
-                          {method.brand} •••• {method.last4}
+                          {method.last4 ? `${method.brand} •••• ${method.last4}` : method.brand}
                         </span>
                         <span className="text-xs text-[#64748B]">
-                          Expira {method.expMonth}/{method.expYear}
+                          {method.expMonth && method.expYear
+                            ? `Expira ${method.expMonth}/${method.expYear}`
+                            : method.detail}
                         </span>
                       </div>
                     </div>
@@ -352,7 +354,7 @@ export function CompanyBillingSection() {
       )}
 
       {/* Summary and Purchase */}
-      {((selectedPlan && selectedPaymentMethod) || selectedPackage) && (
+      {((selectedPlan || selectedPackage) && selectedPaymentMethod) && (
         <div className="bg-gradient-to-br from-[#1B3A6B] to-[#0EA5A0] text-white p-8 rounded-2xl shadow-sm">
           <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
             <div>
@@ -373,7 +375,7 @@ export function CompanyBillingSection() {
             </div>
           </div>
 
-          {/* Correo de facturación para la compra de paquetes con Mercado Pago */}
+          {/* Correo de facturación para la compra de paquetes */}
           {selectedPackage && !selectedPlan && (
             <div className="mb-6">
               <label className="block text-sm font-semibold text-white mb-1.5">
@@ -417,7 +419,7 @@ export function CompanyBillingSection() {
                 ? "Suscribirse"
                 : isCheckingOut
                   ? "Procesando..."
-                  : "Pagar con Mercado Pago"}
+                  : "Pagar con Culqi"}
             </button>
           </div>
         </div>
@@ -521,7 +523,7 @@ export function CompanyBillingSection() {
                 {isSubscribing ? "Procesando..." : "Ir a Pagar"}
               </button>
               <p className="text-xs text-gray-400 text-center">
-                Serás redirigido a Mercado Pago para completar el pago
+                Seras redirigido al checkout de pago para completar la operacion
               </p>
             </div>
           </div>

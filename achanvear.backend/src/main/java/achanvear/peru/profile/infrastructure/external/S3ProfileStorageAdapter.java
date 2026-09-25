@@ -2,7 +2,9 @@ package achanvear.peru.profile.infrastructure.external;
 
 import achanvear.peru.profile.application.port.out.ProfileStoragePort;
 import org.springframework.stereotype.Component;
+import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.core.ResponseBytes;
+import software.amazon.awssdk.awscore.exception.AwsServiceException;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
@@ -50,6 +52,8 @@ public class S3ProfileStorageAdapter implements ProfileStoragePort {
             String fileName,
             String contentType
     ) {
+        validateStorageConfiguration();
+
         String resolvedFolder = resolveAllowedFolder(folder);
         String safeFileName = sanitizeFileName(fileName);
         String fileKey = resolvedFolder + "/" + UUID.randomUUID() + "-" + safeFileName;
@@ -65,13 +69,30 @@ public class S3ProfileStorageAdapter implements ProfileStoragePort {
                 .putObjectRequest(putObjectRequest)
                 .build();
 
-        PresignedPutObjectRequest presignedRequest = s3Presigner.presignPutObject(presignRequest);
+        PresignedPutObjectRequest presignedRequest;
+        try {
+            presignedRequest = s3Presigner.presignPutObject(presignRequest);
+        } catch (SdkClientException | AwsServiceException exception) {
+            throw new IllegalStateException("No se pudo generar la URL de subida. Revisa credenciales AWS, region y bucket S3.", exception);
+        }
 
         return new PresignedUploadResponse(
                 fileKey,
                 presignedRequest.url().toString(),
                 buildS3ObjectUrl(fileKey)
         );
+    }
+
+    private void validateStorageConfiguration() {
+        if (isBlank(properties.bucket())) {
+            throw new IllegalStateException("AWS_S3_BUCKET_NAME no esta configurado");
+        }
+        if (isBlank(properties.region())) {
+            throw new IllegalStateException("AWS_REGION no esta configurado");
+        }
+        if (properties.uploadExpirationMinutes() <= 0) {
+            throw new IllegalStateException("La expiracion de subida S3 no esta configurada correctamente");
+        }
     }
 
     private String resolveAllowedFolder(String folder) {
@@ -86,6 +107,10 @@ public class S3ProfileStorageAdapter implements ProfileStoragePort {
 
     private String sanitizeFileName(String fileName) {
         return fileName.trim().replaceAll("[^a-zA-Z0-9._-]", "_");
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.isBlank();
     }
 
     private String buildS3ObjectUrl(String fileKey) {

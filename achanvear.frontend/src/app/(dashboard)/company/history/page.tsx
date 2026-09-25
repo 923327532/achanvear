@@ -9,7 +9,7 @@ export default function Page() {
   const { data: dashboard } = useCompanyDashboard();
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       <div className="max-w-5xl mx-auto">
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-[#1B3A6B]">Historial de la Empresa</h1>

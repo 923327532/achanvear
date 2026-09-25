@@ -106,7 +106,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
       </aside>
 
       {/* Contenido */}
-      <div className="flex-1 min-w-0">
+      <div className="flex min-h-screen min-w-0 flex-1 flex-col">
         <div className="border-b border-slate-200 bg-white px-6 py-4 md:hidden">
           <div className="flex gap-2 overflow-x-auto">
             {NAV_ITEMS.map((item) => (
@@ -122,7 +122,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
             ))}
           </div>
         </div>
-        <main className="p-6 lg:p-8">{children}</main>
+        <main className="flex-1 p-6 lg:p-8">{children}</main>
       </div>
     </div>
   );

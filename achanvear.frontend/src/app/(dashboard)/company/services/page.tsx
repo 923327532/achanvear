@@ -3,7 +3,7 @@ import { ExploreServicesTab } from "@/features/services/components/ExploreServic
 
 export default function Page() {
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-[#1B3A6B]">Servicios de Freelancers</h1>
         <p className="text-sm text-gray-500 mt-1">

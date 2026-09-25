@@ -14,7 +14,7 @@ function ChatContent() {
 
 export default function Page() {
   return (
-    <Suspense fallback={<div className="p-8 text-sm text-slate-500">Cargando...</div>}>
+    <Suspense fallback={<div className="p-4 text-sm text-slate-500 sm:p-6 lg:p-8">Cargando...</div>}>
       <ChatContent />
     </Suspense>
   );

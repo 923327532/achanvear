@@ -9,6 +9,10 @@ class CandidateProfile(BaseModel):
     skills: List[str]
     experience_years: float
     career: str  # "python", "java", "abogado", etc.
+    biography: Optional[str] = ""
+    cv_url: Optional[str] = ""
+    cv_data: Optional[str] = ""
+    cover_letter: Optional[str] = ""
     phone: Optional[str] = None
     email: Optional[str] = None
 

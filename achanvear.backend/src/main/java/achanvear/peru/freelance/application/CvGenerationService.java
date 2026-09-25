@@ -17,6 +17,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.springframework.beans.factory.annotation.Value;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestClient;
@@ -28,6 +30,8 @@ import java.util.*;
 @Transactional(readOnly = true)
 public class CvGenerationService {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(CvGenerationService.class);
+
     private final FreelancerProfileRepository freelancerProfileRepository;
     private final TalentProfileRepository talentProfileRepository;
     private final UserRepository userRepository;
@@ -36,8 +40,17 @@ public class CvGenerationService {
     private final ObjectMapper objectMapper;
 
 
-    @Value("${ai.provider:groq}")
+    @Value("${ai.provider:deepseek}")
     private String aiProvider;
+
+    @Value("${deepseek.api-key:}")
+    private String deepseekApiKey;
+
+    @Value("${deepseek.model:deepseek-chat}")
+    private String deepseekModel;
+
+    @Value("${deepseek.base-url:https://api.deepseek.com}")
+    private String deepseekBaseUrl;
 
     @Value("${groq.api-key:}")
     private String groqApiKey;
@@ -91,11 +104,13 @@ public class CvGenerationService {
         // Construir el prompt con los datos del perfil + datos del usuario (email, phone)
         String prompt = buildGeneratePrompt(profileData, user);
 
-        // Llamar a Groq API
-        String groqResponse = callGroqApi(prompt);
-
-        // Parsear la respuesta de Groq a CvResponse
-        return parseGroqResponse(groqResponse, profileData);
+        try {
+            String groqResponse = callGroqApi(prompt);
+            return parseGroqResponse(groqResponse, profileData);
+        } catch (RuntimeException exception) {
+            LOGGER.warn("CV AI generation failed. Returning local fallback. Cause: {}", exception.getMessage());
+            return buildFallbackCv(profileData, user);
+        }
     }
 
     /**
@@ -107,9 +122,13 @@ public class CvGenerationService {
 
         String prompt = buildEditSectionPrompt(currentCv, request.sectionName(), request.instruction());
 
-        String groqResponse = callGroqApi(prompt);
-
-        return parseGroqResponse(groqResponse, null);
+        try {
+            String groqResponse = callGroqApi(prompt);
+            return parseGroqResponse(groqResponse, null);
+        } catch (RuntimeException exception) {
+            LOGGER.warn("CV AI section edit failed. Returning current CV. Cause: {}", exception.getMessage());
+            return currentCv;
+        }
     }
 
     /**
@@ -354,26 +373,37 @@ public class CvGenerationService {
      * Llama a la API de IA seleccionada (Groq o Gemini) según la configuración.
      */
     private String callGroqApi(String prompt) {
-        boolean useGemini = "gemini".equalsIgnoreCase(aiProvider);
-        System.out.println(">>> PROVEEDOR IA: " + (useGemini ? "GEMINI" : "GROQ") + 
-                           " | MODELO: " + (useGemini ? geminiModel : groqModel));
+        String provider = aiProvider == null ? "groq" : aiProvider.trim().toLowerCase();
+        System.out.println(">>> PROVEEDOR IA: " + provider.toUpperCase());
         try {
-            if (useGemini) {
-                return callGeminiApi(prompt);
-            }
-            return callGroqNativeApi(prompt);
+            return switch (provider) {
+                case "gemini" -> callGeminiApi(prompt);
+                case "deepseek" -> callOpenAiCompatibleApi(prompt, deepseekApiKey, deepseekModel, deepseekBaseUrl, "DEEPSEEK_API_KEY");
+                case "groq" -> callOpenAiCompatibleApi(prompt, groqApiKey, groqModel, groqBaseUrl, "GROQ_API_KEY");
+                default -> throw new IllegalArgumentException("Proveedor IA no soportado: " + aiProvider);
+            };
         } catch (Exception e) {
-            throw new RuntimeException("Error al llamar a " + (useGemini ? "Gemini" : "Groq") + " API: " + e.getMessage(), e);
+            throw new RuntimeException("Error al llamar a " + provider + " API: " + e.getMessage(), e);
         }
     }
 
     /**
      * Llama a la API de Groq (formato OpenAI Chat Completions).
      */
-    private String callGroqNativeApi(String prompt) {
+    private String callOpenAiCompatibleApi(String prompt, String apiKey, String model, String baseUrl, String apiKeyName) {
+        if (apiKey == null || apiKey.isBlank()) {
+            throw new IllegalStateException(apiKeyName + " no esta configurada");
+        }
+        if (baseUrl == null || baseUrl.isBlank()) {
+            throw new IllegalStateException("Base URL de IA no esta configurada");
+        }
+        if (model == null || model.isBlank()) {
+            throw new IllegalStateException("Modelo de IA no esta configurado");
+        }
+
         // Construir el request body para Groq API (formato OpenAI)
         ObjectNode requestBody = objectMapper.createObjectNode();
-        requestBody.put("model", groqModel);
+        requestBody.put("model", model);
         
         ArrayNode messages = requestBody.putArray("messages");
         ObjectNode userMessage = messages.addObject();
@@ -388,12 +418,12 @@ public class CvGenerationService {
         requestBody.put("max_tokens", 4096);
         requestBody.put("top_p", 0.95);
 
-        String url = groqBaseUrl + "/chat/completions";
+        String url = baseUrl.replaceAll("/+$", "") + "/chat/completions";
 
         String response = restClient.post()
                 .uri(url)
                 .header("Content-Type", "application/json")
-                .header("Authorization", "Bearer " + groqApiKey)
+                .header("Authorization", "Bearer " + apiKey)
                 .body(requestBody.toString())
                 .retrieve()
                 .body(String.class);
@@ -405,6 +435,10 @@ public class CvGenerationService {
      * Llama a la API de Gemini (Google Generative AI).
      */
     private String callGeminiApi(String prompt) {
+        if (geminiApiKey == null || geminiApiKey.isBlank()) {
+            throw new IllegalStateException("GEMINI_API_KEY no esta configurada");
+        }
+
         String url = "https://generativelanguage.googleapis.com/v1beta/models/" + geminiModel + ":generateContent";
 
         // Construir el request body para Gemini API
@@ -481,6 +515,136 @@ public class CvGenerationService {
             throw new RuntimeException("Error al parsear respuesta de Gemini: " + e.getMessage() + 
                 ". Respuesta raw: " + (response != null ? response.substring(0, Math.min(response.length(), 500)) : "null"), e);
         }
+    }
+
+    private CvResponse buildFallbackCv(FreelancerProfileResponse profileData, User user) {
+        String fullName = profileData.name() != null && !profileData.name().isBlank()
+                ? profileData.name()
+                : "Profesional Achanvear";
+        String role = firstNonBlank(profileData.specialty(), profileData.headline(), profileData.industry(), "Profesional freelance");
+        String location = firstNonBlank(profileData.location(), profileData.address(), null);
+        String email = user != null && user.getEmail() != null ? user.getEmail().value() : null;
+        String phone = user != null ? user.getPhone() : null;
+
+        CvResponse.HeaderSection header = new CvResponse.HeaderSection(
+                fullName,
+                role,
+                location,
+                email,
+                phone,
+                null,
+                null,
+                null
+        );
+
+        String summary = buildFallbackSummary(profileData, role);
+        CvResponse.SkillsSection skills = buildFallbackSkills(profileData);
+        List<CvResponse.ProjectSection> projects = buildFallbackProjects(profileData);
+        List<CvResponse.CertificationSection> certifications = buildFallbackCertifications(profileData);
+
+        List<String> missingData = new ArrayList<>();
+        if (profileData.biography() == null || profileData.biography().isBlank()) missingData.add("biografia profesional");
+        if (profileData.skills() == null || profileData.skills().isEmpty()) missingData.add("habilidades");
+        missingData.add("experiencia laboral");
+        missingData.add("educacion");
+
+        boolean complete = fullName != null
+                && !fullName.isBlank()
+                && role != null
+                && !role.isBlank()
+                && profileData.biography() != null
+                && !profileData.biography().isBlank();
+
+        List<CvResponse.ExperienceSection> experiences = List.of();
+        List<CvResponse.EducationSection> education = List.of();
+        List<CvResponse.LanguageSection> languages = List.of();
+        String markdown = generateMarkdown(header, summary, experiences, education, skills, projects, certifications, languages);
+
+        return new CvResponse(
+                markdown,
+                header,
+                summary,
+                experiences,
+                education,
+                skills,
+                projects,
+                certifications,
+                languages,
+                missingData,
+                complete
+        );
+    }
+
+    private String buildFallbackSummary(FreelancerProfileResponse profileData, String role) {
+        String biography = profileData.biography();
+        if (biography != null && !biography.isBlank()) {
+            return biography;
+        }
+
+        String industry = firstNonBlank(profileData.industry(), "su sector profesional");
+        return "Profesional especializado en " + role + ", con enfoque en brindar soluciones claras y orientadas a resultados en " + industry + ".";
+    }
+
+    private CvResponse.SkillsSection buildFallbackSkills(FreelancerProfileResponse profileData) {
+        List<String> tools = new ArrayList<>();
+        if (profileData.skills() != null) {
+            profileData.skills().forEach(skill -> {
+                if (skill.name() != null && !skill.name().isBlank()) {
+                    tools.add(skill.name());
+                }
+            });
+        }
+
+        if (tools.isEmpty()) {
+            String specialty = firstNonBlank(profileData.specialty(), profileData.industry(), "Gestion profesional");
+            tools.add(specialty);
+            tools.add("Comunicacion efectiva");
+            tools.add("Organizacion");
+        }
+
+        return new CvResponse.SkillsSection(
+                List.of(),
+                List.of(),
+                tools,
+                List.of("Comunicacion", "Responsabilidad", "Trabajo orientado a resultados")
+        );
+    }
+
+    private List<CvResponse.ProjectSection> buildFallbackProjects(FreelancerProfileResponse profileData) {
+        if (profileData.portfolioItems() == null || profileData.portfolioItems().isEmpty()) {
+            return List.of();
+        }
+
+        return profileData.portfolioItems().stream()
+                .map(item -> new CvResponse.ProjectSection(
+                        firstNonBlank(item.title(), "Proyecto de portafolio"),
+                        firstNonBlank(item.description(), "Proyecto destacado del portafolio profesional."),
+                        List.of(),
+                        item.projectUrl()
+                ))
+                .toList();
+    }
+
+    private List<CvResponse.CertificationSection> buildFallbackCertifications(FreelancerProfileResponse profileData) {
+        if (profileData.certifications() == null || profileData.certifications().isEmpty()) {
+            return List.of();
+        }
+
+        return profileData.certifications().stream()
+                .map(cert -> new CvResponse.CertificationSection(
+                        cert.name(),
+                        cert.issuingOrganization(),
+                        null
+                ))
+                .toList();
+    }
+
+    private String firstNonBlank(String... values) {
+        if (values == null) return null;
+        for (String value : values) {
+            if (value != null && !value.isBlank()) return value;
+        }
+        return null;
     }
 
     /**

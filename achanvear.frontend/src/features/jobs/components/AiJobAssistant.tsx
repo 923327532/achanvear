@@ -98,7 +98,7 @@ export default function AiJobAssistant({ onApplySuggestion }: AiJobAssistantProp
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-50">
+    <div className="fixed bottom-6 right-4 left-4 z-50 flex justify-end sm:left-auto sm:right-6">
       {/* Boton flotante tipo WhatsApp */}
       {!isOpen && (
         <button
@@ -111,7 +111,7 @@ export default function AiJobAssistant({ onApplySuggestion }: AiJobAssistantProp
 
       {/* Modal del asistente */}
       {isOpen && (
-        <div className="w-[380px] bg-white rounded-2xl border border-slate-200 shadow-2xl overflow-hidden">
+        <div className="w-full bg-white rounded-2xl border border-slate-200 shadow-2xl overflow-hidden sm:w-[380px]">
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white">
             <div className="flex items-center gap-2">

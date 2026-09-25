@@ -1,6 +1,9 @@
 # ENV
 .env
 .env.*
+!.env.example
+!.env.production.example
+!**/.env.example
 
 # NODE
 node_modules/

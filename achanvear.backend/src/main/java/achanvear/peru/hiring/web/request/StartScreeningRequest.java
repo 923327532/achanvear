@@ -15,6 +15,10 @@ public record StartScreeningRequest(
         String career,
         List<String> candidateSkills,
         Integer candidateExperienceYears,
-        String candidateCareer
+        String candidateCareer,
+        String candidateBiography,
+        String candidateCvUrl,
+        String candidateCvData,
+        String coverLetter
 ) {
 }

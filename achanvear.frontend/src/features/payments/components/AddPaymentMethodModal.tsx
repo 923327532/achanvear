@@ -2,8 +2,9 @@
 "use client";
 
 import { useState } from "react";
-import { X, Lock, CheckCircle, Loader2, Eye, EyeOff, AlertCircle } from "lucide-react";
+import { X, CheckCircle, Loader2, AlertCircle } from "lucide-react";
 import { useAddLocalMethod } from "../hooks/usePayments";
+import { CulqiCardForm } from "./CulqiCardForm";
 import type { AddMethodTab, YapePlinSubtype, AccountType } from "../types/payments.types";
 
 interface Props {
@@ -13,45 +14,6 @@ interface Props {
 }
 
 const BANKS = ["BCP", "Interbank", "BBVA", "Scotiabank", "Banco Pichincha", "Otro"];
-
-type CardBrand = "visa" | "mastercard" | "amex" | "unknown";
-
-function detectCardBrand(digits: string): CardBrand {
-  if (/^4/.test(digits)) return "visa";
-  if (/^5[1-5]/.test(digits)) return "mastercard";
-  if (/^3[47]/.test(digits)) return "amex";
-  return "unknown";
-}
-
-function validateCardNumber(v: string): string | null {
-  const digits = v.replace(/\s/g, "");
-  if (!/^\d+$/.test(digits)) return "Solo se permiten números";
-  const brand = detectCardBrand(digits);
-  if (brand === "amex") {
-    if (digits.length !== 15) return "American Express debe tener 15 dígitos";
-  } else if (brand === "visa" || brand === "mastercard") {
-    if (digits.length !== 16) return "Visa/Mastercard deben tener 16 dígitos";
-  } else {
-    if (digits.length < 13 || digits.length > 19) return "Número de tarjeta inválido";
-  }
-  return null;
-}
-
-function validateExpiry(v: string): string | null {
-  const cleaned = v.replace("/", "").replace(/\s/g, "");
-  if (cleaned.length !== 4) return "Debe tener 4 dígitos (MMAA)";
-  if (!/^\d{4}$/.test(cleaned)) return "Solo se permiten números";
-  const month = parseInt(cleaned.slice(0, 2), 10);
-  if (month < 1 || month > 12) return "Mes inválido (01-12)";
-  return null;
-}
-
-function validateCvv(v: string, brand: CardBrand): string | null {
-  const expected = brand === "amex" ? 4 : 3;
-  if (v.length !== expected) return `El CVV debe tener exactamente ${expected} dígitos`;
-  if (!/^\d+$/.test(v)) return "Solo se permiten números";
-  return null;
-}
 
 function validateCci(v: string): string | null {
   if (v.length !== 20) return "El CCI debe tener exactamente 20 dígitos";
@@ -66,43 +28,18 @@ function validatePhone(v: string): string | null {
   return null;
 }
 
-function formatCardNumber(v: string): string {
-  const digits = v.replace(/\D/g, "");
-  const brand = detectCardBrand(digits);
-  if (brand === "amex") {
-    const d = digits.slice(0, 15);
-    if (d.length > 4) return d.slice(0, 4) + " " + d.slice(4, 10) + (d.length > 10 ? " " + d.slice(10) : "");
-    return d;
-  }
-  const d = digits.slice(0, 16);
-  return d.replace(/(\d{4})(?=\d)/g, "$1 ");
-}
-
-function formatExpiry(v: string): string {
-  const digits = v.replace(/\D/g, "").slice(0, 4);
-  if (digits.length > 2) return digits.slice(0, 2) + "/" + digits.slice(2);
-  return digits;
-}
-
 function formatPhone(v: string): string {
   return v.replace(/\D/g, "").slice(0, 9);
 }
 
 export function AddPaymentMethodModal({ open, onClose, onSuccess }: Props) {
   const [tab, setTab] = useState<AddMethodTab>("TARJETA");
-  const [showCvv, setShowCvv] = useState(false);
   const [yapePlinSub, setYapePlinSub] = useState<YapePlinSubtype>("YAPE");
   const [accountType, setAccountType] = useState<AccountType>("AHORRO");
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // ✅ FIX 1: solo mostrar errores después de intentar enviar
   const [submitted, setSubmitted] = useState(false);
-
-  const [cardNumber, setCardNumber] = useState("");
-  const [cardHolder, setCardHolder] = useState("");
-  const [expiry, setExpiry] = useState("");
-  const [cvv, setCvv] = useState("");
-  const [saveCard, setSaveCard] = useState(true);
 
   const [bank, setBank] = useState("");
   const [cci, setCci] = useState("");
@@ -114,19 +51,11 @@ export function AddPaymentMethodModal({ open, onClose, onSuccess }: Props) {
 
   if (!open) return null;
 
-  const cardDigits = cardNumber.replace(/\s/g, "");
-  const cardBrand = cardDigits ? detectCardBrand(cardDigits) : "unknown";
-
   const getValidationErrors = (): string[] => {
     const errors: string[] = [];
     if (tab === "TARJETA") {
-      const e1 = validateCardNumber(cardNumber);
-      if (e1) errors.push(e1);
-      if (!cardHolder.trim()) errors.push("El titular es obligatorio");
-      const e2 = validateExpiry(expiry);
-      if (e2) errors.push(e2);
-      const e3 = validateCvv(cvv, cardBrand);
-      if (e3) errors.push(e3);
+      // La tarjeta se tokeniza con Culqi Checkout; no se validan campos aqui.
+      return errors;
     } else if (tab === "CUENTA_BANCARIA") {
       if (!bank) errors.push("Selecciona un banco");
       const e1 = validateCci(cci);
@@ -156,7 +85,8 @@ export function AddPaymentMethodModal({ open, onClose, onSuccess }: Props) {
           accountHolderName: accountHolder.trim() || undefined,
         });
       } else {
-        await new Promise((r) => setTimeout(r, 800));
+        setError("La tarjeta se guarda con Culqi. Usa el boton 'Agregar tarjeta con Culqi' para tokenizarla.");
+        return;
       }
       setSuccess(true);
     } catch (err: any) {
@@ -169,10 +99,6 @@ export function AddPaymentMethodModal({ open, onClose, onSuccess }: Props) {
     setError(null);
     setSubmitted(false); // ✅ FIX 1: resetear al cerrar
     setTab("TARJETA");
-    setCardNumber("");
-    setCardHolder("");
-    setExpiry("");
-    setCvv("");
     setBank("");
     setCci("");
     setAccountHolder("");
@@ -239,7 +165,7 @@ export function AddPaymentMethodModal({ open, onClose, onSuccess }: Props) {
 
         {/* Tabs — fijo */}
         <div className="flex items-center gap-2 px-6 pt-4 pb-3 flex-shrink-0">
-          {(["TARJETA", "CUENTA_BANCARIA", "YAPE_PLIN"] as AddMethodTab[]).map((t) => (
+          {(["TARJETA", "YAPE_PLIN"] as AddMethodTab[]).map((t) => (
             <button
               key={t}
               onClick={() => handleTabChange(t)}
@@ -264,94 +190,12 @@ export function AddPaymentMethodModal({ open, onClose, onSuccess }: Props) {
             </div>
           )}
 
-          {/* ── TARJETA ── */}
+          {/* ── TARJETA (tokenizacion con Culqi Checkout) ── */}
           {tab === "TARJETA" && (
-            <>
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1.5">Número de tarjeta</label>
-                <div className="relative">
-                  <input
-                    value={cardNumber}
-                    onChange={(e) => setCardNumber(formatCardNumber(e.target.value))}
-                    placeholder="1234 5678 9012 3456"
-                    maxLength={19}
-                    // ✅ FIX 1: solo borde rojo si submitted
-                    className={submitted && validateCardNumber(cardNumber) ? inputErrorClass : inputClass}
-                  />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">
-                    Visa/Mastercard
-                  </span>
-                </div>
-                {fieldError(() => validateCardNumber(cardNumber)) && (
-                  <p className="text-xs text-red-500 mt-1">{fieldError(() => validateCardNumber(cardNumber))}</p>
-                )}
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1.5">Titular de la tarjeta</label>
-                <input
-                  value={cardHolder}
-                  onChange={(e) => setCardHolder(e.target.value)}
-                  placeholder="Nombre como aparece en la tarjeta"
-                  className={submitted && !cardHolder.trim() ? inputErrorClass : inputClass}
-                />
-                {submitted && !cardHolder.trim() && (
-                  <p className="text-xs text-red-500 mt-1">El titular es obligatorio</p>
-                )}
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">Vencimiento</label>
-                  <input
-                    value={expiry}
-                    onChange={(e) => setExpiry(formatExpiry(e.target.value))}
-                    placeholder="MM/AA"
-                    maxLength={5}
-                    className={submitted && validateExpiry(expiry) ? inputErrorClass : inputClass}
-                  />
-                  {fieldError(() => validateExpiry(expiry)) && (
-                    <p className="text-xs text-red-500 mt-1">{fieldError(() => validateExpiry(expiry))}</p>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">CVV</label>
-                  <div className="relative">
-                    <input
-                      value={cvv}
-                      onChange={(e) => {
-                        const max = cardBrand === "amex" ? 4 : 3;
-                        setCvv(e.target.value.replace(/\D/g, "").slice(0, max));
-                      }}
-                      type={showCvv ? "text" : "password"}
-                      placeholder={cardBrand === "amex" ? "1234" : "123"}
-                      maxLength={cardBrand === "amex" ? 4 : 3}
-                      className={submitted && validateCvv(cvv, cardBrand) ? inputErrorClass : inputClass}
-                    />
-                    <button
-                      onClick={() => setShowCvv((v) => !v)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
-                    >
-                      {showCvv ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                  {fieldError(() => validateCvv(cvv, cardBrand)) && (
-                    <p className="text-xs text-red-500 mt-1">{fieldError(() => validateCvv(cvv, cardBrand))}</p>
-                  )}
-                </div>
-              </div>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={saveCard}
-                  onChange={(e) => setSaveCard(e.target.checked)}
-                  className="rounded"
-                />
-                <span className="text-xs text-gray-600">Guardar tarjeta de forma segura</span>
-              </label>
-              <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-2.5">
-                <Lock className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
-                <span className="text-xs text-emerald-700 font-medium">Datos encriptados con SSL</span>
-              </div>
-            </>
+            <CulqiCardForm
+              onSuccess={onSuccess}
+              onError={(msg) => setError(msg)}
+            />
           )}
 
           {/* ── CUENTA BANCARIA ── */}
@@ -494,14 +338,16 @@ export function AddPaymentMethodModal({ open, onClose, onSuccess }: Props) {
           >
             Cancelar
           </button>
-          <button
-            onClick={handleSubmit}
-            disabled={isLoading}
-            className="flex-1 flex items-center justify-center gap-2 text-sm font-semibold text-white bg-[#1B3A6B] rounded-xl py-2.5 hover:bg-[#0EA5A0] transition-colors disabled:opacity-50"
-          >
-            {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
-            {tab === "TARJETA" ? "Agregar tarjeta" : tab === "CUENTA_BANCARIA" ? "Guardar cuenta" : "Vincular"}
-          </button>
+          {tab !== "TARJETA" && (
+            <button
+              onClick={handleSubmit}
+              disabled={isLoading}
+              className="flex-1 flex items-center justify-center gap-2 text-sm font-semibold text-white bg-[#1B3A6B] rounded-xl py-2.5 hover:bg-[#0EA5A0] transition-colors disabled:opacity-50"
+            >
+              {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+              {tab === "CUENTA_BANCARIA" ? "Guardar cuenta" : "Vincular"}
+            </button>
+          )}
         </div>
       </div>
     </div>

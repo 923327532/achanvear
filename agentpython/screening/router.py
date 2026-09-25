@@ -1,21 +1,29 @@
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
 from screening.schemas import JobRequirements, CandidateProfile
-from screening.screening_agent import run_screening
+from screening.screening_agent import DEFAULT_SCORE_THRESHOLD, run_screening
 from typing import List
 
 router = APIRouter(prefix="/screening", tags=["screening"])
 
 
-@router.post("/evaluate")
-async def evaluate_candidates(
-    job: JobRequirements,
+class ScreeningRequest(BaseModel):
+    job: JobRequirements
     candidates: List[CandidateProfile]
-):
-    if len(candidates) > 50:
+    required_score_threshold: float = DEFAULT_SCORE_THRESHOLD
+
+
+@router.post("/evaluate")
+async def evaluate_candidates(request: ScreeningRequest):
+    if len(request.candidates) > 50:
         raise HTTPException(400, "Max 50 candidatos por screening")
 
-    # 1. Evaluar con LLM (async)
-    result = await run_screening(job, candidates)
+    # 1. Evaluar con LLM y reglas duras (async)
+    result = await run_screening(
+        request.job,
+        request.candidates,
+        threshold=request.required_score_threshold,
+    )
 
     # 2. Devolver resultado - Java orquesta, Python solo evalua
     return {
@@ -43,3 +51,4 @@ async def evaluate_candidates(
         "total_evaluated": result["total_evaluated"],
         "total_selected": len(result["selected_candidates"]),
     }
+

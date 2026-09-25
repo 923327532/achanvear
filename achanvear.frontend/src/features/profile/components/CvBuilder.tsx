@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import type { CvGeneratedResponse } from "../types/cv.types";
 import html2pdf from "html2pdf.js";
+import { API_BASE_URL } from "@/lib/constants";
 
 
 
@@ -321,7 +322,7 @@ export function CvBuilder({ isOpen, onClose, initialCv, isLoading, onRegenerateS
 
 
   // Convertir foto de S3 a base64 usando el backend como proxy (evita CORS)
-  const photoUrlRef = useRef(profilePhotoUrl);
+  const photoUrlRef = useRef<string | undefined>(undefined);
   useEffect(() => {
     const photoUrl = profilePhotoUrl;
     if (!photoUrl || photoUrl.startsWith("data:")) return;
@@ -330,14 +331,13 @@ export function CvBuilder({ isOpen, onClose, initialCv, isLoading, onRegenerateS
     photoUrlRef.current = photoUrl;
 
     // Extraer fileKey de la URL de S3
-    // URL ejemplo: https://achanvear-recordings-dev.s3.us-east-1.amazonaws.com/profile-photos/uuid-nombre.jpg
-    // fileKey: profile-photos/uuid-nombre.jpg
+    // URL ejemplo: https://achanvear-recordings-dev.s3.us-east-1.amazonaws.com/freelancer/profile-photos/uuid-nombre.jpg
+    // fileKey: freelancer/profile-photos/uuid-nombre.jpg
     const s3Match = photoUrl.match(/\.amazonaws\.com\/(.+)/);
     const fileKey = s3Match ? s3Match[1] : null;
 
     if (fileKey) {
-      // Usar el backend como proxy (API_BASE_URL = http://localhost:8081/api/v1)
-      fetch(`http://localhost:8081/api/v1/profiles/photo-proxy?fileKey=${encodeURIComponent(fileKey)}`)
+      fetch(`${API_BASE_URL}/profiles/photo-proxy?fileKey=${encodeURIComponent(fileKey)}`)
         .then((res) => {
           if (!res.ok) throw new Error("Proxy falló");
           return res.blob();

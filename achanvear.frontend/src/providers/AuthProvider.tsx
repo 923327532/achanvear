@@ -77,27 +77,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const register = async (payload: RegisterRequest): Promise<UserProfile> => {
-    await authApi.register(payload);
-
-    try {
-      const loggedUser = await login({ email: payload.email, password: payload.password! });
-      return loggedUser;
-    } catch {
-      const userProfile: UserProfile = {
-        id: "",
-        email: payload.email,
-        role: payload.role,
-        status: "ACTIVE",
-        fullName: payload.fullName,
-        dni: payload.dni,
-        representanteDni: payload.representanteDni,
-        representanteLegal: payload.representanteLegal,
-        ruc: payload.ruc,
-      };
-      setUser(userProfile);
-      setStatus("AUTHENTICATED");
-      return userProfile;
-    }
+    const response = await authApi.register(payload);
+    setAuthToken(response.token);
+    setUser(response.user);
+    setStatus("AUTHENTICATED");
+    return response.user;
   };
 
   const requestPasswordReset = async (payload: ForgotPasswordRequest) => {

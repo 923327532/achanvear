@@ -220,9 +220,10 @@ export function CompanyProfilePage() {
     prefix: string
   ): Promise<string | null> => {
     try {
-      const presigned = await profileApi.getPhotoPresignedUrl(
+      const presigned = await profileApi.getPresignedUrl(
         `${prefix}-${Date.now()}-${file.name}`,
-        file.type
+        file.type,
+        folder as "PROFILE_PHOTO" | "CURRICULUM" | "PORTFOLIO"
       );
       const uploadUrl = presigned.uploadUrl;
       const publicFileUrl = presigned.publicFileUrl;

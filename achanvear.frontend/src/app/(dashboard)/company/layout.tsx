@@ -105,7 +105,7 @@ export default function CompanyLayout({ children }: { children: React.ReactNode 
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-50">
+    <div className="flex min-h-screen bg-slate-50">
 
       {showLogoutModal && (
         <ConfirmModal
@@ -278,11 +278,12 @@ export default function CompanyLayout({ children }: { children: React.ReactNode 
       </aside>
 
       <div
-        className="flex flex-1 flex-col overflow-hidden transition-all duration-300 lg:ml-0"
-        style={{ marginLeft: isCollapsed ? "72px" : "260px" }}
+        className={`flex min-h-screen min-w-0 flex-1 flex-col transition-all duration-300 ${
+          isCollapsed ? "lg:ml-[72px]" : "lg:ml-[260px]"
+        }`}
       >
-        <header className="flex flex-shrink-0 items-center gap-3 border-b border-slate-200 bg-white px-6 py-2.5">
-          <div className="flex flex-1 max-w-lg items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+        <header className="flex flex-shrink-0 items-center gap-3 border-b border-slate-200 bg-white px-4 py-2.5 pl-16 sm:px-6 lg:pl-6">
+          <div className="hidden flex-1 max-w-lg items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 sm:flex">
             <Search className="h-4 w-4 flex-shrink-0 text-slate-400" strokeWidth={1.5} />
             <input
               type="text"
@@ -305,7 +306,7 @@ export default function CompanyLayout({ children }: { children: React.ReactNode 
           </div>
         </header>
 
-        <main className="flex-1 relative overflow-hidden">
+        <main className="relative flex-1">
           {children}
         </main>
       </div>

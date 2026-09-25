@@ -48,7 +48,11 @@ public class HiringController {
                 request.career(),
                 request.candidateSkills(),
                 request.candidateExperienceYears(),
-                request.candidateCareer()
+                request.candidateCareer(),
+                request.candidateBiography(),
+                request.candidateCvUrl(),
+                request.candidateCvData(),
+                request.coverLetter()
         );
 
         ScreeningResultResponse response = startScreeningUseCase.execute(command);

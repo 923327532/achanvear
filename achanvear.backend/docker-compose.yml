@@ -44,7 +44,7 @@ services:
         condition: service_started
     environment:
       LLM_PROVIDER: ${LLM_PROVIDER:-deepseek}
-      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-sk-c77de3a541d742b48cbd907ab908f81b}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
       DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-deepseek-chat}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.0-flash}
@@ -126,7 +126,10 @@ services:
       AI_API_URL: http://ai-agent:8001
       APIS_PERU_TOKEN: ${APIS_PERU_TOKEN:-}
       APIS_PERU_BASE_URL: ${APIS_PERU_BASE_URL:-https://apiperu.dev/api}
-      AI_PROVIDER: ${AI_PROVIDER:-groq}
+      AI_PROVIDER: ${AI_PROVIDER:-deepseek}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-deepseek-chat}
+      DEEPSEEK_BASE_URL: ${DEEPSEEK_BASE_URL:-https://api.deepseek.com}
       GROQ_API_KEY: ${GROQ_API_KEY:-}
       GROQ_MODEL: ${GROQ_MODEL:-llama-3.3-70b-versatile}
       GROQ_BASE_URL: ${GROQ_BASE_URL:-https://api.groq.com/openai/v1}

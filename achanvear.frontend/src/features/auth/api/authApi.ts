@@ -5,7 +5,6 @@ import type {
   LoginRequest,
   LoginResponseData,
   RegisterRequest,
-  RegisterResponseData,
   ForgotPasswordRequest,
   ForgotPasswordResponseData,
   ResetPasswordRequest,
@@ -30,12 +29,17 @@ export const authApi = {
   },
 
   // POST /auth/register
-  register: async (payload: RegisterRequest): Promise<RegisterResponseData> => {
-    const response = await api.post<ApiResponse<RegisterResponseData>>(
+  register: async (payload: RegisterRequest): Promise<{ token: string; user: UserProfile; tokenType: string }> => {
+    const response = await api.post<ApiResponse<LoginResponseData>>(
       "/auth/register",
       payload
     );
-    return parseResponse(response);
+    const data = parseResponse(response);
+    return {
+      token: data.accessToken,
+      user: data.user,
+      tokenType: data.tokenType,
+    };
   },
 
   // GET /auth/me

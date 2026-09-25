@@ -3,6 +3,8 @@ package achanvear.peru.freelance.infrastructure.external;
 import achanvear.peru.freelance.application.port.out.StoragePort;
 import org.springframework.stereotype.Component;
 import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.awscore.exception.AwsServiceException;
+import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
@@ -35,6 +37,7 @@ public class S3StorageAdapter implements StoragePort {
             String fileName,
             String contentType
     ) {
+        validateStorageConfiguration();
         String resolvedFolder = resolveAllowedFolder(folder);
         String safeFileName = sanitizeFileName(fileName);
         String fileKey = resolvedFolder + "/" + UUID.randomUUID() + "-" + safeFileName;
@@ -50,7 +53,12 @@ public class S3StorageAdapter implements StoragePort {
                 .putObjectRequest(putObjectRequest)
                 .build();
 
-        PresignedPutObjectRequest presignedRequest = s3Presigner.presignPutObject(presignRequest);
+        PresignedPutObjectRequest presignedRequest;
+        try {
+            presignedRequest = s3Presigner.presignPutObject(presignRequest);
+        } catch (AwsServiceException | SdkClientException exception) {
+            throw new IllegalStateException("No se pudo generar la URL de subida. Revisa credenciales AWS, region y bucket S3.", exception);
+        }
 
         return new PresignedUploadResponse(
                 fileKey,
@@ -66,6 +74,7 @@ public class S3StorageAdapter implements StoragePort {
             String contentType,
             byte[] fileContent
     ) {
+        validateStorageConfiguration();
         String resolvedFolder = resolveAllowedFolder(folder);
         String safeFileName = sanitizeFileName(fileName);
         String fileKey = resolvedFolder + "/" + UUID.randomUUID() + "-" + safeFileName;
@@ -76,7 +85,11 @@ public class S3StorageAdapter implements StoragePort {
                 .contentType(contentType)
                 .build();
 
-        s3Client.putObject(putObjectRequest, RequestBody.fromBytes(fileContent));
+        try {
+            s3Client.putObject(putObjectRequest, RequestBody.fromBytes(fileContent));
+        } catch (AwsServiceException | SdkClientException exception) {
+            throw new IllegalStateException("No se pudo subir el archivo. Revisa credenciales AWS, region y bucket S3.", exception);
+        }
 
         return new UploadResponse(
                 fileKey,
@@ -86,6 +99,7 @@ public class S3StorageAdapter implements StoragePort {
 
     @Override
     public PresignedDownloadResponse generatePresignedDownloadUrl(String fileKey) {
+        validateStorageConfiguration();
         if (fileKey == null || fileKey.isBlank()) {
             throw new IllegalArgumentException("File key cannot be blank");
         }
@@ -100,9 +114,26 @@ public class S3StorageAdapter implements StoragePort {
                 .getObjectRequest(getObjectRequest)
                 .build();
 
-        PresignedGetObjectRequest presignedRequest = s3Presigner.presignGetObject(presignRequest);
+        PresignedGetObjectRequest presignedRequest;
+        try {
+            presignedRequest = s3Presigner.presignGetObject(presignRequest);
+        } catch (AwsServiceException | SdkClientException exception) {
+            throw new IllegalStateException("No se pudo generar la URL de descarga. Revisa credenciales AWS, region y bucket S3.", exception);
+        }
 
         return new PresignedDownloadResponse(fileKey, presignedRequest.url().toString());
+    }
+
+    private void validateStorageConfiguration() {
+        if (isBlank(properties.bucket())) {
+            throw new IllegalStateException("AWS_S3_BUCKET_NAME no esta configurado");
+        }
+        if (isBlank(properties.region())) {
+            throw new IllegalStateException("AWS_REGION no esta configurado");
+        }
+        if (properties.uploadExpirationMinutes() <= 0 || properties.downloadExpirationMinutes() <= 0) {
+            throw new IllegalStateException("La expiracion de URLs S3 no esta configurada correctamente");
+        }
     }
 
     private String resolveAllowedFolder(String folder) {
@@ -129,6 +160,10 @@ public class S3StorageAdapter implements StoragePort {
         }
 
         return fileName.trim().replaceAll("[^a-zA-Z0-9._-]", "_");
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.isBlank();
     }
 
     private String buildS3ObjectUrl(String fileKey) {

@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { AddPaymentMethodModal } from "./AddPaymentMethodModal";
+import { useLocalPaymentMethods, useRemoveLocalMethod, useSetDefaultLocalMethod, useSavedCards, useRemoveSavedCard, useSetDefaultSavedCard } from "../hooks/usePayments";
 import {
   Wallet,
   Lock,
@@ -31,9 +32,62 @@ export function CompanyPaymentsPage() {
   // ── Estado ───────────────────────────────────────────────────────────────
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [showAddMethodModal, setShowAddMethodModal] = useState(false);
-  const [localPaymentMethods, setLocalPaymentMethods] = useState<
-    { id: string; type: string; label: string; detail: string; isPrimary: boolean }[]
-  >([]);
+  const { methods: localPaymentMethods, isLoading: isLoadingMethods, refetch: refetchMethods } = useLocalPaymentMethods();
+  const { removeAsync, isLoading: isRemovingMethod } = useRemoveLocalMethod();
+  const { setDefaultAsync, isLoading: isSettingDefault } = useSetDefaultLocalMethod();
+
+  // Tarjetas guardadas con Culqi Checkout
+  const { cards: savedCards, isLoading: isLoadingCards, refetch: refetchCards } = useSavedCards();
+  const { removeAsync: removeCardAsync } = useRemoveSavedCard();
+  const { setDefaultAsync: setDefaultCardAsync } = useSetDefaultSavedCard();
+
+  // Normaliza tarjetas y metodos locales en una sola lista visual
+  const paymentMethods = [
+    ...savedCards.map((card) => ({
+      id: card.id,
+      kind: "CARD" as const,
+      type: "CARD",
+      label: `Tarjeta ${card.issuerName ? card.issuerName.toUpperCase() : card.paymentType}`,
+      detail: `•••• •••• •••• ${card.lastFourDigits ?? "****"}${card.expirationDate ? `  ·  Vence ${card.expirationDate}` : ""}`,
+      isPrimary: card.isDefault,
+    })),
+    ...localPaymentMethods.map((method) => ({
+      id: method.id,
+      kind: method.type === "CARD" ? ("CARD" as const) : ("LOCAL" as const),
+      type: method.type,
+      label: method.label,
+      detail: method.detail,
+      isPrimary: method.isPrimary,
+    })),
+  ];
+
+  const isLoadingAllMethods = isLoadingMethods || isLoadingCards;
+
+  const refetchAllMethods = async () => {
+    await refetchMethods();
+    await refetchCards();
+  };
+
+  const handleRemoveMethod = async (id: string, kind: "CARD" | "LOCAL") => {
+    if (!window.confirm("¿Estás seguro de eliminar este método de pago?")) return;
+    if (kind === "CARD") {
+      await removeCardAsync(id);
+    } else {
+      await removeAsync(id);
+    }
+    await refetchAllMethods();
+    setOpenMenuId(null);
+  };
+
+  const handleSetDefaultMethod = async (id: string, kind: "CARD" | "LOCAL") => {
+    if (kind === "CARD") {
+      await setDefaultCardAsync(id);
+    } else {
+      await setDefaultAsync(id);
+    }
+    await refetchAllMethods();
+    setOpenMenuId(null);
+  };
 
   return (
     <div className="p-8">
@@ -167,9 +221,14 @@ export function CompanyPaymentsPage() {
             MÉTODOS DE PAGO
           </h3>
 
-          {localPaymentMethods.length > 0 ? (
+          {isLoadingAllMethods ? (
+            <div className="text-center py-8 mb-4">
+              <CreditCard className="w-10 h-10 text-slate-200 mx-auto mb-3" />
+              <p className="text-sm text-slate-400">Cargando metodos de pago...</p>
+            </div>
+          ) : paymentMethods.length > 0 ? (
             <div className="space-y-3 mb-4">
-              {localPaymentMethods.map((method) => (
+              {paymentMethods.map((method) => (
                 <div
                   key={method.id}
                   className="flex items-center justify-between p-4 rounded-lg bg-[#f8fafc] border border-slate-100"
@@ -214,15 +273,8 @@ export function CompanyPaymentsPage() {
                         <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-lg border border-slate-100 shadow-lg z-20 py-1">
                           {!method.isPrimary && (
                             <button
-                              onClick={() => {
-                                setLocalPaymentMethods((prev) =>
-                                  prev.map((m) => ({
-                                    ...m,
-                                    isPrimary: m.id === method.id,
-                                  }))
-                                );
-                                setOpenMenuId(null);
-                              }}
+                              disabled={isSettingDefault}
+                              onClick={() => handleSetDefaultMethod(method.id, method.kind)}
                               className="w-full flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
                             >
                               <Star className="w-4 h-4 text-amber-400" />
@@ -230,14 +282,8 @@ export function CompanyPaymentsPage() {
                             </button>
                           )}
                           <button
-                            onClick={() => {
-                              if (window.confirm("¿Estás seguro de eliminar este método de pago?")) {
-                                setLocalPaymentMethods((prev) =>
-                                  prev.filter((m) => m.id !== method.id)
-                                );
-                                setOpenMenuId(null);
-                              }
-                            }}
+                            disabled={isRemovingMethod}
+                            onClick={() => handleRemoveMethod(method.id, method.kind)}
                             className="w-full flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -304,7 +350,7 @@ export function CompanyPaymentsPage() {
         open={showAddMethodModal}
         onClose={() => setShowAddMethodModal(false)}
         onSuccess={() => {
-          window.location.reload();
+          refetchMethods();
         }}
       />
     </div>

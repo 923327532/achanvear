@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   walletApi,
   localPaymentMethodsApi,
+  cardApi,
   escrowApi,
   disputeApi,
   refundApi,
@@ -322,6 +323,77 @@ export function useSetDefaultLocalMethod() {
     mutationFn: (methodId: string) => localPaymentMethodsApi.setDefaultMethod(methodId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["payments", "local-methods"] });
+    },
+  });
+
+  return {
+    setDefaultAsync: mutation.mutateAsync,
+    isLoading: mutation.isPending,
+  };
+}
+
+// ─── Tarjetas guardadas (Culqi Checkout tokenization) ─────────────────────────
+
+export function useSavedCards() {
+  const query = useQuery({
+    queryKey: ["payments", "saved-cards"],
+    queryFn: cardApi.getCards,
+    staleTime: 1000 * 60 * 5,
+    retry: 1,
+  });
+
+  return {
+    cards: (query.data ?? []).filter((card) => card.isActive !== false),
+    isLoading: query.isLoading,
+    isError: query.isError,
+    refetch: query.refetch,
+  };
+}
+
+export function useSaveCulqiCard() {
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation({
+    mutationFn: (data: {
+      token: string;
+      email?: string;
+      cardholderName?: string;
+      phoneNumber?: string;
+    }) => cardApi.saveCulqiCard(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["payments", "saved-cards"] });
+    },
+  });
+
+  return {
+    saveAsync: mutation.mutateAsync,
+    isLoading: mutation.isPending,
+  };
+}
+
+export function useRemoveSavedCard() {
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation({
+    mutationFn: (cardId: string) => cardApi.removeCard(cardId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["payments", "saved-cards"] });
+    },
+  });
+
+  return {
+    removeAsync: mutation.mutateAsync,
+    isLoading: mutation.isPending,
+  };
+}
+
+export function useSetDefaultSavedCard() {
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation({
+    mutationFn: (cardId: string) => cardApi.setDefaultCard(cardId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["payments", "saved-cards"] });
     },
   });
 

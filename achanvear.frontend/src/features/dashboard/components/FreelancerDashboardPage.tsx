@@ -86,7 +86,7 @@ export function FreelancerDashboardPage() {
   const firstName = fullName.split(" ")[0];
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 md:p-6">
+    <div className="flex-1 p-4 md:p-6">
       <div className="space-y-4 md:space-y-6">
 
         {/* ── Hero card ── */}

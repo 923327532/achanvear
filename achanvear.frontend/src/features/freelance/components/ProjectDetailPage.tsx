@@ -316,7 +316,7 @@ export function ProjectDetailPage() {
   const totalPaid = project.milestones?.filter((m) => m.status === "APPROVED").reduce((sum, m) => sum + m.amount, 0) ?? 0;
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       <Link
         href="/company/projects"
         className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-slate-700 mb-6 transition"
@@ -325,8 +325,8 @@ export function ProjectDetailPage() {
         Volver a Mis Proyectos
       </Link>
 
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 mb-6">
-        <div className="flex items-start justify-between gap-4 mb-4">
+      <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
+        <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-3 flex-wrap mb-2">
               <h1 className="text-2xl font-bold text-slate-900">{project.title}</h1>

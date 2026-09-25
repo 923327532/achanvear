@@ -58,11 +58,15 @@ export function ChooseSlotModal({ schedule, onClose, onComplete }: ChooseSlotMod
       const response = await scheduleApi.chooseSlot(schedule.scheduleId, selectedSlot);
       setResult(response);
       setStep("done");
-      onComplete();
     } catch (err: any) {
       setErrorMsg(err?.message || "Error al elegir horario");
       setStep("error");
     }
+  };
+
+  const handleDone = () => {
+    onComplete();
+    onClose();
   };
 
   const handleCopyId = () => {
@@ -206,7 +210,7 @@ export function ChooseSlotModal({ schedule, onClose, onComplete }: ChooseSlotMod
           </div>
 
           <button
-            onClick={onClose}
+            onClick={handleDone}
             className="w-full py-3 rounded-xl bg-[#1B3A6B] text-white text-sm font-bold hover:bg-[#162f58] transition"
           >
             Listo
