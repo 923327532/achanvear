@@ -1,4 +1,4 @@
-// app/(dashboard)/company/layout.tsx  
+﻿// app/(dashboard)/company/layout.tsx  
 "use client";
 
 import Link from "next/link";
@@ -18,7 +18,7 @@ import { homeRouteForRole } from "@/lib/constants";
 const NAV_ITEMS = [
   { icon: Home,          label: "Inicio",             href: "/company" },
   { icon: Briefcase,     label: "Mis Publicaciones",  href: "/company/jobs" },
-  { icon: GitBranch,     label: "Pipeline Selección",  href: "/company/pipeline" },
+  { icon: GitBranch,     label: "Pipeline SelecciÃ³n",  href: "/company/pipeline" },
   { icon: FolderOpen,    label: "Mis Proyectos",       href: "/company/projects" },
   { icon: Globe,         label: "Servicios",           href: "/company/services" },
   { icon: MessageSquare, label: "Mensajes",            href: "/company/chat" },
@@ -38,8 +38,8 @@ export default function CompanyLayout({ children }: { children: React.ReactNode 
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Guarda por rol: si un usuario que no es COMPANY entra aquí, lo llevamos
-  // a la sección que le corresponde (admin, freelancer, etc.).
+  // Guarda por rol: si un usuario que no es COMPANY entra aquÃ­, lo llevamos
+  // a la secciÃ³n que le corresponde (admin, freelancer, etc.).
   const role = user?.role?.toUpperCase();
   const isCompanySection = role === "COMPANY" || role === "COMPANY_COLLABORATOR";
   useEffect(() => {
@@ -105,13 +105,13 @@ export default function CompanyLayout({ children }: { children: React.ReactNode 
   };
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
+    <div className="flex min-h-screen w-full bg-slate-50 overflow-x-hidden">
 
       {showLogoutModal && (
         <ConfirmModal
-          title="¿Cerrar sesión?"
-          description="Tendrás que volver a iniciar sesión para acceder a tu cuenta."
-          confirmLabel="Cerrar sesión"
+          title="Â¿Cerrar sesiÃ³n?"
+          description="TendrÃ¡s que volver a iniciar sesiÃ³n para acceder a tu cuenta."
+          confirmLabel="Cerrar sesiÃ³n"
           cancelLabel="Cancelar"
           onConfirm={handleLogoutConfirm}
           onCancel={() => setShowLogoutModal(false)}
@@ -121,7 +121,7 @@ export default function CompanyLayout({ children }: { children: React.ReactNode 
       <button
         onClick={() => setIsMobileOpen(!isMobileOpen)}
         className="fixed top-4 left-4 z-50 lg:hidden flex items-center justify-center w-10 h-10 rounded-xl bg-white border border-slate-200 shadow-sm text-slate-600 hover:text-[#1B3A6B]"
-        aria-label={isMobileOpen ? "Cerrar menú" : "Abrir menú"}
+        aria-label={isMobileOpen ? "Cerrar menÃº" : "Abrir menÃº"}
       >
         {isMobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
       </button>
@@ -139,7 +139,7 @@ export default function CompanyLayout({ children }: { children: React.ReactNode 
         <button
           onClick={() => setIsCollapsed(!isCollapsed)}
           className="absolute -right-3 top-20 z-10 flex items-center justify-center w-6 h-6 rounded-full bg-white border border-slate-200 shadow-sm text-slate-400 hover:text-[#1B3A6B] transition-colors"
-          aria-label={isCollapsed ? "Expandir menú" : "Colapsar menú"}
+          aria-label={isCollapsed ? "Expandir menÃº" : "Colapsar menÃº"}
         >
           <ChevronRight
             className={`w-3.5 h-3.5 transition-transform ${isCollapsed ? "" : "rotate-180"}`}
@@ -179,13 +179,13 @@ export default function CompanyLayout({ children }: { children: React.ReactNode 
                 ? "bg-blue-50 text-[#1B3A6B] border-l-[3px] border-[#1B3A6B]"
                 : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"
             } ${isCollapsed ? "justify-center pl-3 border-l-[3px] border-transparent" : ""}`}
-            title={isCollapsed ? "Configuración" : undefined}
+            title={isCollapsed ? "ConfiguraciÃ³n" : undefined}
           >
             <Settings
               className={`w-5 h-5 shrink-0 ${pathname.startsWith("/company/settings") ? "text-[#1B3A6B]" : "text-slate-400"}`}
               strokeWidth={1.5}
             />
-            {!isCollapsed && "Configuración"}
+            {!isCollapsed && "ConfiguraciÃ³n"}
           </Link>
           <button
             type="button"
@@ -193,10 +193,10 @@ export default function CompanyLayout({ children }: { children: React.ReactNode 
             className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-red-500 hover:bg-red-50 transition-all w-full ${
               isCollapsed ? "justify-center" : ""
             }`}
-            title={isCollapsed ? "Cerrar sesión" : undefined}
+            title={isCollapsed ? "Cerrar sesiÃ³n" : undefined}
           >
             <LogOut className="w-5 h-5 shrink-0" strokeWidth={1.5} />
-            {!isCollapsed && "Cerrar sesión"}
+            {!isCollapsed && "Cerrar sesiÃ³n"}
           </button>
         </div>
       </aside>
@@ -264,7 +264,7 @@ export default function CompanyLayout({ children }: { children: React.ReactNode 
               className={`w-5 h-5 ${pathname.startsWith("/company/settings") ? "text-[#1e3a8a]" : "text-slate-400"}`}
               strokeWidth={1.5}
             />
-            Configuración
+            ConfiguraciÃ³n
           </Link>
           <button
             type="button"
@@ -272,7 +272,7 @@ export default function CompanyLayout({ children }: { children: React.ReactNode 
             className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-red-500 hover:bg-red-50 transition-all w-full"
           >
             <LogOut className="w-5 h-5" strokeWidth={1.5} />
-            Cerrar sesión
+            Cerrar sesiÃ³n
           </button>
         </div>
       </aside>
@@ -282,7 +282,7 @@ export default function CompanyLayout({ children }: { children: React.ReactNode 
           isCollapsed ? "lg:ml-[72px]" : "lg:ml-[260px]"
         }`}
       >
-        <header className="flex flex-shrink-0 items-center gap-3 border-b border-slate-200 bg-white px-4 py-2.5 pl-16 sm:px-6 lg:pl-6">
+        <header className="sticky top-0 z-20 flex flex-shrink-0 items-center gap-3 border-b border-slate-200 bg-white px-4 py-2.5 pl-16 sm:px-6 lg:pl-6">
           <div className="hidden flex-1 max-w-lg items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 sm:flex">
             <Search className="h-4 w-4 flex-shrink-0 text-slate-400" strokeWidth={1.5} />
             <input
@@ -306,7 +306,7 @@ export default function CompanyLayout({ children }: { children: React.ReactNode 
           </div>
         </header>
 
-        <main className="relative flex-1">
+        <main className="relative flex min-w-0 flex-1 flex-col overflow-y-auto">
           {children}
         </main>
       </div>

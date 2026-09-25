@@ -1,0 +1,79 @@
+   ▲ Next.js 15.5.15
+   - Environments: .env
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully in 4.2s
+   Linting and checking validity of types ...
+   Collecting page data ...
+   Generating static pages (0/52) ...
+   Generating static pages (13/52) 
+   Generating static pages (26/52) 
+   Generating static pages (39/52) 
+ ✓ Generating static pages (52/52)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                                 Size  First Load JS
+┌ ○ /                                      823 B         106 kB
+├ ○ /_not-found                            141 B         102 kB
+├ ○ /admin                               6.47 kB         149 kB
+├ ○ /admin/audit                         4.03 kB         146 kB
+├ ○ /admin/consents                      4.32 kB         146 kB
+├ ○ /admin/interviews                    4.36 kB         146 kB
+├ ○ /admin/legal-documents               4.97 kB         147 kB
+├ ○ /admin/users                         7.53 kB         150 kB
+├ ƒ /api                                   141 B         102 kB
+├ ○ /auth/login                            141 B         102 kB
+├ ○ /company                             5.08 kB         143 kB
+├ ○ /company/chat                          436 B         151 kB
+├ ○ /company/history                     2.82 kB         140 kB
+├ ○ /company/jobs                        7.67 kB         145 kB
+├ ƒ /company/jobs/[id]/edit              8.12 kB         142 kB
+├ ○ /company/jobs/create                 12.3 kB         140 kB
+├ ○ /company/payments                    10.5 kB         148 kB
+├ ○ /company/pipeline                      141 B         102 kB
+├ ƒ /company/pipeline/[jobId]            14.6 kB         414 kB
+├ ○ /company/profile                     14.2 kB         148 kB
+├ ○ /company/projects                    8.41 kB         149 kB
+├ ƒ /company/projects/[projectId]        9.41 kB         147 kB
+├ ƒ /company/projects/[projectId]/edit     10 kB         144 kB
+├ ○ /company/projects/create             13.1 kB         150 kB
+├ ○ /company/services                      765 B         143 kB
+├ ○ /company/settings                    14.1 kB         155 kB
+├ ○ /dashboard                           3.03 kB         127 kB
+├ ○ /forgot-password                      4.5 kB         160 kB
+├ ○ /freelancer                          5.42 kB         160 kB
+├ ○ /freelancer/chat                       177 B         151 kB
+├ ○ /freelancer/interviews               21.6 kB         159 kB
+├ ○ /freelancer/interviews/choose-slot   3.14 kB         105 kB
+├ ○ /freelancer/jobs                     8.63 kB         148 kB
+├ ○ /freelancer/my-services              4.82 kB         150 kB
+├ ƒ /freelancer/my-services/[id]/edit      533 B         150 kB
+├ ○ /freelancer/my-services/create       1.13 kB         150 kB
+├ ○ /freelancer/notifications            6.15 kB         140 kB
+├ ○ /freelancer/payments                 8.79 kB         146 kB
+├ ○ /freelancer/profile                  28.9 kB         428 kB
+├ ○ /freelancer/projects                 4.46 kB         151 kB
+├ ○ /freelancer/settings                 7.01 kB         151 kB
+├ ○ /login                               3.37 kB         201 kB
+├ ○ /onboarding                          8.63 kB         136 kB
+├ ○ /onboarding/company                  20.3 kB         145 kB
+├ ○ /onboarding/freelancer               12.2 kB         137 kB
+├ ○ /payments                            3.97 kB         128 kB
+├ ○ /payments/failure                    1.98 kB         104 kB
+├ ○ /payments/pending                     1.7 kB         104 kB
+├ ○ /payments/success                    3.22 kB         140 kB
+├ ○ /ping-backend                        2.72 kB         127 kB
+├ ○ /privacy                             2.81 kB         137 kB
+├ ○ /register                            5.83 kB         204 kB
+├ ○ /reset-password                      3.79 kB         159 kB
+└ ○ /terms                               2.81 kB         137 kB
++ First Load JS shared by all             102 kB
+  ├ chunks/1255-55f5611cfd370a3f.js      45.7 kB
+  ├ chunks/4bd1b696-100b9d70ed4e49c1.js  54.2 kB
+  └ other shared chunks (total)          2.06 kB
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

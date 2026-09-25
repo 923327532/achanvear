@@ -27,6 +27,8 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans), system-ui, sans-serif;
   text-rendering: optimizeLegibility;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 * {

@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Calendar, Clock, User, Play, Video, Briefcase, Loader2, Eye, ChevronRight } from "lucide-react";
+import { Calendar, Clock, User, Play, Video, Briefcase, Loader2, Eye, ChevronRight, CheckCircle2 } from "lucide-react";
 import { InterviewRoom } from "./InterviewRoom";
 import { PracticalVoiceInterviewRoom } from "./PracticalVoiceInterviewRoom";
 import { InterviewReportModal } from "./InterviewReportModal";
@@ -12,10 +12,6 @@ import { useAuthContext } from "@/providers/AuthProvider";
 import { scheduleApi, type InterviewScheduleResponse } from "../api/scheduleApi";
 import { jobApi } from "@/features/jobs/api/jobApi";
 import type { InterviewSummaryResponse, InterviewReportResponse } from "../types/interview.types";
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// PENDIENTE CARD: Schedule sin horario elegido
-// ═══════════════════════════════════════════════════════════════════════════════
 
 function PendingScheduleCard({ schedule, onChooseSlot }: { schedule: InterviewScheduleResponse; onChooseSlot: (s: InterviewScheduleResponse) => void }) {
   const [jobTitle, setJobTitle] = useState<string>("");
@@ -60,6 +56,78 @@ function PendingScheduleCard({ schedule, onChooseSlot }: { schedule: InterviewSc
       >
         <Calendar className="w-4 h-4" /> Elegir Horario
       </button>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CARD: Horario ya elegido (confirmacion siempre visible)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function ConfirmedScheduleCard({ schedule }: { schedule: InterviewScheduleResponse }) {
+  const [jobTitle, setJobTitle] = useState<string>("");
+  const typeLabel = schedule.interviewType === "THEORY" ? "Teorica" : "Tecnica";
+
+  useEffect(() => {
+    if (schedule.jobId) {
+      jobApi.getById(schedule.jobId).then(job => {
+        setJobTitle(job.title || schedule.jobId);
+      }).catch(() => {
+        setJobTitle(schedule.jobId);
+      });
+    }
+  }, [schedule.jobId]);
+
+  // El slot elegido queda como RESERVED dentro de proposedSlots
+  const chosenSlot = schedule.proposedSlots.find(s => s.status === "RESERVED");
+
+  const formatDateTime = (dateTime?: string) => {
+    if (!dateTime) return "Fecha por confirmar";
+    try {
+      // El backend envia "yyyy-MM-dd HH:mm"
+      const [datePart, timePart] = dateTime.split(" ");
+      if (!datePart) return dateTime;
+      const d = new Date(`${datePart}T${timePart ?? "00:00"}`);
+      const dateStr = d.toLocaleDateString("es-PE", {
+        weekday: "long", day: "numeric", month: "long", year: "numeric",
+      });
+      return timePart ? `${dateStr} · ${timePart}` : dateStr;
+    } catch {
+      return dateTime;
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-xl border-2 border-[#0EA5A0] shadow-sm p-6 flex flex-col">
+      <div className="flex items-start justify-between mb-4">
+        <div className="flex-1 min-w-0">
+          <h3 className="font-semibold text-lg text-slate-900 truncate">{jobTitle || "Cargando..."}</h3>
+          <p className="text-xs text-slate-500 mt-0.5">Entrevista {typeLabel}</p>
+        </div>
+        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
+          <CheckCircle2 className="w-3 h-3" /> Confirmado
+        </span>
+      </div>
+
+      <div className="rounded-xl bg-emerald-50/60 border border-emerald-100 px-4 py-3 mb-4">
+        <div className="flex items-center gap-2 text-sm">
+          <Calendar className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+          <span className="font-semibold text-emerald-900 capitalize">
+            {formatDateTime(chosenSlot?.dateTime)}
+          </span>
+        </div>
+      </div>
+
+      <div className="space-y-2 mb-4 flex-1">
+        <div className="flex items-center gap-2.5 text-sm text-gray-600">
+          <Clock className="w-4 h-4 text-gray-400 flex-shrink-0" />
+          <span>Tu horario quedo reservado. No se puede cambiar.</span>
+        </div>
+      </div>
+
+      <p className="text-xs text-slate-400 text-center">
+        El boton para iniciar aparece en "Entrevistas Programadas" 5 minutos antes.
+      </p>
     </div>
   );
 }
@@ -209,6 +277,7 @@ export function InterviewsPage() {
 
   // Schedules pendientes (sin horario elegido aun)
   const [schedules, setSchedules] = useState<InterviewScheduleResponse[]>([]);
+  const [confirmedSchedules, setConfirmedSchedules] = useState<InterviewScheduleResponse[]>([]);
   const [schedulesLoading, setSchedulesLoading] = useState(false);
   const [selectedSchedule, setSelectedSchedule] = useState<InterviewScheduleResponse | null>(null);
 
@@ -217,7 +286,10 @@ export function InterviewsPage() {
     setSchedulesLoading(true);
     try {
       const data = await scheduleApi.getMySchedules(candidateId);
+      // Pendientes: aun no eligio horario
       setSchedules(data.filter(s => s.status === "PENDING_SELECTION" || s.status === "PENDING"));
+      // Confirmados: ya eligio horario (no deben desaparecer de la pantalla)
+      setConfirmedSchedules(data.filter(s => s.status === "RESERVED" || s.status === "CHOSEN"));
     } catch {
       // Silenciar error
     } finally {
@@ -280,6 +352,18 @@ export function InterviewsPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {schedules.map((s) => (
                 <PendingScheduleCard key={s.scheduleId} schedule={s} onChooseSlot={setSelectedSchedule} />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Sección: Horarios confirmados (siempre visibles) */}
+        {confirmedSchedules.length > 0 && (
+          <section>
+            <h2 className="text-lg font-bold text-slate-900 mb-5">Horarios Confirmados</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {confirmedSchedules.map((s) => (
+                <ConfirmedScheduleCard key={s.scheduleId} schedule={s} />
               ))}
             </div>
           </section>

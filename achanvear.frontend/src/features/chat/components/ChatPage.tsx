@@ -49,7 +49,7 @@ export function ChatPage({ initialUserId }: ChatPageProps) {
   // ── Skeleton de carga ────────────────────────────────────────────────────
   if (isLoading) {
     return (
-      <div className="flex h-full overflow-hidden">
+      <div className="flex min-h-0 w-full flex-1 overflow-hidden">
         {/* Lista skeleton */}
         <div className="flex flex-col h-full border-r border-[#E5E7EB] bg-white w-[320px] flex-shrink-0">
           <div className="px-4 py-4 border-b border-[#E5E7EB]">
@@ -80,7 +80,7 @@ export function ChatPage({ initialUserId }: ChatPageProps) {
   // ── Starting a new conversation ──────────────────────────────────────────
   if (isStarting) {
     return (
-      <div className="flex h-full items-center justify-center bg-gradient-to-b from-[#F8FAFC] to-[#F1F5F9]">
+      <div className="flex min-h-0 w-full flex-1 items-center justify-center bg-gradient-to-b from-[#F8FAFC] to-[#F1F5F9]">
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="w-8 h-8 animate-spin text-[#2563EB]" />
           <p className="text-sm text-[#64748B]">Iniciando conversación...</p>
@@ -92,7 +92,7 @@ export function ChatPage({ initialUserId }: ChatPageProps) {
   // ── Error al iniciar ─────────────────────────────────────────────────────
   if (initError) {
     return (
-      <div className="flex h-full items-center justify-center bg-gradient-to-b from-[#F8FAFC] to-[#F1F5F9]">
+      <div className="flex min-h-0 w-full flex-1 items-center justify-center bg-gradient-to-b from-[#F8FAFC] to-[#F1F5F9]">
         <div className="flex flex-col items-center text-center max-w-xs px-6">
           <div className="w-16 h-16 bg-red-50 border border-red-100 rounded-2xl flex items-center justify-center mb-4">
             <MessageSquare className="w-8 h-8 text-red-300" />
@@ -125,7 +125,7 @@ export function ChatPage({ initialUserId }: ChatPageProps) {
 
   // ── Layout normal — hay conversaciones ──────────────────────────────────
   return (
-    <div className="absolute inset-0 flex overflow-hidden">
+    <div className="flex min-h-0 w-full flex-1 overflow-hidden">
       <ConversationList
         conversations={conversations}
         activeConversationId={activeConversation?.id ?? null}

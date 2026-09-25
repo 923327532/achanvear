@@ -6,19 +6,8 @@ import { CreditCard, Loader2, Shield } from "lucide-react";
 import { useCreateDepositIntent, useProcessCulqiPayment } from "../hooks/usePayments";
 import type { PaymentIntent } from "../types/payments.types";
 
-declare global {
-  interface Window {
-    Culqi?: {
-      publicKey: string;
-      settings: (settings: Record<string, unknown>) => void;
-      options: (options: Record<string, unknown>) => void;
-      open: () => void;
-      token?: { id: string; email?: string };
-      error?: { user_message?: string; merchant_message?: string };
-    };
-    culqi?: () => void;
-  }
-}
+// La declaracion global de window.Culqi / window.culqi vive en
+// ../types/culqi.d.ts para evitar conflictos de tipos duplicados.
 
 interface Props {
   milestoneId: string;

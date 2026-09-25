@@ -5,37 +5,12 @@ import { useEffect, useRef, useState } from "react";
 import { CreditCard, Loader2, Shield, CheckCircle, AlertCircle } from "lucide-react";
 import { useSaveCulqiCard } from "../hooks/usePayments";
 
-declare global {
-  interface Window {
-    Culqi?: {
-      publicKey: string;
-      settings: (settings: Record<string, unknown>) => void;
-      options: (options: Record<string, unknown>) => void;
-      open: () => void;
-      close: () => void;
-      token?: { id: string; email?: string };
-      order?: unknown;
-      error?: { user_message?: string; merchant_message?: string };
-    };
-    culqi?: () => void;
-  }
-}
 
 interface Props {
   onSuccess?: () => void;
   onError?: (error: string) => void;
 }
 
-/**
- * Formulario que tokeniza la tarjeta usando Culqi Checkout v4.
- *
- * Flujo (segun https://docs.culqi.com/es/documentacion/checkout/v4):
- *  1. Carga el script https://checkout.culqi.com/js/v4
- *  2. Configura Culqi.publicKey + Culqi.settings + Culqi.options
- *  3. Culqi.open() -> el usuario ingresa los datos de su tarjeta
- *  4. El callback window.culqi() entrega Culqi.token.id
- *  5. El token se envia al backend para registrar el cliente y guardar la tarjeta
- */
 export function CulqiCardForm({ onSuccess, onError }: Props) {
   const [isSdkReady, setIsSdkReady] = useState(false);
   const [email, setEmail] = useState("");
