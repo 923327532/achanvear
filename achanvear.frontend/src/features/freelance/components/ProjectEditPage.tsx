@@ -36,6 +36,10 @@ import {
 } from "lucide-react";
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
+// FIX: se quitó "Tipo de Proveedor" (Freelancer Individual / Agencia o Equipo),
+// por la misma razón que en ProjectCreatePage.tsx — no existe un rol de
+// "agencia" en la plataforma, y el campo no se mostraba ni filtraba en
+// ninguna otra pantalla.
 
 const EXPERIENCE_LEVELS = [
   { value: "JUNIOR", label: "Junior", icon: GraduationCap, desc: "0-2 años de experiencia" },
@@ -52,11 +56,6 @@ const MODALITIES = [
   { value: "REMOTE", label: "Remoto", icon: Globe },
   { value: "HYBRID", label: "Híbrido", icon: Monitor },
   { value: "ONSITE", label: "Presencial", icon: Building2 },
-] as const;
-
-const PROVIDER_TYPES = [
-  { value: "INDIVIDUAL", label: "Freelancer Individual", icon: Users, desc: "Una sola persona" },
-  { value: "AGENCY", label: "Agencia o Equipo", icon: Building2, desc: "Empresa o grupo de trabajo" },
 ] as const;
 
 const CURRENCIES = [
@@ -117,7 +116,6 @@ export function ProjectEditPage() {
   const [skillInput, setSkillInput] = useState("");
   const [budgetType, setBudgetType] = useState("");
   const [modality, setModality] = useState("");
-  const [providerType, setProviderType] = useState("");
   const [attachments, setAttachments] = useState<string[]>([]);
   const [currency, setCurrency] = useState("PEN");
   const [language, setLanguage] = useState("es");
@@ -139,7 +137,6 @@ export function ProjectEditPage() {
       setSkills(project.skills ?? []);
       setBudgetType(project.budgetType ?? "");
       setModality(project.modality ?? "");
-      setProviderType(project.providerType ?? "");
       setAttachments(project.attachments ?? []);
       setCurrency(project.currency ?? "PEN");
       setLanguage(project.language ?? "es");
@@ -164,7 +161,6 @@ export function ProjectEditPage() {
         skills: skills.length > 0 ? skills : undefined,
         budgetType: budgetType || undefined,
         modality: modality || undefined,
-        providerType: providerType || undefined,
         attachments: attachments.length > 0 ? attachments : undefined,
         currency: currency || undefined,
         language: language || undefined,
@@ -546,30 +542,6 @@ export function ProjectEditPage() {
                   >
                     <m.icon className="w-6 h-6 mx-auto mb-1.5 text-slate-600" />
                     <p className="font-semibold text-sm text-slate-900">{m.label}</p>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1.5">
-                Tipo de Proveedor
-              </label>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                {PROVIDER_TYPES.map((pt) => (
-                  <button
-                    key={pt.value}
-                    type="button"
-                    onClick={() => setProviderType(pt.value)}
-                    className={`p-4 rounded-xl border-2 text-left transition ${
-                      providerType === pt.value
-                        ? "border-[#1e3a8a] bg-blue-50"
-                        : "border-slate-200 hover:border-slate-300"
-                    }`}
-                  >
-                    <pt.icon className="w-6 h-6 mb-1.5 text-slate-600" />
-                    <p className="font-semibold text-sm text-slate-900">{pt.label}</p>
-                    <p className="text-xs text-slate-500 mt-0.5">{pt.desc}</p>
                   </button>
                 ))}
               </div>

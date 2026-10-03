@@ -148,12 +148,23 @@ export function JobCard({ job, onApply, onViewDetail }: JobCardProps) {
   );
 }
 
+// FIX: "Hoy" aparecía para empleos creados el día de calendario anterior.
+// La versión vieja medía horas transcurridas (diffMs / 24h) en vez de
+// comparar fechas de calendario: un empleo creado ayer a las 11pm y visto
+// hoy a la 1am solo tiene ~2 horas de diferencia real, así que
+// Math.floor(2/24) = 0 → mostraba "Hoy" aunque ya era un día distinto en
+// el calendario. Ahora se comparan las fechas normalizadas a medianoche,
+// que es como un humano espera que funcione "Hoy"/"Ayer".
 function formatTimeAgo(dateStr: string): string {
   const date = new Date(dateStr);
   const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-  if (diffDays === 0) return "Hoy";
+
+  const dateDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const nowDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  const diffDays = Math.round((nowDay.getTime() - dateDay.getTime()) / (1000 * 60 * 60 * 24));
+
+  if (diffDays <= 0) return "Hoy";
   if (diffDays === 1) return "Hace 1 día";
   if (diffDays < 7) return `Hace ${diffDays} días`;
   if (diffDays < 30) return `Hace ${Math.floor(diffDays / 7)} semanas`;

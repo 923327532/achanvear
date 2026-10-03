@@ -28,7 +28,6 @@ import {
   Send,
   Eye,
   Tag,
-  Users,
   Monitor,
   Globe,
   Building2,
@@ -40,6 +39,12 @@ import {
 } from "lucide-react";
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
+// FIX: se quitó "Tipo de Proveedor" (Freelancer Individual / Agencia o Equipo).
+// En la plataforma solo existen cuentas de freelancer individual — no hay un
+// rol de "agencia" que pueda postular como tal (ver roles en lib/constants.ts:
+// COMPANY, COMPANY_COLLABORATOR, FREELANCER/CANDIDATE, y los roles admin).
+// El campo tampoco se mostraba ni filtraba en ninguna otra pantalla, así que
+// era una opción de formulario sin contraparte funcional real.
 
 const EXPERIENCE_LEVELS = [
   { value: "JUNIOR", label: "Junior", icon: GraduationCap, desc: "0-2 años de experiencia" },
@@ -56,11 +61,6 @@ const MODALITIES = [
   { value: "REMOTE", label: "Remoto", icon: Globe },
   { value: "HYBRID", label: "Híbrido", icon: Monitor },
   { value: "ONSITE", label: "Presencial", icon: Building2 },
-] as const;
-
-const PROVIDER_TYPES = [
-  { value: "INDIVIDUAL", label: "Freelancer Individual", icon: Users, desc: "Una sola persona" },
-  { value: "AGENCY", label: "Agencia o Equipo", icon: Building2, desc: "Empresa o grupo de trabajo" },
 ] as const;
 
 const CURRENCIES = [
@@ -164,7 +164,6 @@ interface FormData {
   language: string;
   estimatedDays: string;
   modality: string;
-  providerType: string;
   attachments: File[];
 }
 
@@ -195,7 +194,6 @@ export function ProjectCreatePage() {
     language: "es",
     estimatedDays: "",
     modality: "",
-    providerType: "",
     attachments: [],
   });
 
@@ -229,7 +227,6 @@ export function ProjectCreatePage() {
         skills: form.skills.length > 0 ? form.skills : undefined,
         budgetType: form.budgetType || undefined,
         modality: form.modality || undefined,
-        providerType: form.providerType || undefined,
         attachments: form.attachments.length > 0
           ? form.attachments.map((f) => f.name)
           : undefined,
@@ -340,9 +337,6 @@ export function ProjectCreatePage() {
     if (!form.modality) {
       errs.modality = "Selecciona una modalidad de trabajo";
     }
-    if (!form.providerType) {
-      errs.providerType = "Selecciona el tipo de proveedor";
-    }
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -379,7 +373,6 @@ export function ProjectCreatePage() {
       language: suggestion.language || form.language,
       estimatedDays: suggestion.estimatedDays != null ? String(suggestion.estimatedDays) : form.estimatedDays,
       modality: suggestion.modality || form.modality,
-      providerType: suggestion.providerType || form.providerType,
       attachments: form.attachments,
     };
     setForm(newForm);
@@ -888,40 +881,6 @@ export function ProjectCreatePage() {
         {renderError("modality")}
       </div>
 
-      {/* Tipo de Proveedor */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-        <label className="block text-sm font-semibold text-slate-700 mb-3">
-          Tipo de Proveedor <span className="text-red-500">*</span>
-        </label>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {PROVIDER_TYPES.map((pt) => {
-            const Icon = pt.icon;
-            const isSelected = form.providerType === pt.value;
-            return (
-              <button
-                key={pt.value}
-                type="button"
-                onClick={() => updateField("providerType", pt.value)}
-                className={`text-left p-4 rounded-xl border-2 transition-all ${
-                  isSelected
-                    ? "border-purple-600 bg-purple-50 shadow-sm"
-                    : "border-slate-200 bg-white hover:border-slate-300"
-                }`}
-              >
-                <div className="flex items-center gap-2 mb-1">
-                  <Icon className={`w-4 h-4 ${isSelected ? "text-purple-600" : "text-slate-400"}`} />
-                  <span className={`text-sm font-semibold ${isSelected ? "text-purple-700" : "text-slate-700"}`}>
-                    {pt.label}
-                  </span>
-                </div>
-                <p className="text-xs text-slate-500">{pt.desc}</p>
-              </button>
-            );
-          })}
-        </div>
-        {renderError("providerType")}
-      </div>
-
       {/* Archivos Adjuntos */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
         <label className="block text-sm font-semibold text-slate-700 mb-3">
@@ -984,7 +943,6 @@ export function ProjectCreatePage() {
     const experienceLabel = EXPERIENCE_LEVELS.find((l) => l.value === form.experienceLevel)?.label || "No especificado";
     const budgetTypeLabel = BUDGET_TYPES.find((b) => b.value === form.budgetType)?.label || "No especificado";
     const modalityLabel = MODALITIES.find((m) => m.value === form.modality)?.label || "No especificado";
-    const providerLabel = PROVIDER_TYPES.find((p) => p.value === form.providerType)?.label || "No especificado";
 
     return (
       <div className="space-y-6">
@@ -1087,18 +1045,12 @@ export function ProjectCreatePage() {
 
             <hr className="border-slate-100" />
 
-            {/* Modalidad, Proveedor, Experiencia */}
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            {/* Modalidad, Experiencia */}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Modalidad</p>
                 <span className="inline-block px-2.5 py-1 bg-cyan-50 text-cyan-700 rounded-lg text-xs font-medium">
                   {modalityLabel}
-                </span>
-              </div>
-              <div>
-                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Proveedor</p>
-                <span className="inline-block px-2.5 py-1 bg-purple-50 text-purple-700 rounded-lg text-xs font-medium">
-                  {providerLabel}
                 </span>
               </div>
               <div>

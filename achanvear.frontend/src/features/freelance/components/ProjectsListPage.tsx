@@ -3,6 +3,7 @@
 
 import { useState, useMemo, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { freelanceApi } from "../api/freelanceApi";
 import { profileApi } from "@/features/profile/api/profileApi";
@@ -327,6 +328,7 @@ function ProjectCard({
   project: Project;
   onViewProposals: (project: Project) => void;
 }) {
+  const router = useRouter();
   const queryClient = useQueryClient();
   const currencySymbol = "S/.";
 
@@ -342,7 +344,7 @@ function ProjectCard({
 
   const deleteMutation = useMutation({
     mutationFn: () => {
-      if (!window.confirm("Estas seguro de eliminar este proyecto? Se marcara como cancelado.")) {
+      if (!window.confirm("¿Cancelar este proyecto? Se marcará como cancelado y dejará de recibir propuestas.")) {
         throw new Error("cancelado");
       }
       return freelanceApi.remove(project.id);
@@ -438,61 +440,79 @@ function ProjectCard({
       </div>
 
       <div className="flex items-center gap-1.5 pt-2 border-t border-slate-100">
-        <a
-          href={`/company/projects/${project.id}`}
-          className="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-semibold text-slate-600 border border-slate-200 hover:bg-slate-50 transition-colors"
-        >
-          <Eye className="h-3 w-3" strokeWidth={1.5} />
-          Ver
-        </a>
-        <a
-          href={`/company/projects/${project.id}/edit`}
-          className="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-semibold text-blue-600 border border-blue-200 hover:bg-blue-50 transition-colors"
-        >
-          <Edit className="h-3 w-3" strokeWidth={1.5} />
-          Editar
-        </a>
-        {project.status === "PAUSED" ? (
-          <button
-            type="button"
-            onClick={() => resumeMutation.mutate()}
-            disabled={resumeMutation.isPending}
-            className="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-semibold text-emerald-600 border border-emerald-200 hover:bg-emerald-50 transition-colors disabled:opacity-50"
-          >
-            <Play className="h-3 w-3" strokeWidth={1.5} />
-            Reanudar
-          </button>
+        {project.status === "CANCELLED" ? (
+          /* Proyecto cancelado: sin acciones, solo el estado ya visible arriba
+             en el badge. Ver/Editar/Pausar/Cancelar no tienen sentido sobre
+             algo que ya no está activo. */
+          <p className="text-xs text-slate-400 italic py-1.5">
+            Este proyecto fue cancelado y ya no está disponible.
+          </p>
         ) : (
-          <button
-            type="button"
-            onClick={() => pauseMutation.mutate()}
-            disabled={pauseMutation.isPending}
-            className="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-semibold text-amber-600 border border-amber-200 hover:bg-amber-50 transition-colors disabled:opacity-50"
-          >
-            <PauseCircle className="h-3 w-3" strokeWidth={1.5} />
-            Pausar
-          </button>
-        )}
-        <button
-          type="button"
-          onClick={() => deleteMutation.mutate()}
-          disabled={deleteMutation.isPending}
-          className="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-semibold text-red-600 border border-red-200 hover:bg-red-50 transition-colors disabled:opacity-50"
-        >
-          <Trash2 className="h-3 w-3" strokeWidth={1.5} />
-          Eliminar
-        </button>
-        {project.status === "OPEN" && (
-          <button
-            onClick={(e) => {
-              e.preventDefault();
-              onViewProposals(project);
-            }}
-            className="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-semibold text-[#0d9488] border border-[#0d9488]/30 hover:bg-[#0d9488]/5 transition-colors ml-auto"
-          >
-            <Users className="h-3 w-3" strokeWidth={1.5} />
-            Propuestas ({proposalCount})
-          </button>
+          <>
+            {/* Ver / Editar: antes eran <a href>, ahora <button> con router.push,
+                consistente con Pausar/Reanudar/Eliminar que ya usaban <button>. */}
+            <button
+              type="button"
+              onClick={() => router.push(`/company/projects/${project.id}`)}
+              className="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-semibold text-slate-600 border border-slate-200 hover:bg-slate-50 transition-colors"
+            >
+              <Eye className="h-3 w-3" strokeWidth={1.5} />
+              Ver
+            </button>
+            <button
+              type="button"
+              onClick={() => router.push(`/company/projects/${project.id}/edit`)}
+              className="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-semibold text-blue-600 border border-blue-200 hover:bg-blue-50 transition-colors"
+            >
+              <Edit className="h-3 w-3" strokeWidth={1.5} />
+              Editar
+            </button>
+            {project.status === "PAUSED" ? (
+              <button
+                type="button"
+                onClick={() => resumeMutation.mutate()}
+                disabled={resumeMutation.isPending}
+                className="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-semibold text-emerald-600 border border-emerald-200 hover:bg-emerald-50 transition-colors disabled:opacity-50"
+              >
+                <Play className="h-3 w-3" strokeWidth={1.5} />
+                Reanudar
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => pauseMutation.mutate()}
+                disabled={pauseMutation.isPending}
+                className="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-semibold text-amber-600 border border-amber-200 hover:bg-amber-50 transition-colors disabled:opacity-50"
+              >
+                <PauseCircle className="h-3 w-3" strokeWidth={1.5} />
+                Pausar
+              </button>
+            )}
+            {/* Cancelar (antes decía "Eliminar", pero el backend solo marca el
+                proyecto como CANCELLED — no lo borra. El texto ahora refleja lo
+                que realmente pasa. */}
+            <button
+              type="button"
+              onClick={() => deleteMutation.mutate()}
+              disabled={deleteMutation.isPending}
+              className="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-semibold text-red-600 border border-red-200 hover:bg-red-50 transition-colors disabled:opacity-50"
+            >
+              <Trash2 className="h-3 w-3" strokeWidth={1.5} />
+              Cancelar
+            </button>
+            {project.status === "OPEN" && (
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  onViewProposals(project);
+                }}
+                className="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-semibold text-[#0d9488] border border-[#0d9488]/30 hover:bg-[#0d9488]/5 transition-colors ml-auto"
+              >
+                <Users className="h-3 w-3" strokeWidth={1.5} />
+                Propuestas ({proposalCount})
+              </button>
+            )}
+          </>
         )}
       </div>
     </div>

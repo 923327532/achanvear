@@ -44,7 +44,11 @@ export function CompanyOnboardingWizard() {
     const saved = getSavedData();
     return {
       ruc: user?.ruc || saved.ruc || "",
-      razonSocial: user?.representanteLegal || saved.razonSocial || "",
+      // FIX: "Razón Social" ya NO hereda el nombre del representante legal
+      // como valor por defecto — son campos distintos (RUC/razón social vs.
+      // representante legal), y antes el formulario precargaba el nombre
+      // de la persona como si fuera el de la empresa.
+      razonSocial: saved.razonSocial || "",
       representanteLegal: user?.representanteLegal || saved.representanteLegal || "",
       representanteLegalDni: user?.representanteDni || saved.representanteLegalDni || "",
       email: user?.email || saved.email || "",

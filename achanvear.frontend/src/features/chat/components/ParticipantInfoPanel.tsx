@@ -2,10 +2,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Building2, User, Globe, MapPin, Star, Briefcase, FileText, ChevronRight, Download, Shield, Clock, CheckCircle2, Loader2, ExternalLink, Eye, Plus, FileSignature, Send, DollarSign } from "lucide-react";
+import { X, Building2, User, Clock, Loader2, Eye, Briefcase, FileText } from "lucide-react";
 import { chatApi } from "../api/chatApi";
-import { useAuth } from "@/features/auth/hooks/useAuth";
-import type { Conversation, FreelancerProfileResponse, CompanyProfileResponse } from "../types/chat.types";
+import type { Conversation } from "../types/chat.types";
 
 interface Props {
   conversation: Conversation | null;
@@ -42,6 +41,9 @@ function Modal({ title, children, onClose }: { title: string; children: React.Re
 }
 
 // ─── Modal: Ver Perfil ────────────────────────────────────────────────────────
+// Se mantiene porque ya es honesto sobre su propia limitación: avisa
+// explícitamente que el detalle completo requiere un dato que el backend aún
+// no envía (participantId). No inventa datos falsos, solo explica el estado.
 
 function ViewProfileModal({ conversation, onClose }: { conversation: Conversation; onClose: () => void }) {
   const isCompany = conversation.participantRole === "COMPANY";
@@ -89,213 +91,26 @@ function ViewProfileModal({ conversation, onClose }: { conversation: Conversatio
 }
 
 // ─── Modal: Ver Proyecto ──────────────────────────────────────────────────────
+// FIX: antes mostraba "Mock projects" (dos proyectos inventados con montos y
+// estados falsos) como si fueran reales. Ahora, mientras no exista un
+// endpoint real de proyectos/servicios compartidos entre ambos participantes,
+// se muestra un estado vacío honesto en vez de datos de relleno.
 
 function ViewProjectModal({ conversation, onClose }: { conversation: Conversation; onClose: () => void }) {
   const isCompany = conversation.participantRole === "COMPANY";
 
   return (
     <Modal title={`Proyectos de ${conversation.participantName}`} onClose={onClose}>
-      <div className="space-y-3">
-        <div className="bg-[#F8FAFC] rounded-lg p-4 text-center">
-          <Briefcase className="w-8 h-8 text-[#94A3B8] mx-auto mb-2" />
-          <p className="text-xs text-[#64748B]">
-            {isCompany
-              ? "Proyectos publicados por esta empresa"
-              : "Servicios ofrecidos por este freelancer"}
-          </p>
-        </div>
-
-        {/* Mock projects */}
-        {[
-          { title: isCompany ? "Desarrollo Web Full Stack" : "Desarrollo de Landing Page", status: "En progreso", budget: "S/ 3,500" },
-          { title: isCompany ? "App Móvil React Native" : "App de Delivery", status: "Completado", budget: "S/ 8,000" },
-        ].map((project, i) => (
-          <div key={i} className="flex items-center gap-3 p-3 rounded-lg border border-[#E2E8F0] hover:bg-[#F8FAFC] transition-colors">
-            <div className="w-9 h-9 rounded-lg bg-[#EFF6FF] flex items-center justify-center flex-shrink-0">
-              <Briefcase className="w-4 h-4 text-[#2563EB]" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium text-[#0F172A] truncate">{project.title}</p>
-              <div className="flex items-center gap-2 mt-0.5">
-                <span className="text-[10px] text-[#64748B]">{project.status}</span>
-                <span className="text-[10px] text-[#64748B]">•</span>
-                <span className="text-[10px] font-medium text-[#10B981]">{project.budget}</span>
-              </div>
-            </div>
-            <Eye className="w-3.5 h-3.5 text-[#64748B] flex-shrink-0" />
-          </div>
-        ))}
-      </div>
-    </Modal>
-  );
-}
-
-// ─── Modal: Contratar / Solicitar Cotización ──────────────────────────────────
-
-function HireModal({ conversation, onClose }: { conversation: Conversation; onClose: () => void }) {
-  const { user } = useAuth();
-  const isCurrentUserFreelancer = user?.role === "FREELANCER";
-  const [step, setStep] = useState<"confirm" | "done">("confirm");
-
-  const handleConfirm = () => {
-    setStep("done");
-  };
-
-  if (step === "done") {
-    return (
-      <Modal title={isCurrentUserFreelancer ? "Solicitar Cotización" : "Contratar"} onClose={onClose}>
-        <div className="flex flex-col items-center text-center py-4">
-          <div className="w-14 h-14 rounded-full bg-[#F0FDF4] flex items-center justify-center mb-3">
-            <CheckCircle2 className="w-7 h-7 text-[#10B981]" />
-          </div>
-          <h4 className="text-sm font-semibold text-[#0F172A] mb-1">¡Solicitud enviada!</h4>
-          <p className="text-xs text-[#64748B]">
-            {isCurrentUserFreelancer
-              ? `Tu solicitud de cotización ha sido enviada a ${conversation.participantName}.`
-              : `Se ha notificado a ${conversation.participantName} sobre tu interés.`}
-          </p>
-          <button
-            onClick={onClose}
-            className="mt-4 px-5 py-2 text-xs font-medium text-white bg-[#2563EB] rounded-lg hover:bg-[#1D4ED8] transition-colors"
-          >
-            Cerrar
-          </button>
-        </div>
-      </Modal>
-    );
-  }
-
-  return (
-    <Modal title={isCurrentUserFreelancer ? "Solicitar Cotización" : "Contratar Freelancer"} onClose={onClose}>
-      <div className="space-y-4">
-        <div className="flex items-center gap-3 p-3 bg-[#F8FAFC] rounded-lg">
-          <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold ${
-            conversation.participantRole === "COMPANY" ? "bg-[#2563EB]" : "bg-[#0EA5A0]"
-          }`}>
-            {conversation.participantName.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()}
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-[#0F172A]">{conversation.participantName}</p>
-            <p className="text-xs text-[#64748B]">{conversation.participantRole === "COMPANY" ? "Empresa" : "Freelancer"}</p>
-          </div>
-        </div>
-
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-          <p className="text-[11px] text-amber-800">
-            {isCurrentUserFreelancer
-              ? "Al solicitar una cotización, la empresa recibirá una notificación con tu solicitud."
-              : "Al contratar, se creará una solicitud de proyecto que será notificada al freelancer."}
-          </p>
-        </div>
-
-        <div className="flex gap-2 pt-2">
-          <button
-            onClick={onClose}
-            className="flex-1 px-4 py-2 text-xs font-medium text-[#64748B] border border-[#E2E8F0] rounded-lg hover:bg-[#F8FAFC] transition-colors"
-          >
-            Cancelar
-          </button>
-          <button
-            onClick={handleConfirm}
-            className="flex-1 px-4 py-2 text-xs font-medium text-white bg-[#10B981] rounded-lg hover:bg-[#059669] transition-colors"
-          >
-            {isCurrentUserFreelancer ? "Solicitar cotización" : "Solicitar contratación"}
-          </button>
-        </div>
-      </div>
-    </Modal>
-  );
-}
-
-// ─── Modal: Crear Contrato ────────────────────────────────────────────────────
-
-function CreateContractModal({ conversation, onClose }: { conversation: Conversation; onClose: () => void }) {
-  const [step, setStep] = useState<"form" | "done">("form");
-  const [budget, setBudget] = useState("");
-  const [description, setDescription] = useState("");
-
-  const handleSubmit = () => {
-    setStep("done");
-  };
-
-  if (step === "done") {
-    return (
-      <Modal title="Crear Contrato" onClose={onClose}>
-        <div className="flex flex-col items-center text-center py-4">
-          <div className="w-14 h-14 rounded-full bg-[#F0FDF4] flex items-center justify-center mb-3">
-            <CheckCircle2 className="w-7 h-7 text-[#10B981]" />
-          </div>
-          <h4 className="text-sm font-semibold text-[#0F172A] mb-1">Contrato creado</h4>
-          <p className="text-xs text-[#64748B]">
-            El contrato ha sido enviado a {conversation.participantName} para su revisión.
-          </p>
-          <button
-            onClick={onClose}
-            className="mt-4 px-5 py-2 text-xs font-medium text-white bg-[#2563EB] rounded-lg hover:bg-[#1D4ED8] transition-colors"
-          >
-            Cerrar
-          </button>
-        </div>
-      </Modal>
-    );
-  }
-
-  return (
-    <Modal title="Crear Contrato" onClose={onClose}>
-      <div className="space-y-4">
-        <div className="flex items-center gap-3 p-3 bg-[#F8FAFC] rounded-lg">
-          <div className="w-10 h-10 rounded-full bg-[#8B5CF6] flex items-center justify-center text-white text-sm font-bold">
-            {conversation.participantName.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()}
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-[#0F172A]">{conversation.participantName}</p>
-            <p className="text-xs text-[#64748B]">Nuevo contrato</p>
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-xs font-medium text-[#0F172A] mb-1.5">Presupuesto (S/)</label>
-          <input
-            type="number"
-            value={budget}
-            onChange={(e) => setBudget(e.target.value)}
-            placeholder="Ej: 3500"
-            className="w-full px-3 py-2 text-xs border border-[#E2E8F0] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
-          />
-        </div>
-
-        <div>
-          <label className="block text-xs font-medium text-[#0F172A] mb-1.5">Descripción del trabajo</label>
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Describe el alcance del trabajo..."
-            rows={3}
-            className="w-full px-3 py-2 text-xs border border-[#E2E8F0] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] resize-none"
-          />
-        </div>
-
-        <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
-          <p className="text-[11px] text-purple-800">
-            El contrato será enviado para revisión y firma de ambas partes.
-          </p>
-        </div>
-
-        <div className="flex gap-2 pt-2">
-          <button
-            onClick={onClose}
-            className="flex-1 px-4 py-2 text-xs font-medium text-[#64748B] border border-[#E2E8F0] rounded-lg hover:bg-[#F8FAFC] transition-colors"
-          >
-            Cancelar
-          </button>
-          <button
-            onClick={handleSubmit}
-            disabled={!budget || !description}
-            className="flex-1 px-4 py-2 text-xs font-medium text-white bg-[#8B5CF6] rounded-lg hover:bg-[#7C3AED] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Crear contrato
-          </button>
-        </div>
+      <div className="flex flex-col items-center text-center py-6">
+        <Briefcase className="w-8 h-8 text-[#94A3B8] mb-2" />
+        <p className="text-xs text-[#64748B]">
+          {isCompany
+            ? "Aún no podemos mostrar los proyectos publicados por esta empresa"
+            : "Aún no podemos mostrar los servicios de este freelancer"}
+        </p>
+        <p className="text-[11px] text-[#94A3B8] mt-1">
+          Esta sección estará disponible cuando el backend proporcione el ID del participante.
+        </p>
       </div>
     </Modal>
   );
@@ -304,43 +119,44 @@ function CreateContractModal({ conversation, onClose }: { conversation: Conversa
 // ─── Componente Principal ─────────────────────────────────────────────────────
 
 export function ParticipantInfoPanel({ conversation, onClose }: Props) {
-  const [freelancerProfile, setFreelancerProfile] = useState<FreelancerProfileResponse | null>(null);
-  const [companyProfile, setCompanyProfile] = useState<CompanyProfileResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Modal states
+  // FIX: se quitaron "Contratar" y "Crear contrato" (y sus modales HireModal/
+  // CreateContractModal) — ambos mostraban un mensaje de éxito ("¡Solicitud
+  // enviada!", "Contrato creado") sin llamar a ningún endpoint real; el
+  // usuario creía que algo había pasado de verdad cuando el botón solo
+  // cambiaba de pantalla internamente (setStep("done")). Confirmado en
+  // Swagger: chat-controller no tiene ningún endpoint para contratar ni crear
+  // contratos. Se dejan "Ver perfil" y "Ver proyecto" porque esos sí son
+  // honestos sobre su límite actual.
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showProjectModal, setShowProjectModal] = useState(false);
-  const [showHireModal, setShowHireModal] = useState(false);
-  const [showContractModal, setShowContractModal] = useState(false);
 
   const isCompany = conversation?.participantRole === "COMPANY";
 
   useEffect(() => {
-    if (!conversation) {
-      setFreelancerProfile(null);
-      setCompanyProfile(null);
-      return;
-    }
-
+    if (!conversation) return;
     setError(null);
     setIsLoading(false);
 
-    // ── Future implementation when backend provides participantId ──
+    // ── Pendiente de backend: GET /chat/conversations no incluye
+    // participantId en su respuesta (confirmado en Swagger). Sin ese campo
+    // es imposible llamar a chatApi.getFreelancerProfile()/getCompanyProfile()
+    // para traer el perfil real — ambos métodos ya existen y funcionan, solo
+    // falta el dato para poder usarlos. Reactivar este bloque en cuanto el
+    // backend agregue el campo:
+    //
     // const fetchProfile = async () => {
     //   setIsLoading(true);
-    //   setError(null);
     //   try {
     //     if (isCompany) {
-    //       const info = await chatApi.getCompanyProfile(conversation.participantId);
-    //       setCompanyProfile(info);
+    //       await chatApi.getCompanyProfile(conversation.participantId);
     //     } else {
-    //       const info = await chatApi.getFreelancerProfile(conversation.participantId);
-    //       setFreelancerProfile(info);
+    //       await chatApi.getFreelancerProfile(conversation.participantId);
     //     }
-    //   } catch (err) {
-    //     console.error("Error fetching participant info:", err);
+    //   } catch {
     //     setError("No se pudo cargar la información del perfil");
     //   } finally {
     //     setIsLoading(false);
@@ -394,7 +210,9 @@ export function ParticipantInfoPanel({ conversation, onClose }: Props) {
               </div>
             </div>
 
-            {/* ── Stats (mock data - will come from API) ── */}
+            {/* ── Stats ──
+                Ya estaban honestamente marcados como "—" (sin datos), no se
+                tocó — solo se mantiene a la espera del participantId. */}
             <div className="grid grid-cols-3 gap-3">
               <div className="bg-[#F8FAFC] rounded-lg p-2.5 text-center">
                 <p className="text-lg font-bold text-[#0F172A]">—</p>
@@ -410,88 +228,48 @@ export function ParticipantInfoPanel({ conversation, onClose }: Props) {
               </div>
             </div>
 
-            {/* ── Información del participante ── */}
+            {/* ── Información del participante ──
+                FIX: antes mostraba datos inventados con apariencia de reales
+                ("Lima, Perú", "RUC: —" mezclado con datos falsos, "3+ años de
+                experiencia", "Tecnología / Desarrollo") iguales para
+                cualquier persona. Eso es peor que no mostrar nada, porque
+                parece información verificada sin serlo. Se reemplaza por un
+                aviso honesto hasta que el backend mande el participantId. */}
             <div className="space-y-2">
               <h4 className="text-xs font-semibold text-[#0F172A] uppercase tracking-wider">
                 {isCompany ? "Información de la empresa" : "Información del freelancer"}
               </h4>
-              <div className="space-y-1.5">
-                {isCompany ? (
-                  <>
-                    <div className="flex items-center gap-2 text-xs text-[#64748B]">
-                      <Building2 className="w-3.5 h-3.5 flex-shrink-0" />
-                      <span>Empresa verificada</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-xs text-[#64748B]">
-                      <Globe className="w-3.5 h-3.5 flex-shrink-0" />
-                      <span>Rubro: Tecnología / Desarrollo</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-xs text-[#64748B]">
-                      <MapPin className="w-3.5 h-3.5 flex-shrink-0" />
-                      <span>Ubicación: Lima, Perú</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-xs text-[#64748B]">
-                      <User className="w-3.5 h-3.5 flex-shrink-0" />
-                      <span>RUC: —</span>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="flex items-center gap-2 text-xs text-[#64748B]">
-                      <User className="w-3.5 h-3.5 flex-shrink-0" />
-                      <span>Freelancer independiente</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-xs text-[#64748B]">
-                      <Briefcase className="w-3.5 h-3.5 flex-shrink-0" />
-                      <span>Especialidad: Desarrollo Web</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-xs text-[#64748B]">
-                      <MapPin className="w-3.5 h-3.5 flex-shrink-0" />
-                      <span>Ubicación: Lima, Perú</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-xs text-[#64748B]">
-                      <Star className="w-3.5 h-3.5 flex-shrink-0" />
-                      <span>Experiencia: 3+ años</span>
-                    </div>
-                  </>
-                )}
+              <div className="bg-[#F8FAFC] rounded-lg p-3">
+                <p className="text-xs text-[#64748B] leading-relaxed">
+                  Esta información aún no está disponible desde el chat. Puedes ver el perfil completo
+                  desde la sección correspondiente una vez que el backend incluya el identificador del
+                  participante en la conversación.
+                </p>
               </div>
             </div>
 
-            {/* ── Shared Files ── */}
+            {/* ── Archivos compartidos ──
+                FIX: antes listaba 3 archivos inventados (contrato.pdf,
+                propuesta.pdf, reporte.docx) con links a rutas que no existen
+                (/files/contrato-ejemplo.pdf). Se reemplaza por un estado
+                vacío honesto; los adjuntos reales ya viven en cada Message
+                (Message.attachments) y se muestran dentro de la conversación
+                misma — faltaría un endpoint que agregue todos los adjuntos de
+                una conversación para listarlos aquí de verdad. */}
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <h4 className="text-xs font-semibold text-[#0F172A] uppercase tracking-wider">Archivos compartidos</h4>
-                <button className="text-[11px] text-[#2563EB] hover:underline flex items-center gap-0.5">
-                  Ver todos <ChevronRight className="w-3 h-3" />
-                </button>
-              </div>
-              <div className="space-y-1.5">
-                {[
-                  { name: "contrato.pdf", type: "PDF", size: "2.4 MB", url: "/files/contrato-ejemplo.pdf" },
-                  { name: "propuesta.pdf", type: "PDF", size: "1.8 MB", url: "/files/propuesta-ejemplo.pdf" },
-                  { name: "reporte.docx", type: "DOCX", size: "856 KB", url: "/files/reporte-ejemplo.docx" },
-                ].map((file, i) => (
-                  <a
-                    key={i}
-                    href={file.url}
-                    download={file.name}
-                    className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-[#F8FAFC] transition-colors cursor-pointer no-underline"
-                  >
-                    <div className="w-8 h-8 rounded-lg bg-[#EFF6FF] flex items-center justify-center flex-shrink-0">
-                      <FileText className="w-4 h-4 text-[#2563EB]" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium text-[#0F172A] truncate">{file.name}</p>
-                      <p className="text-[10px] text-[#64748B]">{file.type} • {file.size}</p>
-                    </div>
-                    <Download className="w-3.5 h-3.5 text-[#64748B] flex-shrink-0" />
-                  </a>
-                ))}
+              <h4 className="text-xs font-semibold text-[#0F172A] uppercase tracking-wider">Archivos compartidos</h4>
+              <div className="flex flex-col items-center text-center py-4 bg-[#F8FAFC] rounded-lg">
+                <FileText className="w-6 h-6 text-[#CBD5E1] mb-1.5" />
+                <p className="text-[11px] text-[#94A3B8]">
+                  Los archivos que se compartan en la conversación aparecerán aquí
+                </p>
               </div>
             </div>
 
-            {/* ── Quick Actions ── */}
+            {/* ── Quick Actions ──
+                FIX: se quitaron "Contratar" y "Crear contrato" (mostraban
+                éxito falso sin llamar al backend). Solo quedan las dos
+                acciones que son honestas sobre su propia limitación. */}
             <div className="space-y-2">
               <h4 className="text-xs font-semibold text-[#0F172A] uppercase tracking-wider">Acciones</h4>
               <div className="grid grid-cols-2 gap-2">
@@ -509,20 +287,6 @@ export function ParticipantInfoPanel({ conversation, onClose }: Props) {
                   <Briefcase className="w-3.5 h-3.5" />
                   Ver proyecto
                 </button>
-                <button
-                  onClick={() => setShowHireModal(true)}
-                  className="flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-[#10B981] bg-[#F0FDF4] rounded-lg hover:bg-[#DCFCE7] transition-colors"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  Contratar
-                </button>
-                <button
-                  onClick={() => setShowContractModal(true)}
-                  className="flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-[#8B5CF6] bg-[#F5F3FF] rounded-lg hover:bg-[#EDE9FE] transition-colors"
-                >
-                  <FileSignature className="w-3.5 h-3.5" />
-                  Crear contrato
-                </button>
               </div>
             </div>
           </div>
@@ -535,12 +299,6 @@ export function ParticipantInfoPanel({ conversation, onClose }: Props) {
       )}
       {showProjectModal && (
         <ViewProjectModal conversation={conversation} onClose={() => setShowProjectModal(false)} />
-      )}
-      {showHireModal && (
-        <HireModal conversation={conversation} onClose={() => setShowHireModal(false)} />
-      )}
-      {showContractModal && (
-        <CreateContractModal conversation={conversation} onClose={() => setShowContractModal(false)} />
       )}
     </>
   );

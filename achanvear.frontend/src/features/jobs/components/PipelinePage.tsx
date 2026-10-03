@@ -271,8 +271,11 @@ export function PipelinePage() {
       <div className="flex items-center justify-between">
         <div>
           <div className="flex items-center gap-3">
+            {/* FIX: antes regresaba a "/company/jobs" (Mis Publicaciones).
+                Ahora regresa al selector de Pipeline (/company/pipeline),
+                que es de donde realmente se navega a esta pantalla. */}
             <a
-              href="/company/jobs"
+              href="/company/pipeline"
               className="p-2 text-slate-400 hover:text-[#1e3a8a] hover:bg-slate-100 rounded-lg transition"
             >
               <ArrowLeft className="w-5 h-5" strokeWidth={1.5} />

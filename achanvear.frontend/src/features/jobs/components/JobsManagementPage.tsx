@@ -58,28 +58,36 @@ function getStatusBadge(status: string) {
   }
 }
 
+// FIX: mismo bug que JobsManagementTable.tsx, duplicado en este archivo
+// independiente — recibía job.type (FULL_TIME/PART_TIME/...) en vez de
+// job.selectionMode, y los case no coincidían con el enum real
+// (MANUAL/SEMI_AUTOMATED/FULLY_AUTOMATED en job.types.ts). Por eso siempre
+// mostraba "Manual" sin importar el modo configurado al crear el empleo.
 function getSelectionModeBadge(mode?: string) {
   switch (mode) {
-    case "IA":
-    case "AI":
-    case "AUTOMATED":
+    case "FULLY_AUTOMATED":
       return (
         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-purple-50 text-purple-700 border border-purple-200">
           <Sparkles className="w-3 h-3" />
           Automatización Achanvear (IA)
         </span>
       );
-    case "SEMI":
     case "SEMI_AUTOMATED":
       return (
         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
           Semiautomatizado
         </span>
       );
-    default:
+    case "MANUAL":
       return (
         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-slate-50 text-slate-600 border border-slate-200">
           Manual
+        </span>
+      );
+    default:
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-slate-50 text-slate-400 border border-slate-200">
+          Sin configurar
         </span>
       );
   }
@@ -95,12 +103,17 @@ function formatDate(dateStr?: string) {
   });
 }
 
+// FIX: "Hace -1 días". Para un empleo creado hace segundos, diff puede salir
+// ligeramente negativo (diferencia de reloj entre el navegador y el servidor,
+// o createdAt con milisegundos posteriores al momento exacto del render).
+// Math.floor() sobre un número negativo pequeño redondea hacia -1 en vez de
+// 0 (ej. Math.floor(-0.0003) = -1). Se evita forzando el mínimo a 0.
 function formatRelativeDate(dateStr?: string) {
   if (!dateStr) return "";
   const date = new Date(dateStr);
   const now = new Date();
   const diff = now.getTime() - date.getTime();
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  const days = Math.max(0, Math.floor(diff / (1000 * 60 * 60 * 24)));
   if (days === 0) return "Hoy";
   if (days === 1) return "Ayer";
   if (days < 7) return `Hace ${days} días`;
@@ -173,7 +186,7 @@ function JobCard({
 
             {/* Badge IA */}
             <div className="mt-3">
-              {getSelectionModeBadge(job.type)}
+              {getSelectionModeBadge(job.selectionMode)}
             </div>
           </div>
 
@@ -408,7 +421,10 @@ export function JobsManagementPage() {
         currency: originalJob.currency || "PEN",
         vacancies: originalJob.vacancies || 1,
         requirements: originalJob.requirements || "",
-        selectionMode: "MANUAL",
+        // FIX: antes forzaba "MANUAL" sin importar el modo real del empleo
+        // original — duplicar un empleo automatizado lo convertía en manual
+        // silenciosamente. Ahora conserva el mismo selectionMode.
+        selectionMode: (originalJob.selectionMode as any) || "MANUAL",
       });
       queryClient.invalidateQueries({ queryKey: ["my-job-posts"] });
     } catch (err) {

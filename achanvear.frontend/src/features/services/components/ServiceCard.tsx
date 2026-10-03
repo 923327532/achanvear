@@ -21,7 +21,11 @@ export function ServiceCard({ service, onView, onDelete, isDeleting }: Props) {
     <div className="bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow duration-200 flex flex-col overflow-hidden w-full">
 
       {/* Image */}
-      {service.imageUrls && service.imageUrls.length > 0 ? (
+      {/* FIX: "imageUrls.length > 0" es true incluso cuando el backend manda
+          [""] (un string vacío) en vez de un array realmente vacío. Eso
+          renderizaba <img src=""> y disparaba un error de consola / icono
+          roto. Ahora se valida que el primer elemento tenga contenido real. */}
+      {service.imageUrls && service.imageUrls[0] ? (
         <div className="w-full h-24 overflow-hidden flex-shrink-0">
           <img
             src={service.imageUrls[0]}

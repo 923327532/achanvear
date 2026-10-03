@@ -1,7 +1,7 @@
 // features/profile/components/CompanyProfilePage.tsx
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { profileApi } from "../api/profileApi";
 import { jobApi } from "@/features/jobs/api/jobApi";
@@ -21,7 +21,9 @@ import {
   Loader2,
   Share2,
   ImageUp,
+  X,
 } from "lucide-react";
+import type { CompanyProfile } from "@/features/profile/types/profile.types";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -35,6 +37,143 @@ const COMPANY_SIZE_LABELS: Record<string, string> = {
 function formatNumber(n: number): string {
   if (n >= 1000) return (n / 1000).toFixed(1).replace(/\.0$/, "") + "k";
   return n.toString();
+}
+
+// ─── Modal de edición de perfil ────────────────────────────────────────────────
+//
+// Antes, "Editar Perfil" solo alternaba un estado `editing` sin ningún campo
+// editable conectado en la pantalla: no existía forma real de cambiar los
+// datos, y un segundo clic guardaba el mismo formData sin cambios. Este modal
+// es el formulario real, con su propio estado local que se descarta al cerrar
+// sin guardar, para que "Cancelar" nunca deje cambios a medias.
+
+const inputCls =
+  "w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-[#1e3a8a]";
+
+function Field({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <label className="block">
+      <span className="mb-1.5 block text-sm font-semibold text-slate-700">{label}</span>
+      {children}
+    </label>
+  );
+}
+
+function CompanyEditModal({
+  company,
+  onClose,
+}: {
+  company: CompanyProfile;
+  onClose: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const [error, setError] = useState<string | null>(null);
+
+  // Único contenido editable de este modal: descripción y tamaño de empresa.
+  // El resto (nombre, nombre comercial, rubro, especialidad, razón social,
+  // dirección, método de pago, plan, logros) viaja sin cambios desde
+  // `company`, porque son datos legales/verificados o de facturación que
+  // aún no tienen un flujo de edición propio.
+  const [biography, setBiography] = useState(company.biography || "");
+  const [companySize, setCompanySize] = useState(company.companySize || "");
+
+  const updateMutation = useMutation({
+    mutationFn: () =>
+      profileApi.updateCompany(company.id, {
+        businessName: company.businessName,
+        tradeName: company.tradeName || undefined,
+        legalName: company.legalName,
+        industry: company.industry,
+        specialty: company.specialty,
+        companySize,
+        biography,
+        achievements: company.achievements || undefined,
+        address: company.address,
+        paymentMethodType: company.paymentMethodType,
+        companyPlan: company.companyPlan,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["company-profile"] });
+      onClose();
+    },
+    onError: (err: Error) => {
+      setError(err.message || "Error al guardar los datos");
+    },
+  });
+
+  const handleSubmit = (e: FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    if (!companySize) {
+      setError("Selecciona un tamaño de empresa");
+      return;
+    }
+    updateMutation.mutate();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl">
+        <div className="mb-4 flex items-start justify-between gap-4">
+          <div>
+            <h3 className="text-lg font-bold text-[#1e3a8a]">Editar perfil de empresa</h3>
+            <p className="mt-1 text-sm text-slate-500">
+              Estos datos son visibles para freelancers y candidatos en tu perfil público.
+            </p>
+          </div>
+          <button type="button" onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <Field label="Tamaño de la empresa">
+            <select value={companySize} onChange={(e) => setCompanySize(e.target.value)} className={inputCls}>
+              <option value="">Selecciona un tamaño</option>
+              {Object.entries(COMPANY_SIZE_LABELS).map(([value, label]) => (
+                <option key={value} value={value}>{label}</option>
+              ))}
+            </select>
+          </Field>
+
+          <Field label="Descripción de la empresa">
+            <textarea
+              value={biography}
+              onChange={(e) => setBiography(e.target.value)}
+              rows={4}
+              className={inputCls}
+              placeholder="Cuéntale a los freelancers y candidatos a qué se dedica tu empresa..."
+            />
+          </Field>
+
+          {error && <p className="text-sm text-red-500">{error}</p>}
+
+          <div className="flex items-center justify-end gap-3 border-t border-slate-100 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-50"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={updateMutation.isPending}
+              className="inline-flex items-center gap-2 rounded-xl bg-[#1e3a8a] px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#1e3a8a]/90 disabled:opacity-60"
+            >
+              {updateMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="h-4 w-4" />
+              )}
+              Guardar cambios
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -53,7 +192,7 @@ export function CompanyProfilePage() {
   const [error, setError] = useState<string | null>(null);
   const [uploadingBanner, setUploadingBanner] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
-  const [editing, setEditing] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [logoError, setLogoError] = useState(false);
   const [bannerError, setBannerError] = useState(false);
 
@@ -136,82 +275,6 @@ export function CompanyProfilePage() {
         },
       ]
     : [];
-
-  // ── Estado de formulario para edición ────────────────────────────────────
-  const [formData, setFormData] = useState({
-    businessName: "",
-    tradeName: "",
-    legalName: "",
-    industry: "",
-    specialty: "",
-    companySize: "",
-    biography: "",
-    achievements: "",
-    address: "",
-    paymentMethodType: "",
-    companyPlan: "",
-  });
-
-  // Inicializar form cuando llegan datos
-  if (company && !editing && formData.businessName === "") {
-    setFormData({
-      businessName: company.businessName || "",
-      tradeName: company.tradeName || "",
-      legalName: company.legalName || "",
-      industry: company.industry || "",
-      specialty: company.specialty || "",
-      companySize: company.companySize || "",
-      biography: company.biography || "",
-      achievements: company.achievements || "",
-      address: company.address || "",
-      paymentMethodType: company.paymentMethodType || "",
-      companyPlan: company.companyPlan || "",
-    });
-  }
-
-  // ── Mutación para guardar perfil ─────────────────────────────────────────
-  const updateMutation = useMutation({
-    mutationFn: (data: {
-      businessName: string;
-      tradeName?: string;
-      legalName: string;
-      industry: string;
-      specialty: string;
-      companySize: string;
-      biography: string;
-      achievements?: string;
-      address: string;
-      paymentMethodType: string;
-      companyPlan: string;
-      logoUrl?: string;
-    }) => profileApi.updateCompany(company!.id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["company-profile"] });
-      setSaved(true);
-      setError(null);
-      setTimeout(() => setSaved(false), 3000);
-    },
-    onError: (err: Error) => {
-      setError(err.message || "Error al guardar los datos");
-    },
-  });
-
-  const handleSave = () => {
-    updateMutation.mutate({
-      businessName: formData.businessName,
-      tradeName: formData.tradeName || undefined,
-      legalName: formData.legalName,
-      industry: formData.industry,
-      specialty: formData.specialty,
-      companySize: formData.companySize,
-      biography: formData.biography,
-      achievements: formData.achievements || undefined,
-      address: formData.address,
-      paymentMethodType: formData.paymentMethodType,
-      companyPlan: formData.companyPlan,
-    });
-    setEditing(false);
-  };
 
   // ── Handlers de subida ──────────────────────────────────────────────────
   const uploadFileViaBackend = async (
@@ -303,20 +366,6 @@ export function CompanyProfilePage() {
     } finally {
       setUploadingLogo(false);
     }
-  };
-
-  // ── Agentes IA (desde sistema existente) ─────────────────────────────────
-  const AGENTES_IA = [
-    { id: "carlos_mendoza", name: "Carlos Mendoza", specialty: "Screening General", description: "Entrevista inicial para filtrar candidatos básicos", icon: "👔" },
-    { id: "ana_quispe", name: "Ana Quispe", specialty: "Teórica / Empática", description: "Evaluación conceptual y soft skills", icon: "💬" },
-    { id: "diego_torres", name: "Diego Torres", specialty: "Técnica", description: "Pruebas lógica y código", icon: "⚙️" },
-    { id: "sofia_vargas", name: "Sofía Vargas", specialty: "Legal / Contable", description: "Perfiles administrativos y legales", icon: "📋" },
-  ];
-
-  const [selectedAgent, setSelectedAgent] = useState<string>("carlos_mendoza");
-
-  const handleSelectAgent = (agentId: string) => {
-    setSelectedAgent(agentId);
   };
 
   // ── Loading ──────────────────────────────────────────────────────────────
@@ -549,21 +598,11 @@ export function CompanyProfilePage() {
                   {/* ── BOTONES ACCIÓN ── */}
                   <div className="flex items-center gap-3 shrink-0 pt-1 w-full lg:w-auto justify-center lg:justify-end">
                     <button
-                      onClick={() => {
-                        if (editing) {
-                          handleSave();
-                        } else {
-                          setEditing(true);
-                        }
-                      }}
+                      onClick={() => setShowEditModal(true)}
                       className="inline-flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl border-2 border-[#1e3a8a] text-[#1e3a8a] text-sm font-semibold hover:bg-blue-50 transition-all shadow-sm"
                     >
-                      {updateMutation.isPending ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <Save className="w-4 h-4" />
-                      )}
-                      {editing ? "Guardar" : "Editar Perfil"}
+                      <Save className="w-4 h-4" />
+                      Editar Perfil
                     </button>
                     <a
                       href="/company/jobs/create"
@@ -624,6 +663,8 @@ export function CompanyProfilePage() {
 
       {/* ═══════════════════════════════════════════════════════════════════
           SECCIÓN SUNAT (Verificados) — Card independiente
+          FIX: "Razón Social" mostraba legalName (representante legal).
+          Ahora cada etiqueta muestra el campo que le corresponde.
       ════════════════════════════════════════════════════════════════════ */}
       <div className="px-4 sm:px-6 lg:px-8 pb-4 sm:pb-6 lg:pb-8 mt-4 sm:mt-6 lg:mt-8">
         <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200 shadow-sm p-4 sm:p-6 lg:p-8">
@@ -660,82 +701,48 @@ export function CompanyProfilePage() {
                 <label className="block text-sm font-semibold text-slate-700 mb-2">Razón Social</label>
                 <input
                   type="text"
-                  value={company?.legalName || "—"}
+                  value={companyName || "—"}
                   readOnly
                   className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-800 cursor-default outline-none"
                 />
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">Dirección Fiscal</label>
-              <input
-                type="text"
-                value={address || "—"}
-                readOnly
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-800 cursor-default outline-none"
-              />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">Representante Legal</label>
+                <input
+                  type="text"
+                  value={company?.legalName || "—"}
+                  readOnly
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-800 cursor-default outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">Dirección Fiscal</label>
+                <input
+                  type="text"
+                  value={address || "—"}
+                  readOnly
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-800 cursor-default outline-none"
+                />
+              </div>
             </div>
           </div>
         </div>
       </div>
 
       {/* ═══════════════════════════════════════════════════════════════════
-          FILA: AGENTE IA + REPUTACIÓN
+          REPUTACIÓN + PROYECTOS COMPLETADOS (grid de 2 columnas)
+          FIX: antes esta columna tenía la card duplicada "Configuración del
+          Agente IA" (ya existe en Configuración > Agente IA). Se quitó, y
+          Proyectos Completados pasó a compartir fila con Reputación.
       ════════════════════════════════════════════════════════════════════ */}
-      <div className="px-4 sm:px-6 lg:px-8 pb-4 sm:pb-6 lg:pb-8">
+      <div className="px-4 sm:px-6 lg:px-8 pb-8">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8">
 
-          <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200 shadow-sm p-4 sm:p-6 lg:p-8">
-            <div className="flex items-start gap-3 sm:gap-4 pb-4 sm:pb-6 border-b border-slate-100 mb-6 sm:mb-8">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-indigo-50 flex items-center justify-center shrink-0">
-                <svg className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23.693L5 14.5m14.8.8l1.402 1.402c1.232 1.232.65 3.318-1.067 3.611A48.309 48.309 0 0112 21c-2.773 0-5.491-.235-8.135-.687-1.718-.293-2.3-2.379-1.067-3.61L5 14.5" /></svg>
-              </div>
-              <div>
-                <h2 className="text-lg sm:text-xl font-bold text-slate-900">Configuración del Agente IA</h2>
-                <p className="text-xs sm:text-sm text-slate-500 mt-1">Selecciona el agente para las entrevistas automatizadas</p>
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              {AGENTES_IA.map((agent) => (
-                <button
-                  key={agent.id}
-                  onClick={() => handleSelectAgent(agent.id)}
-                  className={`w-full flex items-start gap-3 sm:gap-4 p-3 sm:p-4 rounded-2xl border-2 text-left transition-all ${
-                    selectedAgent === agent.id
-                      ? "border-[#0d9488] bg-teal-50/50 shadow-sm"
-                      : "border-slate-100 bg-white hover:border-slate-200 hover:bg-slate-50"
-                  }`}
-                >
-                  <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center text-xl shrink-0 ${
-                    selectedAgent === agent.id
-                      ? "bg-[#0d9488]/10"
-                      : "bg-slate-100"
-                  }`}>
-                    {agent.icon}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className={`text-sm font-bold truncate ${
-                        selectedAgent === agent.id ? "text-[#0d9488]" : "text-slate-800"
-                      }`}>
-                        {agent.name}
-                      </p>
-                      {selectedAgent === agent.id && (
-                        <span className="shrink-0 w-5 h-5 rounded-full bg-[#0d9488] flex items-center justify-center">
-                          <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-xs text-slate-500 mt-0.5">{agent.specialty}</p>
-                    <p className="text-xs text-slate-400 mt-1 leading-relaxed">{agent.description}</p>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-
+          {/* ── Reputación como Empleador ── */}
           <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200 shadow-sm p-4 sm:p-6 lg:p-8">
             <div className="flex items-start gap-3 sm:gap-4 pb-4 sm:pb-6 border-b border-slate-100 mb-6 sm:mb-8">
               <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-amber-50 flex items-center justify-center shrink-0">
@@ -800,102 +807,98 @@ export function CompanyProfilePage() {
               </>
             )}
           </div>
-        </div>
-      </div>
 
-      {/* ═══════════════════════════════════════════════════════════════════
-          PROYECTOS COMPLETADOS
-      ════════════════════════════════════════════════════════════════════ */}
-      <div className="px-4 sm:px-6 lg:px-8 pb-8">
-        <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200 shadow-sm p-4 sm:p-6 lg:p-8">
-          <div className="flex items-start gap-3 sm:gap-4 pb-4 sm:pb-6 border-b border-slate-100 mb-6 sm:mb-8">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-teal-50 flex items-center justify-center shrink-0">
-              <svg className="w-5 h-5 sm:w-6 sm:h-6 text-teal-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" /></svg>
+          {/* ── Proyectos Completados ── */}
+          <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200 shadow-sm p-4 sm:p-6 lg:p-8">
+            <div className="flex items-start gap-3 sm:gap-4 pb-4 sm:pb-6 border-b border-slate-100 mb-6 sm:mb-8">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-teal-50 flex items-center justify-center shrink-0">
+                <svg className="w-5 h-5 sm:w-6 sm:h-6 text-teal-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" /></svg>
+              </div>
+              <div>
+                <h2 className="text-lg sm:text-xl font-bold text-slate-900">Proyectos Completados</h2>
+                <p className="text-xs sm:text-sm text-slate-500 mt-1">Historial de trabajos realizados con freelancers</p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-lg sm:text-xl font-bold text-slate-900">Proyectos Completados</h2>
-              <p className="text-xs sm:text-sm text-slate-500 mt-1">Historial de trabajos realizados con freelancers</p>
-            </div>
-          </div>
 
-          {(() => {
-            const completedProjects: Array<{
-              jobTitle: string;
-              freelancerId: string;
-              appliedAt: string;
-              salary: number;
-              currency: string;
-              status: string;
-            }> = [];
+            {(() => {
+              const completedProjects: Array<{
+                jobTitle: string;
+                freelancerId: string;
+                appliedAt: string;
+                salary: number;
+                currency: string;
+                status: string;
+              }> = [];
 
-            jobs.forEach((job) => {
-              (job.applications || []).forEach((app) => {
-                if (app.status === "ACCEPTED") {
-                  completedProjects.push({
-                    jobTitle: job.title,
-                    freelancerId: app.candidateUserId,
-                    appliedAt: app.appliedAt,
-                    salary: job.salaryMax || job.salaryMin || 0,
-                    currency: job.currency || "PEN",
-                    status: "Pago a tiempo",
-                  });
-                }
+              jobs.forEach((job) => {
+                (job.applications || []).forEach((app) => {
+                  if (app.status === "ACCEPTED") {
+                    completedProjects.push({
+                      jobTitle: job.title,
+                      freelancerId: app.candidateUserId,
+                      appliedAt: app.appliedAt,
+                      salary: job.salaryMax || job.salaryMin || 0,
+                      currency: job.currency || "PEN",
+                      status: "Pago a tiempo",
+                    });
+                  }
+                });
               });
-            });
 
-            if (completedProjects.length === 0) {
-              return (
-                <div className="text-center py-8 sm:py-12">
-                  <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
-                    <svg className="w-7 h-7 sm:w-8 sm:h-8 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" /></svg>
+              if (completedProjects.length === 0) {
+                return (
+                  <div className="text-center py-8 sm:py-12">
+                    <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
+                      <svg className="w-7 h-7 sm:w-8 sm:h-8 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" /></svg>
+                    </div>
+                    <p className="text-sm font-medium text-slate-500">Aún no hay proyectos completados</p>
+                    <p className="text-xs text-slate-400 mt-1">Los proyectos aparecerán cuando contrates freelancers</p>
                   </div>
-                  <p className="text-sm font-medium text-slate-500">Aún no hay proyectos completados</p>
-                  <p className="text-xs text-slate-400 mt-1">Los proyectos aparecerán cuando contrates freelancers</p>
-                </div>
-              );
-            }
+                );
+              }
 
-            return (
-              <div className="space-y-3">
-                {completedProjects.map((project, idx) => {
-                  const rating = 4.5 + Math.random() * 0.5;
-                  const isOnTime = project.status === "Pago a tiempo";
-                  const formattedDate = project.appliedAt
-                    ? new Date(project.appliedAt).toISOString().split("T")[0]
-                    : "—";
-                  const formattedSalary = new Intl.NumberFormat("es-PE", {
-                    style: "currency",
-                    currency: project.currency === "PEN" ? "PEN" : "USD",
-                    minimumFractionDigits: 0,
-                    maximumFractionDigits: 0,
-                  }).format(project.salary);
+              return (
+                <div className="space-y-3">
+                  {completedProjects.map((project, idx) => {
+                    const projRating = 4.5 + Math.random() * 0.5;
+                    const isOnTime = project.status === "Pago a tiempo";
+                    const formattedDate = project.appliedAt
+                      ? new Date(project.appliedAt).toISOString().split("T")[0]
+                      : "—";
+                    const formattedSalary = new Intl.NumberFormat("es-PE", {
+                      style: "currency",
+                      currency: project.currency === "PEN" ? "PEN" : "USD",
+                      minimumFractionDigits: 0,
+                      maximumFractionDigits: 0,
+                    }).format(project.salary);
 
-                  return (
-                    <div
-                      key={idx}
-                      className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-100 hover:border-slate-200 hover:bg-white transition-all gap-3 sm:gap-4"
-                    >
-                      <div className="flex-1 min-w-0 w-full sm:w-auto">
-                        <h3 className="text-sm sm:text-base font-bold text-slate-900 truncate">
-                          {project.jobTitle}
-                        </h3>
-                        <p className="text-xs sm:text-sm text-slate-500 mt-1.5">
-                          Freelancer: <span className="font-medium text-slate-700">{project.freelancerId.slice(0, 8)}...</span>
-                        </p>
-                        <p className="text-xs text-slate-400 mt-1">
-                          {formattedDate}
-                        </p>
-                      </div>
-
-                      <div className="text-left sm:text-right shrink-0 space-y-2 w-full sm:w-auto">
-                        <p className="text-base sm:text-lg font-bold text-[#1e3a8a]">
-                          {formattedSalary}
-                        </p>
-                        <div className="flex items-center sm:justify-end gap-1">
-                          <svg className="w-4 h-4 fill-amber-400 text-amber-400" viewBox="0 0 24 24"><path d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" /></svg>
-                          <span className="text-sm font-bold text-slate-800">{rating.toFixed(1)}</span>
+                    return (
+                      <div
+                        key={idx}
+                        className="flex flex-col p-4 rounded-2xl bg-slate-50 border border-slate-100 hover:border-slate-200 hover:bg-white transition-all gap-3"
+                      >
+                        <div className="min-w-0">
+                          <h3 className="text-sm font-bold text-slate-900 truncate">
+                            {project.jobTitle}
+                          </h3>
+                          <p className="text-xs text-slate-500 mt-1.5">
+                            Freelancer: <span className="font-medium text-slate-700">{project.freelancerId.slice(0, 8)}...</span>
+                          </p>
+                          <p className="text-xs text-slate-400 mt-1">
+                            {formattedDate}
+                          </p>
                         </div>
-                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${
+
+                        <div className="flex items-center justify-between gap-3 pt-2 border-t border-slate-200/70">
+                          <p className="text-base font-bold text-[#1e3a8a]">
+                            {formattedSalary}
+                          </p>
+                          <div className="flex items-center gap-1">
+                            <svg className="w-4 h-4 fill-amber-400 text-amber-400" viewBox="0 0 24 24"><path d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" /></svg>
+                            <span className="text-sm font-bold text-slate-800">{projRating.toFixed(1)}</span>
+                          </div>
+                        </div>
+                        <span className={`inline-flex w-fit items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${
                           isOnTime
                             ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
                             : "bg-red-50 text-red-700 border border-red-200"
@@ -904,14 +907,19 @@ export function CompanyProfilePage() {
                           {isOnTime ? "Pago a tiempo" : "Pago con retraso"}
                         </span>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
-            );
-          })()}
+                    );
+                  })}
+                </div>
+              );
+            })()}
+          </div>
         </div>
       </div>
+
+      {/* ── Modal de edición ── */}
+      {showEditModal && company && (
+        <CompanyEditModal company={company} onClose={() => setShowEditModal(false)} />
+      )}
 
       {/* ── Mensajes flotantes ── */}
       {saved && (

@@ -7,16 +7,21 @@ import {
   ArrowLeft,
   MapPin,
   Eye,
-  Users,
-  Sparkles,
-  Bot,
-  Zap,
   ChevronRight,
   Loader2,
 } from "lucide-react";
 import { useJobDetail } from "../hooks/useJobDetail";
 import { useUpdateJobPost } from "../hooks/useUpdateJobPost";
-import type { JobType, SelectionMode } from "../types/job.types";
+import type { JobType } from "../types/job.types";
+
+// FIX: se quitó por completo la sección "Configura el proceso de selección"
+// (y con ella selectionMode, maxCandidatesForScreening,
+// candidatesForTheoryInterview, minimumScore). Confirmado en Swagger que
+// PUT /jobs/{id} solo acepta title, description, location, type, salaryMin,
+// salaryMax, currency y vacancies — el backend ignora silenciosamente
+// cualquier otro campo. Mostrar un control de edición que nunca se guarda es
+// peor que no mostrarlo: el modo de selección solo se define al CREAR el
+// empleo (CreateJobPostPage.tsx), no se puede cambiar después por ahora.
 
 type JobTypeOption = {
   label: string;
@@ -27,42 +32,6 @@ const JOB_TYPES: JobTypeOption[] = [
   { label: "FULL TIME", value: "FULL_TIME" },
   { label: "PART TIME", value: "PART_TIME" },
   { label: "FREELANCE", value: "FREELANCE" },
-];
-
-type SelectionCard = {
-  id: SelectionMode;
-  title: string;
-  description: string;
-  badge?: { text: string; variant: "yellow" | "default" };
-  secondaryBadge?: string;
-  icon: React.ReactNode;
-};
-
-const SELECTION_CARDS: SelectionCard[] = [
-  {
-    id: "MANUAL",
-    title: "Seleccion Manual",
-    description:
-      "Tu equipo revisa todas las postulaciones y decide a quien entrevistar. Control total del proceso.",
-    secondaryBadge: "Recomendado para empresas con RRHH propio",
-    icon: <Users className="w-5 h-5" />,
-  },
-  {
-    id: "SEMI_AUTOMATED",
-    title: "Seleccion Semiautomatizada",
-    description:
-      "La IA filtra y clasifica a los mejores candidatos segun el perfil requerido. Tu decides a quien entrevistar.",
-    badge: { text: "POPULAR", variant: "yellow" },
-    secondaryBadge: "Recomendado para MYPEs",
-    icon: <Sparkles className="w-5 h-5" />,
-  },
-  {
-    id: "FULLY_AUTOMATED",
-    title: "Seleccion Totalmente Automatizada",
-    description:
-      "La IA filtra candidatos y conduce las entrevistas iniciales. Recibes un reporte final con los mejores perfiles.",
-    icon: <Bot className="w-5 h-5" />,
-  },
 ];
 
 export default function EditJobPostPage() {
@@ -83,12 +52,6 @@ export default function EditJobPostPage() {
   const [hideSalary, setHideSalary] = useState(false);
   const [description, setDescription] = useState("");
   const [requirements, setRequirements] = useState("");
-  const [selectionMode, setSelectionMode] = useState<SelectionMode | null>(null);
-
-  // ─── Automation config (only for FULLY_AUTOMATED) ────────────────────────
-  const [maxCandidatesForScreening, setMaxCandidatesForScreening] = useState("50");
-  const [candidatesForTheoryInterview, setCandidatesForTheoryInterview] = useState("10");
-  const [minimumScore, setMinimumScore] = useState(75);
 
   // ─── Cargar datos del job cuando esté disponible ─────────────────────────
   useEffect(() => {
@@ -102,8 +65,6 @@ export default function EditJobPostPage() {
       setHideSalary(job.salaryMin === 0 && job.salaryMax === 0);
       setDescription(job.description);
       setRequirements(job.requirements ?? "");
-      // No tenemos selectionMode en el Job, asumimos MANUAL por defecto
-      setSelectionMode("MANUAL");
     }
   }, [job]);
 
@@ -113,24 +74,11 @@ export default function EditJobPostPage() {
     if (!title.trim()) errs.push("El titulo del puesto es requerido");
     if (!description.trim()) errs.push("La descripcion es requerida");
     if (!remote && !location.trim()) errs.push("La ubicacion es requerida");
-    if (!selectionMode) errs.push("Debes seleccionar un modo de seleccion");
-    if (
-      selectionMode === "FULLY_AUTOMATED" &&
-      (!maxCandidatesForScreening || Number(maxCandidatesForScreening) < 1)
-    ) {
-      errs.push("El maximo de candidatos para screening debe ser al menos 1");
-    }
-    if (
-      selectionMode === "FULLY_AUTOMATED" &&
-      (!candidatesForTheoryInterview || Number(candidatesForTheoryInterview) < 1)
-    ) {
-      errs.push("Los candidatos para entrevista teorica deben ser al menos 1");
-    }
     if (salaryMin && salaryMax && Number(salaryMin) > Number(salaryMax)) {
       errs.push("El salario minimo no puede ser mayor al maximo");
     }
     return errs;
-  }, [title, description, remote, location, selectionMode, maxCandidatesForScreening, candidatesForTheoryInterview, salaryMin, salaryMax]);
+  }, [title, description, remote, location, salaryMin, salaryMax]);
 
   // ─── Preview ─────────────────────────────────────────────────────────────
   const displayLocation = remote ? "Trabajo Remoto" : location || "No especificada";
@@ -140,23 +88,9 @@ export default function EditJobPostPage() {
       title: title || "Titulo del puesto",
       location: displayLocation,
       type,
-      selectionMode,
     }),
-    [title, displayLocation, type, selectionMode]
+    [title, displayLocation, type]
   );
-
-  const selectionModeLabel = useMemo(() => {
-    switch (selectionMode) {
-      case "MANUAL":
-        return "Manual";
-      case "SEMI_AUTOMATED":
-        return "Semiautomatizada";
-      case "FULLY_AUTOMATED":
-        return "Totalmente Automatizada";
-      default:
-        return null;
-    }
-  }, [selectionMode]);
 
   // ─── Submit ──────────────────────────────────────────────────────────────
   const handleSubmit = () => {
@@ -174,19 +108,6 @@ export default function EditJobPostPage() {
           salaryMax: hideSalary ? 0 : Number(salaryMax) || 0,
           currency: "PEN",
           vacancies: 1,
-          requirements: requirements.trim() || undefined,
-          selectionMode: selectionMode || "MANUAL",
-          hideSalary: hideSalary || undefined,
-          maxCandidatesForScreening:
-            selectionMode === "FULLY_AUTOMATED"
-              ? Number(maxCandidatesForScreening)
-              : undefined,
-          candidatesForTheoryInterview:
-            selectionMode === "FULLY_AUTOMATED"
-              ? Number(candidatesForTheoryInterview)
-              : undefined,
-          minimumScore:
-            selectionMode === "FULLY_AUTOMATED" ? minimumScore : undefined,
         },
       },
       {
@@ -241,9 +162,12 @@ export default function EditJobPostPage() {
         </button>
 
         {/* Title */}
-        <h1 className="text-3xl font-bold text-[#0a1628] mb-8">
+        <h1 className="text-3xl font-bold text-[#0a1628] mb-2">
           Editar oferta laboral
         </h1>
+        <p className="text-sm text-slate-500 mb-8">
+          El modo de selección y la configuración de IA se definen solo al crear el empleo y no pueden modificarse después.
+        </p>
 
         {/* Two column layout */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -465,32 +389,6 @@ export default function EditJobPostPage() {
                       ? "PART TIME"
                       : "FREELANCE"}
                   </span>
-
-                  <hr className="border-slate-100" />
-
-                  <div>
-                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
-                      Proceso de seleccion:
-                    </p>
-                    {selectionModeLabel ? (
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md bg-slate-100 text-slate-700 text-xs font-medium">
-                        {selectionMode === "MANUAL" && (
-                          <Users className="w-3 h-3" />
-                        )}
-                        {selectionMode === "SEMI_AUTOMATED" && (
-                          <Sparkles className="w-3 h-3" />
-                        )}
-                        {selectionMode === "FULLY_AUTOMATED" && (
-                          <Bot className="w-3 h-3" />
-                        )}
-                        {selectionModeLabel}
-                      </span>
-                    ) : (
-                      <span className="text-xs text-slate-400 italic">
-                        No configurado
-                      </span>
-                    )}
-                  </div>
                 </div>
               </div>
             </div>

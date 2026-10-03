@@ -1,8 +1,9 @@
 // features/dashboard/components/FreelancerDashboardPage.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import Link from "next/link";
+import { useQuery } from "@tanstack/react-query";
 import {
   Video, User, Star, Send, Calendar,
   MapPin, Clock, MessageCircle, Search,
@@ -12,6 +13,7 @@ import {
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { useProjects } from "@/features/freelance/hooks/useProjects";
 import { useAppliedJobIds } from "@/features/jobs/hooks/useAppliedJobIds";
+import { profileApi } from "@/features/profile/api/profileApi";
 import { JobDetailModal } from "@/features/jobs/components/JobDetailModal";
 import { ApplicationModal } from "@/features/jobs/components/ApplicationModal";
 import { ProjectDetailModal } from "@/features/freelance/components/ProjectDetailModal";
@@ -63,6 +65,29 @@ function getInitials(name: string): string {
   return name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
 }
 
+// ─── % de perfil completado ─────────────────────────────────────────────────
+// Antes este valor estaba hardcodeado como "—" (nunca se calculaba). Se
+// calcula aquí a partir de 6 campos básicos del perfil ya disponibles en
+// FreelancerProfile — es lógica de presentación (solo revisa qué campos
+// propios ya llenó el usuario), no simula datos de otros usuarios.
+const PROFILE_COMPLETION_FIELDS = [
+  "name",
+  "industry",
+  "specialty",
+  "biography",
+  "profilePhotoUrl",
+  "curriculumUrl",
+] as const;
+
+function computeProfileCompletion(profile: Record<string, unknown> | undefined): number | null {
+  if (!profile) return null;
+  const filled = PROFILE_COMPLETION_FIELDS.filter((field) => {
+    const value = profile[field];
+    return typeof value === "string" && value.trim().length > 0;
+  }).length;
+  return Math.round((filled / PROFILE_COMPLETION_FIELDS.length) * 100);
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // PAGE
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -73,6 +98,26 @@ export function FreelancerDashboardPage() {
   const { appliedJobIds } = useAppliedJobIds();
 
   const { jobs, industry, isLoading: jobsLoading, isFiltered } = useRecommendedJobs(4);
+
+  // Perfil propio: usado para "Perfil completado" y "Reputación" en las stats
+  const profileQuery = useQuery({
+    queryKey: ["freelancer-profile-summary"],
+    queryFn: () => profileApi.getMyProfile(),
+    staleTime: 1000 * 60 * 5,
+    retry: 1,
+  });
+  const profile = profileQuery.data;
+
+  const profileCompletionPct = useMemo(
+    () => computeProfileCompletion(profile as unknown as Record<string, unknown> | undefined),
+    [profile]
+  );
+
+  const reputationDisplay = useMemo(() => {
+    const totalRatings = profile?.reputationScore?.totalRatings ?? 0;
+    if (totalRatings === 0) return "—";
+    return profile!.reputationScore.averageStars.toFixed(1);
+  }, [profile]);
 
   // Modales empleos
   const [detailJob, setDetailJob] = useState<Job | null>(null);
@@ -125,8 +170,20 @@ export function FreelancerDashboardPage() {
           {[
             { icon: Send,     label: "Empleos disponibles", value: jobs.length },
             { icon: Calendar, label: "Proyectos freelance",  value: projects?.length ?? 0 },
-            { icon: User,     label: "Perfil completado",    value: "—" },
-            { icon: Star,     label: "Reputación",           value: "—" },
+            {
+              icon: User,
+              label: "Perfil completado",
+              value: profileQuery.isLoading
+                ? "—"
+                : profileCompletionPct !== null
+                ? `${profileCompletionPct}%`
+                : "—",
+            },
+            {
+              icon: Star,
+              label: "Reputación",
+              value: profileQuery.isLoading ? "—" : reputationDisplay,
+            },
           ].map(({ icon: Icon, label, value }) => (
             <div key={label} className="flex min-w-0 items-center gap-2.5 rounded-xl border border-slate-200 bg-white p-3 sm:gap-3 md:p-4">
               <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-slate-100 md:h-10 md:w-10">

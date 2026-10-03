@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import { MoreVertical, Trash2, MessageSquare, Phone, Video, Info, Clock } from "lucide-react";
+import { MoreVertical, Trash2, MessageSquare, Info, Clock } from "lucide-react";
 import { useMessages, useSendMessage, useDeleteMessage, useDeleteConversation } from "../hooks/useChat";
 
 import { MessageBubble } from "./MessageBubble";
@@ -165,20 +165,10 @@ export function ChatWindow({ conversation, onConversationDeleted, onToggleInfoPa
           </div>
         </div>
 
-        {/* Acciones del header */}
+        {/* Acciones del header — se quitaron "Llamada de voz" y "Videollamada":
+            eran botones decorativos sin onClick ni funcionalidad real detrás,
+            y no tienen sentido en un chat de texto como este. */}
         <div className="flex items-center gap-1">
-          <button
-            className="w-8 h-8 flex items-center justify-center rounded-full text-[#64748B] hover:text-[#2563EB] hover:bg-[#F8FAFC] transition-all"
-            title="Llamada de voz"
-          >
-            <Phone className="w-4 h-4" />
-          </button>
-          <button
-            className="w-8 h-8 flex items-center justify-center rounded-full text-[#64748B] hover:text-[#2563EB] hover:bg-[#F8FAFC] transition-all"
-            title="Videollamada"
-          >
-            <Video className="w-4 h-4" />
-          </button>
           <button
             onClick={onToggleInfoPanel}
             className="w-8 h-8 flex items-center justify-center rounded-full text-[#64748B] hover:text-[#2563EB] hover:bg-[#F8FAFC] transition-all"

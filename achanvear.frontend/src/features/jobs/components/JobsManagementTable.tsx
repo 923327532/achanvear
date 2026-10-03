@@ -1,7 +1,7 @@
 // features/jobs/components/JobsManagementTable.tsx
 "use client";
 
-import { Eye, Pencil, Trash2, Play, Pause, XCircle, Loader2, MapPin, Clock } from "lucide-react";
+import { Pencil, Trash2, Play, Pause, XCircle, Loader2, MapPin, Clock } from "lucide-react";
 import type { Job } from "@/features/jobs/types/job.types";
 
 interface JobsManagementTableProps {
@@ -40,27 +40,37 @@ function getStatusBadge(status: string) {
   }
 }
 
+// FIX: este badge recibía job.type (FULL_TIME/PART_TIME/FREELANCE, el tipo de
+// contrato) en vez de job.selectionMode (MANUAL/SEMI_AUTOMATED/FULLY_AUTOMATED,
+// lo que realmente se configura al crear el empleo). Como job.type nunca
+// coincidía con ningún case, siempre caía en el default "Manual" sin importar
+// qué modo de selección se hubiera elegido al crear la vacante. También se
+// corrigieron los valores de los case para que coincidan con el enum real
+// (SelectionMode en job.types.ts) en vez de "IA"/"AI"/"SEMI" sueltos.
 function getSelectionModeBadge(mode?: string) {
   switch (mode) {
-    case "IA":
-    case "AI":
-    case "AUTOMATED":
+    case "FULLY_AUTOMATED":
       return (
         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-50 text-purple-700 border border-purple-200">
           IA Automatizado
         </span>
       );
-    case "SEMI":
     case "SEMI_AUTOMATED":
       return (
         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
           Semiautomatizado
         </span>
       );
-    default:
+    case "MANUAL":
       return (
         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-50 text-slate-600 border border-slate-200">
           Manual
+        </span>
+      );
+    default:
+      return (
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-50 text-slate-400 border border-slate-200">
+          Sin configurar
         </span>
       );
   }
@@ -86,6 +96,18 @@ export function JobsManagementTable({ jobs, actionLoading, onDelete, onChangeSta
       </div>
     );
   }
+
+  // Cerrar una vacante es irreversible desde la UI: "Publicar" solo reaparece
+  // si el estado es SUSPENDED, nunca desde CLOSED. Por eso pedimos confirmación
+  // aquí, con el mismo criterio que ya usa "Eliminar".
+  const handleCloseClick = (job: Job) => {
+    const confirmed = window.confirm(
+      `¿Cerrar "${job.title}"? Dejará de recibir postulaciones y no podrás reabrirla desde aquí.`
+    );
+    if (confirmed) {
+      onChangeStatus(job.id, "CLOSED");
+    }
+  };
 
   return (
     <div className="overflow-x-auto">
@@ -135,22 +157,13 @@ export function JobsManagementTable({ jobs, actionLoading, onDelete, onChangeSta
                     </span>
                   )}
                 </td>
-                <td className="py-4 pr-4">{getSelectionModeBadge(job.type)}</td>
+                <td className="py-4 pr-4">{getSelectionModeBadge(job.selectionMode)}</td>
                 <td className="py-4 pr-4">{getStatusBadge(job.status)}</td>
                 <td className="py-4 pr-4">
                   <span className="text-sm text-slate-500">{formatDate(job.createdAt)}</span>
                 </td>
                 <td className="py-4 text-right">
                   <div className="flex items-center justify-end gap-1">
-                    {/* Ver */}
-                    <a
-                      href={`/company/jobs/${job.id}/edit`}
-                      className="p-2 text-slate-400 hover:text-[#1e3a8a] hover:bg-slate-100 rounded-lg transition"
-                      title="Ver"
-                    >
-                      <Eye className="w-4 h-4" strokeWidth={1.5} />
-                    </a>
-
                     {/* Editar */}
                     <a
                       href={`/company/jobs/${job.id}/edit`}
@@ -192,10 +205,10 @@ export function JobsManagementTable({ jobs, actionLoading, onDelete, onChangeSta
                       </button>
                     )}
 
-                    {/* Cerrar (si no está CLOSED) */}
+                    {/* Cerrar (si no está CLOSED) — ahora pide confirmación */}
                     {job.status !== "CLOSED" && (
                       <button
-                        onClick={() => onChangeStatus(job.id, "CLOSED")}
+                        onClick={() => handleCloseClick(job)}
                         disabled={isLoadingAction}
                         className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
                         title="Cerrar"

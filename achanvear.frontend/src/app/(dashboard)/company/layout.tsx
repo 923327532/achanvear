@@ -12,18 +12,23 @@ import {
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { useProtectedRoute } from "@/shared/hooks/useProtectedRoute";
 import { useCompanyDashboard } from "@/features/jobs/hooks/useCompanyDashboard";
+import { useNotifications } from "@/features/notifications/hooks/useNotifications";
 import { ConfirmModal } from "@/shared/components/ui/ConfirmModal";
 import { homeRouteForRole } from "@/lib/constants";
 
+// Notificaciones agregado para igualar el patrón del lado Freelancer: entrada
+// de sidebar (con badge de no leídas) + campana del header (con el mismo
+// badge). Antes solo existía la campana, y la página detrás daba 404.
 const NAV_ITEMS = [
   { icon: Home,          label: "Inicio",             href: "/company" },
   { icon: Briefcase,     label: "Mis Publicaciones",  href: "/company/jobs" },
-  { icon: GitBranch,     label: "Pipeline SelecciÃ³n",  href: "/company/pipeline" },
+  { icon: GitBranch,     label: "Pipeline Selección",  href: "/company/pipeline" },
   { icon: FolderOpen,    label: "Mis Proyectos",       href: "/company/projects" },
   { icon: Globe,         label: "Servicios",           href: "/company/services" },
   { icon: MessageSquare, label: "Mensajes",            href: "/company/chat" },
   { icon: Clock,         label: "Historial",           href: "/company/history" },
   { icon: Building2,     label: "Perfil Empresa",      href: "/company/profile" },
+  { icon: Bell,          label: "Notificaciones",      href: "/company/notifications" },
   { icon: DollarSign,    label: "Pagos",               href: "/company/payments" },
 ];
 
@@ -38,8 +43,8 @@ export default function CompanyLayout({ children }: { children: React.ReactNode 
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Guarda por rol: si un usuario que no es COMPANY entra aquÃ­, lo llevamos
-  // a la secciÃ³n que le corresponde (admin, freelancer, etc.).
+  // Guarda por rol: si un usuario que no es COMPANY entra aquí, lo llevamos
+  // a la sección que le corresponde (admin, freelancer, etc.).
   const role = user?.role?.toUpperCase();
   const isCompanySection = role === "COMPANY" || role === "COMPANY_COLLABORATOR";
   useEffect(() => {
@@ -53,6 +58,7 @@ export default function CompanyLayout({ children }: { children: React.ReactNode 
   }, [pathname]);
 
   const { hasCompany, isLoading, data: dashboard } = useCompanyDashboard();
+  const { unreadCount } = useNotifications();
 
   const companyName = dashboard?.companyName ?? "Mi Empresa";
   const companyTradeName = dashboard?.companyTradeName ?? "";
@@ -84,6 +90,7 @@ export default function CompanyLayout({ children }: { children: React.ReactNode 
         : pathname.startsWith(item.href);
 
     const Icon = item.icon;
+    const badgeCount = item.href === "/company/notifications" ? unreadCount : 0;
 
     return (
       <Link
@@ -99,7 +106,21 @@ export default function CompanyLayout({ children }: { children: React.ReactNode 
           className={`w-5 h-5 shrink-0 ${isActive ? "text-[#1B3A6B]" : "text-slate-400"}`}
           strokeWidth={1.5}
         />
-        {!isCollapsed && <span className="truncate flex-1">{item.label}</span>}
+        {!isCollapsed && (
+          <>
+            <span className="truncate flex-1">{item.label}</span>
+            {badgeCount > 0 && (
+              <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[#0EA5A0] text-[10px] font-bold text-white">
+                {badgeCount}
+              </span>
+            )}
+          </>
+        )}
+        {isCollapsed && badgeCount > 0 && (
+          <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[#0EA5A0] text-[8px] font-bold text-white">
+            {badgeCount}
+          </span>
+        )}
       </Link>
     );
   };
@@ -109,9 +130,9 @@ export default function CompanyLayout({ children }: { children: React.ReactNode 
 
       {showLogoutModal && (
         <ConfirmModal
-          title="Â¿Cerrar sesiÃ³n?"
-          description="TendrÃ¡s que volver a iniciar sesiÃ³n para acceder a tu cuenta."
-          confirmLabel="Cerrar sesiÃ³n"
+          title="¿Cerrar sesión?"
+          description="Tendrás que volver a iniciar sesión para acceder a tu cuenta."
+          confirmLabel="Cerrar sesión"
           cancelLabel="Cancelar"
           onConfirm={handleLogoutConfirm}
           onCancel={() => setShowLogoutModal(false)}
@@ -121,7 +142,7 @@ export default function CompanyLayout({ children }: { children: React.ReactNode 
       <button
         onClick={() => setIsMobileOpen(!isMobileOpen)}
         className="fixed top-4 left-4 z-50 lg:hidden flex items-center justify-center w-10 h-10 rounded-xl bg-white border border-slate-200 shadow-sm text-slate-600 hover:text-[#1B3A6B]"
-        aria-label={isMobileOpen ? "Cerrar menÃº" : "Abrir menÃº"}
+        aria-label={isMobileOpen ? "Cerrar menú" : "Abrir menú"}
       >
         {isMobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
       </button>
@@ -139,7 +160,7 @@ export default function CompanyLayout({ children }: { children: React.ReactNode 
         <button
           onClick={() => setIsCollapsed(!isCollapsed)}
           className="absolute -right-3 top-20 z-10 flex items-center justify-center w-6 h-6 rounded-full bg-white border border-slate-200 shadow-sm text-slate-400 hover:text-[#1B3A6B] transition-colors"
-          aria-label={isCollapsed ? "Expandir menÃº" : "Colapsar menÃº"}
+          aria-label={isCollapsed ? "Expandir menú" : "Colapsar menú"}
         >
           <ChevronRight
             className={`w-3.5 h-3.5 transition-transform ${isCollapsed ? "" : "rotate-180"}`}
@@ -179,13 +200,13 @@ export default function CompanyLayout({ children }: { children: React.ReactNode 
                 ? "bg-blue-50 text-[#1B3A6B] border-l-[3px] border-[#1B3A6B]"
                 : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"
             } ${isCollapsed ? "justify-center pl-3 border-l-[3px] border-transparent" : ""}`}
-            title={isCollapsed ? "ConfiguraciÃ³n" : undefined}
+            title={isCollapsed ? "Configuración" : undefined}
           >
             <Settings
               className={`w-5 h-5 shrink-0 ${pathname.startsWith("/company/settings") ? "text-[#1B3A6B]" : "text-slate-400"}`}
               strokeWidth={1.5}
             />
-            {!isCollapsed && "ConfiguraciÃ³n"}
+            {!isCollapsed && "Configuración"}
           </Link>
           <button
             type="button"
@@ -193,10 +214,10 @@ export default function CompanyLayout({ children }: { children: React.ReactNode 
             className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-red-500 hover:bg-red-50 transition-all w-full ${
               isCollapsed ? "justify-center" : ""
             }`}
-            title={isCollapsed ? "Cerrar sesiÃ³n" : undefined}
+            title={isCollapsed ? "Cerrar sesión" : undefined}
           >
             <LogOut className="w-5 h-5 shrink-0" strokeWidth={1.5} />
-            {!isCollapsed && "Cerrar sesiÃ³n"}
+            {!isCollapsed && "Cerrar sesión"}
           </button>
         </div>
       </aside>
@@ -230,6 +251,7 @@ export default function CompanyLayout({ children }: { children: React.ReactNode 
                 ? pathname === "/company"
                 : pathname.startsWith(item.href);
             const Icon = item.icon;
+            const badgeCount = item.href === "/company/notifications" ? unreadCount : 0;
 
             return (
               <Link
@@ -246,6 +268,11 @@ export default function CompanyLayout({ children }: { children: React.ReactNode 
                   strokeWidth={1.5}
                 />
                 <span className="flex-1">{item.label}</span>
+                {badgeCount > 0 && (
+                  <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[#0EA5A0] text-[10px] font-bold text-white">
+                    {badgeCount}
+                  </span>
+                )}
               </Link>
             );
           })}
@@ -264,7 +291,7 @@ export default function CompanyLayout({ children }: { children: React.ReactNode 
               className={`w-5 h-5 ${pathname.startsWith("/company/settings") ? "text-[#1e3a8a]" : "text-slate-400"}`}
               strokeWidth={1.5}
             />
-            ConfiguraciÃ³n
+            Configuración
           </Link>
           <button
             type="button"
@@ -272,7 +299,7 @@ export default function CompanyLayout({ children }: { children: React.ReactNode 
             className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-red-500 hover:bg-red-50 transition-all w-full"
           >
             <LogOut className="w-5 h-5" strokeWidth={1.5} />
-            Cerrar sesiÃ³n
+            Cerrar sesión
           </button>
         </div>
       </aside>
@@ -299,6 +326,11 @@ export default function CompanyLayout({ children }: { children: React.ReactNode 
               className="relative flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 hover:bg-slate-50 transition-colors"
             >
               <Bell className="h-4 w-4 text-slate-500" strokeWidth={1.5} />
+              {unreadCount > 0 && (
+                <span className="absolute right-1.5 top-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white">
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </span>
+              )}
             </button>
             <div className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-[#1B3A6B] text-xs font-bold text-white">
               {initials}
