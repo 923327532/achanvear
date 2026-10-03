@@ -1,26 +1,18 @@
 // features/settings/components/CompanyAgentSection.tsx
 "use client";
 
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
 import { Check, Loader2, AlertCircle } from "lucide-react";
-import api, { parseResponse } from "@/lib/axiosClient";
-import type { ApiResponse } from "@/features/auth/types/auth.types";
+import { useAiAgentsCatalog } from "../hooks/useCompanySettings";
 
 // FIX: antes AGENTES_IA era un array fijo en el frontend, con especialidades
 // que ni siquiera coincidían con los agentes reales del backend (Ana y Diego
 // tenían sus roles invertidos: el hardcode decía que Ana era "Teórica" y
 // Diego "Técnica", cuando en realidad es al revés; Sofía decía "Legal /
 // Contable" cuando en verdad genera reportes ejecutivos). Ahora se trae el
-// catálogo real desde GET /catalog/ai-agents.
-
-interface AiAgentCatalogItem {
-  id: string;
-  name: string;
-  description: string;
-  personality: string;
-  capabilities: string[];
-}
+// catálogo real desde GET /catalog/ai-agents, a través de la capa
+// api/companySettingsApi.ts → hooks/useCompanySettings.ts, igual que el
+// resto de este archivo (antes llamaba a axios directo en el componente).
 
 const PERSONALITY_ICON: Record<string, string> = {
   professional: "👔",
@@ -30,25 +22,19 @@ const PERSONALITY_ICON: Record<string, string> = {
 };
 
 export function CompanyAgentSection() {
+  const { agents, isLoading, isError } = useAiAgentsCatalog();
   const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
   const [matchScoreThreshold, setMatchScoreThreshold] = useState(70);
 
-  const agentsQuery = useQuery({
-    queryKey: ["catalog-ai-agents"],
-    queryFn: async () => {
-      const response = await api.get<ApiResponse<AiAgentCatalogItem[]>>("/catalog/ai-agents");
-      return parseResponse(response);
-    },
-    staleTime: 1000 * 60 * 10,
-    retry: 1,
-  });
-
-  const agents = agentsQuery.data ?? [];
-
-  // Selecciona el primer agente por defecto en cuanto llega el catálogo
-  if (agents.length > 0 && selectedAgent === null) {
-    setSelectedAgent(agents[0].id);
-  }
+  // FIX: setState ya no se llama directo en el cuerpo del render (podía
+  // disparar advertencias/errores de lint en build) — se mueve a un
+  // useEffect, que es el lugar correcto para reaccionar a datos que llegan
+  // de forma asíncrona.
+  useEffect(() => {
+    if (agents.length > 0 && selectedAgent === null) {
+      setSelectedAgent(agents[0].id);
+    }
+  }, [agents, selectedAgent]);
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-6">
@@ -68,12 +54,12 @@ export function CompanyAgentSection() {
           Selecciona el agente que iniciará automáticamente tus procesos de selección
         </p>
 
-        {agentsQuery.isLoading ? (
+        {isLoading ? (
           <div className="flex items-center gap-2 text-sm text-gray-400 py-6">
             <Loader2 className="w-4 h-4 animate-spin" />
             Cargando agentes disponibles...
           </div>
-        ) : agentsQuery.isError ? (
+        ) : isError ? (
           <div className="flex items-center gap-2 p-3 rounded-xl bg-red-50 border border-red-200">
             <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
             <p className="text-xs text-red-700">No se pudo cargar el catálogo de agentes.</p>

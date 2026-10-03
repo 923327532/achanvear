@@ -3,6 +3,7 @@
 
 import { useState, useMemo } from "react";
 import { useParams } from "next/navigation";
+import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { jobApi } from "../api/jobApi";
 import { CandidateDrawer } from "./CandidateDrawer";
@@ -273,13 +274,16 @@ export function PipelinePage() {
           <div className="flex items-center gap-3">
             {/* FIX: antes regresaba a "/company/jobs" (Mis Publicaciones).
                 Ahora regresa al selector de Pipeline (/company/pipeline),
-                que es de donde realmente se navega a esta pantalla. */}
-            <a
+                que es de donde realmente se navega a esta pantalla.
+                FIX build: <a> normal dispara el error de ESLint
+                no-html-link-for-pages (fuerza recarga completa en vez de
+                navegación de Next.js) — se usa <Link> en su lugar. */}
+            <Link
               href="/company/pipeline"
               className="p-2 text-slate-400 hover:text-[#1e3a8a] hover:bg-slate-100 rounded-lg transition"
             >
               <ArrowLeft className="w-5 h-5" strokeWidth={1.5} />
-            </a>
+            </Link>
             <div>
               <h1 className="text-2xl font-bold text-[#1e3a8a]">Pipeline de Selección</h1>
               <p className="text-sm text-slate-500 mt-1">
@@ -316,13 +320,13 @@ export function PipelinePage() {
               <span className="hidden sm:inline">Tabla</span>
             </button>
           </div>
-          <a
+          <Link
             href="/company/jobs"
             className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-[#1e3a8a] bg-blue-50 border border-blue-200 rounded-xl hover:bg-blue-100 transition-all"
           >
             <Eye className="w-4 h-4" strokeWidth={1.5} />
             Ver Todas las Vacantes
-          </a>
+          </Link>
         </div>
       </div>
 

@@ -24,7 +24,16 @@ import type {
 // GET  /payments/wallet            → WalletInfo
 // GET  /payments/transactions      → PaymentTransactionPageResponse
 // GET  /payments/local-methods       → PaymentMethod[]
+// GET  /catalog/ai-agents          → AiAgentCatalogItem[]
 // POST /auth/reset-password        → void
+
+export interface AiAgentCatalogItem {
+  id: string;
+  name: string;
+  description: string;
+  personality: string;
+  capabilities: string[];
+}
 
 export const companySettingsApi = {
   // ─── Perfil de empresa ─────────────────────────────────────────────────────
@@ -219,5 +228,15 @@ export const companySettingsApi = {
       localStorage.setItem("company-privacy-settings", JSON.stringify(data));
       return data;
     }
+  },
+
+  // ─── Catálogo de Agentes IA ─────────────────────────────────────────────────
+  // FIX: antes CompanyAgentSection.tsx llamaba a axios directo dentro del
+  // componente, saltándose la capa de API — se mueve aquí para seguir el
+  // mismo patrón que el resto del archivo (API → hook → componente).
+
+  getAiAgentsCatalog: async (): Promise<AiAgentCatalogItem[]> => {
+    const res = await api.get<ApiResponse<AiAgentCatalogItem[]>>("/catalog/ai-agents");
+    return parseResponse(res);
   },
 };

@@ -322,3 +322,23 @@ export function usePrivacySettings() {
     isUpdating: mutation.isPending,
   };
 }
+
+// ─── Catálogo de Agentes IA ─────────────────────────────────────────────────────
+// FIX: antes CompanyAgentSection.tsx tenía su propio useQuery con axios
+// inline. Se extrae aquí, siguiendo el mismo patrón API → hook → componente
+// que usa el resto de este archivo.
+
+export function useAiAgentsCatalog() {
+  const query = useQuery({
+    queryKey: ["company-settings", "ai-agents-catalog"],
+    queryFn: companySettingsApi.getAiAgentsCatalog,
+    staleTime: 1000 * 60 * 10,
+    retry: 1,
+  });
+
+  return {
+    agents: query.data ?? [],
+    isLoading: query.isLoading,
+    isError: query.isError,
+  };
+}
