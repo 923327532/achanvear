@@ -24,6 +24,7 @@ public class JobPostFactory {
             String currency,
             Integer vacancies,
             String requirements,
+            String selectionMode,
             String closingMode,
             Instant closingDate,
             Integer maxApplicants
@@ -42,35 +43,39 @@ public class JobPostFactory {
                 requirements
         );
 
-        // Configurar modo de seleccion
-        // El frontend envia "MANUAL" o "AUTOMATIC", lo mapeamos a SelectionMode
-        String modeStr = closingMode;
-        // Si closingMode no viene, intentar con selectionMode (enviado por frontend)
-        if (modeStr == null || modeStr.isBlank()) {
-            // Por defecto CONTINUOUS si no se especifica
-            jobPost.configureSelection(maxApplicants, closingDate, null, null, SelectionMode.CONTINUOUS);
-            return jobPost;
-        }
-
-        try {
-            String upper = modeStr.trim().toUpperCase();
-            // Mapear valores del frontend a SelectionMode
-            SelectionMode mode = switch (upper) {
-                case "MANUAL", "SEMI_AUTOMATED" -> SelectionMode.CONTINUOUS;
-                case "FULLY_AUTOMATED", "AUTOMATIC", "AUTO" -> SelectionMode.MAX_APPLICANTS;
-                default -> {
-                    try {
-                        yield SelectionMode.valueOf(upper);
-                    } catch (IllegalArgumentException e) {
-                        yield SelectionMode.CONTINUOUS;
-                    }
-                }
-            };
-            jobPost.configureSelection(maxApplicants, closingDate, null, null, mode);
-        } catch (Exception e) {
-            // Por defecto CONTINUOUS
-        }
+        // Configurar modo de cierre de la vacante.
+        //
+        // IMPORTANTE: el modo de cierre (MAX_APPLICANTS/FIXED_DATE/CONTINUOUS) es
+        // INDEPENDIENTE del nivel de automatizacion (MANUAL/SEMI_AUTOMATED/FULLY_AUTOMATED).
+        // El nivel de automatizacion se persiste por separado en
+        // RecruitmentAutomationConfig; aqui solo se resuelve el cierre a partir de
+        // `closingMode`. Si no viene, se infiere de los datos disponibles.
+        SelectionMode mode = resolveClosingMode(closingMode, closingDate, maxApplicants);
+        jobPost.configureSelection(maxApplicants, closingDate, null, null, mode);
 
         return jobPost;
+    }
+
+    /**
+     * Determina el {@link SelectionMode} (modo de cierre) a partir de {@code closingMode}.
+     * Si no se especifica uno valido, se infiere de los datos de cierre presentes.
+     */
+    private SelectionMode resolveClosingMode(String closingMode, Instant closingDate, Integer maxApplicants) {
+        if (closingMode != null && !closingMode.isBlank()) {
+            String upper = closingMode.trim().toUpperCase();
+            try {
+                return SelectionMode.valueOf(upper);
+            } catch (IllegalArgumentException e) {
+                // Valor desconocido: se infiere de los datos disponibles
+            }
+        }
+
+        if (maxApplicants != null && maxApplicants > 0) {
+            return SelectionMode.MAX_APPLICANTS;
+        }
+        if (closingDate != null) {
+            return SelectionMode.FIXED_DATE;
+        }
+        return SelectionMode.CONTINUOUS;
     }
 }

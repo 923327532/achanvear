@@ -16,8 +16,11 @@ import achanvear.peru.company.application.dto.CompanyPageResponse;
 import achanvear.peru.company.application.dto.CompanyResponse;
 import achanvear.peru.company.application.impl.CompanyApplicationService;
 import achanvear.peru.company.application.query.CompanyListQuery;
+import achanvear.peru.company.infrastructure.persistence.CompanyJpaEntity;
+import achanvear.peru.company.infrastructure.persistence.CompanyJpaRepository;
 import achanvear.peru.company.web.security.AuthenticatedUser;
 import achanvear.peru.company.web.security.AuthenticatedUserResolver;
+import achanvear.peru.shared.domain.exception.ResourceNotFoundException;
 import achanvear.peru.shared.web.ApiResponse;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -25,6 +28,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/companies")
@@ -39,6 +44,7 @@ public class CompanyController {
     private final ChangeCompanyStatusUseCase changeCompanyStatusUseCase;
     private final CompanyApplicationService companyApplicationService;
     private final AuthenticatedUserResolver authenticatedUserResolver;
+    private final CompanyJpaRepository companyJpaRepository;
 
     public CompanyController(
             CreateCompanyUseCase createCompanyUseCase,
@@ -49,7 +55,8 @@ public class CompanyController {
             ListCompaniesUseCase listCompaniesUseCase,
             ChangeCompanyStatusUseCase changeCompanyStatusUseCase,
             CompanyApplicationService companyApplicationService,
-            AuthenticatedUserResolver authenticatedUserResolver
+            AuthenticatedUserResolver authenticatedUserResolver,
+            CompanyJpaRepository companyJpaRepository
     ) {
         this.createCompanyUseCase = createCompanyUseCase;
         this.getCompanyByIdUseCase = getCompanyByIdUseCase;
@@ -60,6 +67,7 @@ public class CompanyController {
         this.changeCompanyStatusUseCase = changeCompanyStatusUseCase;
         this.companyApplicationService = companyApplicationService;
         this.authenticatedUserResolver = authenticatedUserResolver;
+        this.companyJpaRepository = companyJpaRepository;
     }
 
     @GetMapping("/profile")
@@ -226,4 +234,131 @@ public class CompanyController {
 
         return ResponseEntity.ok(ApiResponse.success(response, "Company status changed successfully"));
     }
+
+    // ─── Configuracion de empresa ──────────────────────────────────────────────
+    // Estos endpoints resuelven la empresa a partir del usuario autenticado
+    // (igual que GET /companies/profile) para que el frontend no tenga que
+    // conocer/rastrear el id de su propia empresa.
+
+    // Pendiente #2 — Privacidad / visibilidad
+    @GetMapping("/privacy-settings")
+    @PreAuthorize("hasAnyAuthority('COMPANY', 'COMPANY_COLLABORATOR', 'SUPERADMIN')")
+    public ResponseEntity<ApiResponse<PrivacySettingsResponse>> getPrivacySettings(Authentication authentication) {
+        CompanyJpaEntity company = resolveCompanyFor(authentication);
+        return ResponseEntity.ok(ApiResponse.success(toPrivacyResponse(company), "Privacy settings retrieved successfully"));
+    }
+
+    @PutMapping("/privacy-settings")
+    @PreAuthorize("hasAnyAuthority('COMPANY', 'COMPANY_COLLABORATOR', 'SUPERADMIN')")
+    public ResponseEntity<ApiResponse<PrivacySettingsResponse>> updatePrivacySettings(
+            @RequestBody PrivacySettingsRequest request,
+            Authentication authentication
+    ) {
+        CompanyJpaEntity company = resolveCompanyFor(authentication);
+        company.setIncognitoMode(request.incognitoMode());
+        company.setShowContactInfo(request.showContactInfo());
+        company.setShowInDirectory(request.showInDirectory());
+        company.setVisibilityNotifications(request.visibilityNotifications());
+        companyJpaRepository.save(company);
+        return ResponseEntity.ok(ApiResponse.success(toPrivacyResponse(company), "Privacy settings updated successfully"));
+    }
+
+    // Pendiente #3 — Preferencias generales (idioma / zona horaria)
+    @GetMapping("/preferences")
+    @PreAuthorize("hasAnyAuthority('COMPANY', 'COMPANY_COLLABORATOR', 'SUPERADMIN')")
+    public ResponseEntity<ApiResponse<PreferencesResponse>> getPreferences(Authentication authentication) {
+        CompanyJpaEntity company = resolveCompanyFor(authentication);
+        return ResponseEntity.ok(ApiResponse.success(toPreferencesResponse(company), "Preferences retrieved successfully"));
+    }
+
+    @PatchMapping("/preferences")
+    @PreAuthorize("hasAnyAuthority('COMPANY', 'COMPANY_COLLABORATOR', 'SUPERADMIN')")
+    public ResponseEntity<ApiResponse<PreferencesResponse>> updatePreferences(
+            @RequestBody PreferencesRequest request,
+            Authentication authentication
+    ) {
+        CompanyJpaEntity company = resolveCompanyFor(authentication);
+        if (request.language() != null && !request.language().isBlank()) {
+            company.setLanguage(request.language().trim());
+        }
+        if (request.timezone() != null && !request.timezone().isBlank()) {
+            company.setTimezone(request.timezone().trim());
+        }
+        companyJpaRepository.save(company);
+        return ResponseEntity.ok(ApiResponse.success(toPreferencesResponse(company), "Preferences updated successfully"));
+    }
+
+    // Pendiente #1 — Agente IA de empresa
+    @GetMapping("/agent-settings")
+    @PreAuthorize("hasAnyAuthority('COMPANY', 'COMPANY_COLLABORATOR', 'SUPERADMIN')")
+    public ResponseEntity<ApiResponse<AgentSettingsResponse>> getAgentSettings(Authentication authentication) {
+        CompanyJpaEntity company = resolveCompanyFor(authentication);
+        return ResponseEntity.ok(ApiResponse.success(toAgentSettingsResponse(company), "Agent settings retrieved successfully"));
+    }
+
+    @PatchMapping("/agent-settings")
+    @PreAuthorize("hasAnyAuthority('COMPANY', 'COMPANY_COLLABORATOR', 'SUPERADMIN')")
+    public ResponseEntity<ApiResponse<AgentSettingsResponse>> updateAgentSettings(
+            @RequestBody AgentSettingsRequest request,
+            Authentication authentication
+    ) {
+        CompanyJpaEntity company = resolveCompanyFor(authentication);
+        if (request.selectedAgentId() != null && !request.selectedAgentId().isBlank()) {
+            company.setAiAgentId(request.selectedAgentId().trim());
+        }
+        if (request.matchScoreThreshold() != null) {
+            company.setMatchScoreThreshold(Math.min(100, Math.max(0, request.matchScoreThreshold())));
+        }
+        companyJpaRepository.save(company);
+        return ResponseEntity.ok(ApiResponse.success(toAgentSettingsResponse(company), "Agent settings updated successfully"));
+    }
+
+    private CompanyJpaEntity resolveCompanyFor(Authentication authentication) {
+        AuthenticatedUser authenticatedUser = authenticatedUserResolver.resolve(authentication);
+
+        UUID ownerUserId;
+        try {
+            ownerUserId = UUID.fromString(authenticatedUser.userId());
+        } catch (IllegalArgumentException | NullPointerException e) {
+            throw new ResourceNotFoundException("Company for user " + authenticatedUser.userId());
+        }
+
+        return companyJpaRepository.findByOwnerUserId(ownerUserId)
+                .orElseThrow(() -> new ResourceNotFoundException("Company for user " + authenticatedUser.userId()));
+    }
+
+    private PrivacySettingsResponse toPrivacyResponse(CompanyJpaEntity company) {
+        return new PrivacySettingsResponse(
+                company.getIncognitoMode(),
+                company.getShowContactInfo(),
+                company.getShowInDirectory(),
+                company.getVisibilityNotifications()
+        );
+    }
+
+    private PreferencesResponse toPreferencesResponse(CompanyJpaEntity company) {
+        return new PreferencesResponse(company.getLanguage(), company.getTimezone());
+    }
+
+    private AgentSettingsResponse toAgentSettingsResponse(CompanyJpaEntity company) {
+        return new AgentSettingsResponse(company.getAiAgentId(), company.getMatchScoreThreshold());
+    }
+}
+
+record AgentSettingsRequest(String selectedAgentId, Integer matchScoreThreshold) {
+}
+
+record AgentSettingsResponse(String selectedAgentId, Integer matchScoreThreshold) {
+}
+
+record PrivacySettingsRequest(boolean incognitoMode, boolean showContactInfo, boolean showInDirectory, boolean visibilityNotifications) {
+}
+
+record PrivacySettingsResponse(boolean incognitoMode, boolean showContactInfo, boolean showInDirectory, boolean visibilityNotifications) {
+}
+
+record PreferencesRequest(String language, String timezone) {
+}
+
+record PreferencesResponse(String language, String timezone) {
 }

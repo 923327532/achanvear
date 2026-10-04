@@ -87,22 +87,42 @@ public class FreelanceProjectRepositoryImpl implements FreelanceProjectRepositor
 
     @Override
     public Optional<FreelanceProject> findById(String projectId) {
-        return Optional.empty();
+        if (projectId == null || projectId.isBlank()) {
+            return Optional.empty();
+        }
+        try {
+            return jpaRepository.findById(UUID.fromString(projectId))
+                    .map(mapper::toFreelanceProjectDomain);
+        } catch (IllegalArgumentException ex) {
+            return Optional.empty();
+        }
     }
 
     @Override
     public List<FreelanceProject> findByClientId(UUID clientId) {
-        return List.of();
+        if (clientId == null) {
+            return List.of();
+        }
+        return jpaRepository.findByClientUserId(clientId).stream()
+                .map(mapper::toFreelanceProjectDomain)
+                .toList();
     }
 
     @Override
     public List<FreelanceProject> findByFreelancerId(UUID freelancerId) {
-        return List.of();
+        if (freelancerId == null) {
+            return List.of();
+        }
+        return jpaRepository.findBySelectedFreelancerUserId(freelancerId).stream()
+                .map(mapper::toFreelanceProjectDomain)
+                .toList();
     }
 
     @Override
     public List<FreelanceProject> findAll() {
-        return List.of();
+        return jpaRepository.findAll().stream()
+                .map(mapper::toFreelanceProjectDomain)
+                .toList();
     }
 
     @Override

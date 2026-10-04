@@ -64,6 +64,31 @@ public class CompanyJpaEntity extends BaseJpaEntity {
     @Column(name = "status", nullable = false, length = 30)
     private String status;
 
+    // ── Configuracion de empresa (pendientes #1, #2, #3) ──
+    @Column(name = "ai_agent_id", length = 50)
+    private String aiAgentId;
+
+    @Column(name = "match_score_threshold")
+    private Integer matchScoreThreshold;
+
+    @Column(name = "incognito_mode", nullable = false)
+    private Boolean incognitoMode;
+
+    @Column(name = "show_contact_info", nullable = false)
+    private Boolean showContactInfo;
+
+    @Column(name = "show_in_directory", nullable = false)
+    private Boolean showInDirectory;
+
+    @Column(name = "visibility_notifications", nullable = false)
+    private Boolean visibilityNotifications;
+
+    @Column(name = "language", length = 20)
+    private String language;
+
+    @Column(name = "timezone", length = 40)
+    private String timezone;
+
     public CompanyJpaEntity() {
     }
 
@@ -201,5 +226,69 @@ public class CompanyJpaEntity extends BaseJpaEntity {
 
     public void setStatus(String status) {
         this.status = status;
+    }
+
+    public String getAiAgentId() {
+        return aiAgentId;
+    }
+
+    public void setAiAgentId(String aiAgentId) {
+        this.aiAgentId = aiAgentId;
+    }
+
+    public Integer getMatchScoreThreshold() {
+        return matchScoreThreshold;
+    }
+
+    public void setMatchScoreThreshold(Integer matchScoreThreshold) {
+        this.matchScoreThreshold = matchScoreThreshold;
+    }
+
+    public Boolean getIncognitoMode() {
+        return incognitoMode != null ? incognitoMode : Boolean.FALSE;
+    }
+
+    public void setIncognitoMode(Boolean incognitoMode) {
+        this.incognitoMode = incognitoMode;
+    }
+
+    public Boolean getShowContactInfo() {
+        return showContactInfo != null ? showContactInfo : Boolean.TRUE;
+    }
+
+    public void setShowContactInfo(Boolean showContactInfo) {
+        this.showContactInfo = showContactInfo;
+    }
+
+    public Boolean getShowInDirectory() {
+        return showInDirectory != null ? showInDirectory : Boolean.TRUE;
+    }
+
+    public void setShowInDirectory(Boolean showInDirectory) {
+        this.showInDirectory = showInDirectory;
+    }
+
+    public Boolean getVisibilityNotifications() {
+        return visibilityNotifications != null ? visibilityNotifications : Boolean.FALSE;
+    }
+
+    public void setVisibilityNotifications(Boolean visibilityNotifications) {
+        this.visibilityNotifications = visibilityNotifications;
+    }
+
+    public String getLanguage() {
+        return language;
+    }
+
+    public void setLanguage(String language) {
+        this.language = language;
+    }
+
+    public String getTimezone() {
+        return timezone;
+    }
+
+    public void setTimezone(String timezone) {
+        this.timezone = timezone;
     }
 }
