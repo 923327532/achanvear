@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from "react";
 import { Check, Loader2, AlertCircle } from "lucide-react";
-import { useAiAgentsCatalog } from "../hooks/useCompanySettings";
+import { useAiAgentsCatalog, useAgentSettings } from "../hooks/useCompanySettings";
 
 // FIX: antes AGENTES_IA era un array fijo en el frontend, con especialidades
 // que ni siquiera coincidían con los agentes reales del backend (Ana y Diego
@@ -13,6 +13,10 @@ import { useAiAgentsCatalog } from "../hooks/useCompanySettings";
 // catálogo real desde GET /catalog/ai-agents, a través de la capa
 // api/companySettingsApi.ts → hooks/useCompanySettings.ts, igual que el
 // resto de este archivo (antes llamaba a axios directo en el componente).
+//
+// FIX (#1): la selección de agente y el umbral de match ahora se persisten en
+// el backend vía GET/PATCH /companies/agent-settings (useAgentSettings). Antes
+// solo vivían en estado local y se perdían al recargar.
 
 const PERSONALITY_ICON: Record<string, string> = {
   professional: "👔",
@@ -23,13 +27,47 @@ const PERSONALITY_ICON: Record<string, string> = {
 
 export function CompanyAgentSection() {
   const { agents, isLoading, isError } = useAiAgentsCatalog();
+  const {
+    agentSettings,
+    isLoading: isLoadingSettings,
+    updateAsync,
+    isUpdating,
+  } = useAgentSettings();
+
   const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
   const [matchScoreThreshold, setMatchScoreThreshold] = useState(70);
+  const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  // Sincronizar con los valores persistidos en el servidor.
+  useEffect(() => {
+    if (agentSettings) {
+      if (agentSettings.selectedAgentId) setSelectedAgent(agentSettings.selectedAgentId);
+      if (typeof agentSettings.matchScoreThreshold === "number") {
+        setMatchScoreThreshold(agentSettings.matchScoreThreshold);
+      }
+    }
+  }, [agentSettings]);
+
+  const handleSave = async () => {
+    setSaveError(null);
+    try {
+      await updateAsync({
+        selectedAgentId: selectedAgent ?? undefined,
+        matchScoreThreshold,
+      });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch {
+      setSaveError("No se pudo guardar la configuración del agente. Inténtalo de nuevo.");
+    }
+  };
 
   // FIX: setState ya no se llama directo en el cuerpo del render (podía
   // disparar advertencias/errores de lint en build) — se mueve a un
   // useEffect, que es el lugar correcto para reaccionar a datos que llegan
-  // de forma asíncrona.
+  // de forma asíncrona. Si no hay agente persistido, se autoselecciona el
+  // primero del catálogo (solo local, no se persiste hasta que el usuario guarda).
   useEffect(() => {
     if (agents.length > 0 && selectedAgent === null) {
       setSelectedAgent(agents[0].id);
@@ -107,9 +145,7 @@ export function CompanyAgentSection() {
         )}
       </div>
 
-      {/* Match Score Threshold — sigue sin persistirse: no existe un endpoint
-          de backend para guardar ni esta preferencia ni el agente elegido
-          (pendiente #1: PATCH /companies/{id}/agent-settings o similar). */}
+      {/* Match Score Threshold — persistido en /companies/agent-settings */}
       <div className="pt-4 border-t border-gray-100">
         <label className="block text-sm font-semibold text-gray-700 mb-3">
           Match Score Mínimo para Notificaciones
@@ -136,6 +172,31 @@ export function CompanyAgentSection() {
           <span>Más selectivo</span>
         </div>
       </div>
+
+      {saveError && (
+        <div className="flex items-center gap-2 p-3 rounded-xl bg-red-50 border border-red-200">
+          <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
+          <p className="text-xs text-red-700">{saveError}</p>
+        </div>
+      )}
+
+      <div className="flex justify-end">
+        <button
+          onClick={handleSave}
+          disabled={isUpdating || isLoadingSettings}
+          className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-[#1B3A6B] text-white text-sm font-semibold hover:bg-[#0EA5A0] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+        >
+          {isUpdating && <Loader2 className="w-4 h-4 animate-spin" />}
+          Guardar Cambios
+        </button>
+      </div>
+
+      {saved && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 px-5 py-3 rounded-2xl bg-emerald-50 border border-emerald-200 shadow-lg">
+          <Check className="w-5 h-5 text-emerald-600" />
+          <span className="text-sm font-semibold text-emerald-800">Configuración del agente guardada</span>
+        </div>
+      )}
     </div>
   );
 }

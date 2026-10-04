@@ -12,6 +12,10 @@ import type {
   WalletInfo,
   PaymentsOverview,
   CreditPackage,
+  AgentSettings,
+  AgentSettingsPayload,
+  CompanyPreferences,
+  CompanyPreferencesPayload,
 } from "../types/company-settings.types";
 
 // ─── Endpoints del backend ─────────────────────────────────────────────────────
@@ -206,28 +210,43 @@ export const companySettingsApi = {
   },
 
   // ─── Privacidad ────────────────────────────────────────────────────────────
+  // Endpoints reales del backend (CompanyController): la empresa se resuelve
+  // a partir del usuario autenticado, por lo que no se envía un id.
 
   getPrivacySettings: async (): Promise<PrivacySettings> => {
-    try {
-      const res = await api.get<ApiResponse<PrivacySettings>>("/companies/privacy");
-      return parseResponse(res);
-    } catch {
-      // Fallback: leer desde localStorage si el endpoint no existe
-      const stored = localStorage.getItem("company-privacy-settings");
-      if (stored) return JSON.parse(stored);
-      return { incognitoMode: false, showContactInfo: true, showInDirectory: true, visibilityNotifications: false };
-    }
+    const res = await api.get<ApiResponse<PrivacySettings>>("/companies/privacy-settings");
+    return parseResponse(res);
   },
 
   updatePrivacySettings: async (data: PrivacySettings): Promise<PrivacySettings> => {
-    try {
-      const res = await api.put<ApiResponse<PrivacySettings>>("/companies/privacy", data);
-      return parseResponse(res);
-    } catch {
-      // Fallback: guardar en localStorage si el endpoint no existe
-      localStorage.setItem("company-privacy-settings", JSON.stringify(data));
-      return data;
-    }
+    const res = await api.put<ApiResponse<PrivacySettings>>("/companies/privacy-settings", data);
+    return parseResponse(res);
+  },
+
+  // ─── Agente IA (agente seleccionado + umbral de match) ──────────────────────
+  // PATCH /companies/agent-settings
+
+  getAgentSettings: async (): Promise<AgentSettings> => {
+    const res = await api.get<ApiResponse<AgentSettings>>("/companies/agent-settings");
+    return parseResponse(res);
+  },
+
+  updateAgentSettings: async (data: AgentSettingsPayload): Promise<AgentSettings> => {
+    const res = await api.patch<ApiResponse<AgentSettings>>("/companies/agent-settings", data);
+    return parseResponse(res);
+  },
+
+  // ─── Preferencias generales (idioma / zona horaria) ─────────────────────────
+  // GET /companies/preferences · PATCH /companies/preferences
+
+  getPreferences: async (): Promise<CompanyPreferences> => {
+    const res = await api.get<ApiResponse<CompanyPreferences>>("/companies/preferences");
+    return parseResponse(res);
+  },
+
+  updatePreferences: async (data: CompanyPreferencesPayload): Promise<CompanyPreferences> => {
+    const res = await api.patch<ApiResponse<CompanyPreferences>>("/companies/preferences", data);
+    return parseResponse(res);
   },
 
   // ─── Catálogo de Agentes IA ─────────────────────────────────────────────────

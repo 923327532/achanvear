@@ -92,3 +92,26 @@ export interface PrivacySettings {
   showInDirectory: boolean;
   visibilityNotifications: boolean;
 }
+
+// Configuración del agente IA de la empresa (empresa → GET/PATCH /companies/agent-settings)
+export interface AgentSettings {
+  selectedAgentId: string | null;
+  matchScoreThreshold: number | null;
+}
+
+// Payload parcial: solo se envían los campos que el usuario modifica.
+export interface AgentSettingsPayload {
+  selectedAgentId?: string;
+  matchScoreThreshold?: number;
+}
+
+// Preferencias generales de la empresa (GET/PATCH /companies/preferences)
+export interface CompanyPreferences {
+  language: string | null;
+  timezone: string | null;
+}
+
+export interface CompanyPreferencesPayload {
+  language?: string;
+  timezone?: string;
+}

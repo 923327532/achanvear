@@ -20,13 +20,11 @@ export function CompanyPrivacySection() {
   const { settings, isLoading, updateAsync, isUpdating } = usePrivacySettings();
   const [saved, setSaved] = useState(false);
 
-  // Estado local sincronizado con el servidor
   const [incognitoMode, setIncognitoMode] = useState(false);
   const [showContactInfo, setShowContactInfo] = useState(true);
   const [showInDirectory, setShowInDirectory] = useState(true);
   const [visibilityNotifications, setVisibilityNotifications] = useState(false);
 
-  // Sincronizar cuando se cargan los datos del servidor
   useEffect(() => {
     if (settings) {
       setIncognitoMode(settings.incognitoMode);
@@ -37,13 +35,11 @@ export function CompanyPrivacySection() {
   }, [settings]);
 
   const handleToggle = async (key: keyof typeof settings, value: boolean) => {
-    // Actualizar estado local inmediatamente
     if (key === "incognitoMode") setIncognitoMode(value);
     if (key === "showContactInfo") setShowContactInfo(value);
     if (key === "showInDirectory") setShowInDirectory(value);
     if (key === "visibilityNotifications") setVisibilityNotifications(value);
 
-    // Persistir en el backend/localStorage
     try {
       await updateAsync({
         ...settings,
@@ -52,7 +48,6 @@ export function CompanyPrivacySection() {
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch {
-      // Revertir en caso de error
       if (key === "incognitoMode") setIncognitoMode(!value);
       if (key === "showContactInfo") setShowContactInfo(!value);
       if (key === "showInDirectory") setShowInDirectory(!value);

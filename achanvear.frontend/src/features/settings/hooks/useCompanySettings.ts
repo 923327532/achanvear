@@ -318,8 +318,71 @@ export function usePrivacySettings() {
   return {
     settings: query.data ?? { incognitoMode: false, showContactInfo: true, showInDirectory: true, visibilityNotifications: false },
     isLoading: query.isLoading,
+    isError: query.isError,
     updateAsync: mutation.mutateAsync,
     isUpdating: mutation.isPending,
+    isSuccess: mutation.isSuccess,
+    isErrorUpdate: mutation.isError,
+  };
+}
+
+// ─── Agente IA (selección + umbral de match) ───────────────────────────────────
+
+export function useAgentSettings() {
+  const queryClient = useQueryClient();
+
+  const query = useQuery({
+    queryKey: ["company-settings", "agent-settings"],
+    queryFn: companySettingsApi.getAgentSettings,
+    staleTime: 1000 * 60 * 5,
+    retry: 0,
+  });
+
+  const mutation = useMutation({
+    mutationFn: (data: import("../types/company-settings.types").AgentSettingsPayload) =>
+      companySettingsApi.updateAgentSettings(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["company-settings", "agent-settings"] });
+    },
+  });
+
+  return {
+    agentSettings: query.data ?? null,
+    isLoading: query.isLoading,
+    isError: query.isError,
+    updateAsync: mutation.mutateAsync,
+    isUpdating: mutation.isPending,
+    isSuccess: mutation.isSuccess,
+  };
+}
+
+// ─── Preferencias generales (idioma / zona horaria) ────────────────────────────
+
+export function usePreferences() {
+  const queryClient = useQueryClient();
+
+  const query = useQuery({
+    queryKey: ["company-settings", "preferences"],
+    queryFn: companySettingsApi.getPreferences,
+    staleTime: 1000 * 60 * 10,
+    retry: 0,
+  });
+
+  const mutation = useMutation({
+    mutationFn: (data: import("../types/company-settings.types").CompanyPreferencesPayload) =>
+      companySettingsApi.updatePreferences(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["company-settings", "preferences"] });
+    },
+  });
+
+  return {
+    preferences: query.data ?? null,
+    isLoading: query.isLoading,
+    isError: query.isError,
+    updateAsync: mutation.mutateAsync,
+    isUpdating: mutation.isPending,
+    isSuccess: mutation.isSuccess,
   };
 }
 
