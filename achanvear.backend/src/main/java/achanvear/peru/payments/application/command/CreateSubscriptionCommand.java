@@ -7,6 +7,7 @@ import java.util.UUID;
 public record CreateSubscriptionCommand(
         PlanType plan,
         UUID companyUserId,
-        String companyEmail
+        String companyEmail,
+        String token
 ) {
 }

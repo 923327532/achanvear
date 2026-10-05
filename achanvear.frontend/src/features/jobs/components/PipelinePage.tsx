@@ -32,8 +32,11 @@ interface CandidateData {
   location: string;
   experience: string;
   education: string;
-  score: number;
+  score: number | null;
   status: string;
+  currentStage: string;
+  screeningResult: boolean | null;
+  screeningSummary: string | null;
   cvUrl: string | null;
   appliedAt: string;
   avatar: string;
@@ -70,10 +73,11 @@ function getAvatarColor(name: string) {
 
 function getStatusLabel(status: string) {
   switch (status) {
-    case "PENDING": return "Postulado";
-    case "REVIEWING": return "En revisión IA";
-    case "ACCEPTED": return "Seleccionado";
+    case "SUBMITTED": return "Postulado";
+    case "IN_REVIEW": return "Revisión de empresa";
+    case "SHORTLISTED": return "Avanza a entrevista";
     case "REJECTED": return "Rechazado";
+    case "HIRED": return "Contratado";
     default: return status;
   }
 }
@@ -147,16 +151,19 @@ function PipelineColumn({
               <div className="mt-3">
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-xs text-slate-500">Score IA</span>
-                  <span className="text-xs font-bold text-purple-700">{candidate.score}/100</span>
+                  <span className="text-xs font-bold text-purple-700">
+                    {candidate.score == null ? "Pendiente" : `${candidate.score}/100`}
+                  </span>
                 </div>
                 <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
                   <div
                     className={`h-full rounded-full transition-all ${
-                      candidate.score >= 80 ? "bg-emerald-500" :
-                      candidate.score >= 60 ? "bg-amber-500" :
-                      "bg-red-500"
-                    }`}
-                    style={{ width: `${candidate.score}%` }}
+                      candidate.score == null ? "bg-slate-300" :
+                        candidate.score >= 80 ? "bg-emerald-500" :
+                        candidate.score >= 60 ? "bg-amber-500" :
+                        "bg-red-500"
+                      }`}
+                      style={{ width: `${candidate.score ?? 0}%` }}
                   />
                 </div>
               </div>
@@ -176,12 +183,21 @@ function PipelineColumn({
                 )}
               </div>
 
-              {candidate.status === "REVIEWING" && (
+              {candidate.screeningResult != null && (
                 <div className="mt-2">
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-50 text-amber-700 border border-amber-200">
-                    En entrevista
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${
+                    candidate.screeningResult
+                      ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                      : "bg-amber-50 text-amber-700 border border-amber-200"
+                  }`}>
+                    {candidate.screeningResult ? "Recomendado por IA" : "No recomendado por IA"}
                   </span>
                 </div>
+              )}
+              {candidate.screeningSummary && (
+                <p className="mt-2 line-clamp-2 text-[11px] text-slate-500">
+                  {candidate.screeningSummary}
+                </p>
               )}
             </button>
           ))
@@ -215,6 +231,7 @@ export function PipelinePage() {
     queryFn: () => jobApi.getApplicants(jobId, { size: 100 }),
     enabled: !!jobId,
     retry: false,
+    refetchInterval: 10_000,
   });
 
   const job = jobQuery.data;
@@ -222,7 +239,7 @@ export function PipelinePage() {
 
   // Transformar applicants a CandidateData
   const allCandidates: CandidateData[] = useMemo(() => {
-    return applicants.map((app: any) => ({
+    return applicants.map((app) => ({
       id: app.id,
       candidateUserId: app.candidateUserId || "",
       name: app.candidateName || "Candidato",
@@ -231,8 +248,11 @@ export function PipelinePage() {
       location: app.candidateLocation || "",
       experience: app.candidateExperience || "",
       education: app.candidateEducation || "",
-      score: app.score ?? app.aiScore ?? Math.floor(Math.random() * 40) + 60,
-      status: app.status || "PENDING",
+      score: app.screeningScore ?? null,
+      status: app.status || "SUBMITTED",
+      currentStage: app.currentStage || "PENDING",
+      screeningResult: app.screeningResult ?? null,
+      screeningSummary: app.screeningSummary ?? null,
       cvUrl: app.cvUrl || null,
       appliedAt: app.appliedAt || "",
       avatar: "",
@@ -241,16 +261,25 @@ export function PipelinePage() {
 
   // Filtrar por score mínimo
   const filteredCandidates = useMemo(() => {
-    return allCandidates.filter((c) => c.score >= minScore);
+    return allCandidates.filter((c) => c.score == null
+      ? minScore === 0
+      : c.score >= minScore);
   }, [allCandidates, minScore]);
 
   // Separar por columnas del pipeline
   const pipelineColumns = useMemo(() => {
-    const postulados = filteredCandidates.filter((c) => c.status === "PENDING");
-    const filtradosIA = filteredCandidates.filter((c) => c.status === "REVIEWING");
-    const evaluacion = filteredCandidates.filter((c) => c.status === "REVIEWING");
-    const seleccionados = filteredCandidates.filter((c) => c.status === "ACCEPTED");
-    return { postulados, filtradosIA, evaluacion, seleccionados };
+    const postulados = filteredCandidates.filter((c) => c.currentStage === "PENDING");
+    const revisionEmpresa = filteredCandidates.filter((c) => c.status === "IN_REVIEW");
+    const entrevista = filteredCandidates.filter((c) =>
+      ["THEORY_INTERVIEW", "TECHNICAL_INTERVIEW", "UNDER_REVIEW"].includes(c.currentStage)
+    );
+    const finalistas = filteredCandidates.filter((c) =>
+      ["APPROVED", "HIRED"].includes(c.currentStage) || c.status === "HIRED"
+    );
+    const rechazados = filteredCandidates.filter((c) =>
+      c.status === "REJECTED" || c.currentStage === "REJECTED"
+    );
+    return { postulados, revisionEmpresa, entrevista, finalistas, rechazados };
   }, [filteredCandidates]);
 
   const isLoading = jobQuery.isLoading || applicantsQuery.isLoading;
@@ -262,6 +291,14 @@ export function PipelinePage() {
           <div className="w-8 h-8 border-2 border-[#1e3a8a] border-t-transparent rounded-full animate-spin" />
           <p className="text-sm text-slate-500">Cargando pipeline...</p>
         </div>
+      </div>
+    );
+  }
+
+  if (jobQuery.isError || applicantsQuery.isError) {
+    return (
+      <div role="alert" className="m-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+        No se pudo cargar el empleo o sus postulantes. Verifica tu sesión y vuelve a intentarlo.
       </div>
     );
   }
@@ -351,37 +388,45 @@ export function PipelinePage() {
 
       {/* Pipeline: Vista Kanban o Tabla según toggle */}
       {viewMode === "kanban" ? (
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-5">
           <PipelineColumn
             title="Postulados"
-            description="Recibidos recientemente"
+            description="Esperando evaluación curricular"
             icon={Users}
             iconColor="bg-blue-600"
             candidates={pipelineColumns.postulados}
             onSelectCandidate={setSelectedCandidate}
           />
           <PipelineColumn
-            title="Filtrados por IA"
-            description="Evaluación automatizada"
+            title="Revisión de empresa"
+            description="Score y recomendación IA; decisión pendiente"
             icon={Brain}
             iconColor="bg-purple-600"
-            candidates={pipelineColumns.filtradosIA}
+            candidates={pipelineColumns.revisionEmpresa}
             onSelectCandidate={setSelectedCandidate}
           />
           <PipelineColumn
-            title="Evaluación en Curso"
-            description="Entrevistas activas"
+            title="Entrevistas"
+            description="Teórica y práctica en curso"
             icon={BookOpen}
             iconColor="bg-amber-600"
-            candidates={pipelineColumns.evaluacion}
+            candidates={pipelineColumns.entrevista}
             onSelectCandidate={setSelectedCandidate}
           />
           <PipelineColumn
-            title="Seleccionados"
-            description="Finalistas aprobados"
+            title="Finalistas"
+            description="Aprobados en el proceso"
             icon={Award}
             iconColor="bg-emerald-600"
-            candidates={pipelineColumns.seleccionados}
+            candidates={pipelineColumns.finalistas}
+            onSelectCandidate={setSelectedCandidate}
+          />
+          <PipelineColumn
+            title="No continúan"
+            description="No avanzaron en la selección"
+            icon={Users}
+            iconColor="bg-slate-500"
+            candidates={pipelineColumns.rechazados}
             onSelectCandidate={setSelectedCandidate}
           />
         </div>
@@ -427,12 +472,12 @@ export function PipelinePage() {
                       </td>
                       <td className="py-3 px-4">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          candidate.status === "PENDING" ? "bg-blue-50 text-blue-700 border border-blue-200" :
-                          candidate.status === "REVIEWING" ? "bg-amber-50 text-amber-700 border border-amber-200" :
-                          candidate.status === "ACCEPTED" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" :
+                          candidate.status === "SUBMITTED" ? "bg-blue-50 text-blue-700 border border-blue-200" :
+                          candidate.status === "IN_REVIEW" ? "bg-amber-50 text-amber-700 border border-amber-200" :
+                          candidate.status === "SHORTLISTED" || candidate.status === "HIRED" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" :
                           "bg-slate-50 text-slate-600 border border-slate-200"
                         }`}>
-                          {getStatusLabel(candidate.status)}
+                          {getStatusLabel(candidate.status)}{candidate.screeningResult === true ? " · IA recomienda" : ""}
                         </span>
                       </td>
                       <td className="py-3 px-4">
@@ -441,20 +486,22 @@ export function PipelinePage() {
                             <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
                               <div
                                 className={`h-full rounded-full ${
+                                  candidate.score == null ? "bg-slate-300" :
                                   candidate.score >= 80 ? "bg-emerald-500" :
                                   candidate.score >= 60 ? "bg-amber-500" :
                                   "bg-red-500"
                                 }`}
-                                style={{ width: `${candidate.score}%` }}
+                                style={{ width: `${candidate.score ?? 0}%` }}
                               />
                             </div>
                           </div>
                           <span className={`text-xs font-bold ${
+                            candidate.score == null ? "text-slate-400" :
                             candidate.score >= 80 ? "text-emerald-700" :
                             candidate.score >= 60 ? "text-amber-700" :
                             "text-red-700"
                           }`}>
-                            {candidate.score}
+                            {candidate.score ?? "—"}
                           </span>
                         </div>
                       </td>

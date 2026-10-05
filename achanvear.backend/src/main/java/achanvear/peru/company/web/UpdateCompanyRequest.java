@@ -11,6 +11,7 @@ public record UpdateCompanyRequest(
         @NotBlank @Size(min = 2, max = 120) String specialty,
         @NotBlank String companySize,
         String logoUrl,
+        String bannerUrl,
         @NotBlank @Size(min = 10, max = 1500) String biography,
         @Size(max = 1500) String achievements,
         @NotBlank @Size(min = 5, max = 255) String address,

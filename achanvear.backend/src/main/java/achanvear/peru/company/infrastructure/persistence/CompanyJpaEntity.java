@@ -40,6 +40,9 @@ public class CompanyJpaEntity extends BaseJpaEntity {
     @Column(name = "logo_url", length = 500)
     private String logoUrl;
 
+    @Column(name = "banner_url", length = 500)
+    private String bannerUrl;
+
     @Column(name = "biography", nullable = false, length = 1500)
     private String biography;
 
@@ -162,6 +165,14 @@ public class CompanyJpaEntity extends BaseJpaEntity {
 
     public void setLogoUrl(String logoUrl) {
         this.logoUrl = logoUrl;
+    }
+
+    public String getBannerUrl() {
+        return bannerUrl;
+    }
+
+    public void setBannerUrl(String bannerUrl) {
+        this.bannerUrl = bannerUrl;
     }
 
     public String getBiography() {

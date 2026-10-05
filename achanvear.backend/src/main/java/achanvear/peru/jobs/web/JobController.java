@@ -6,8 +6,10 @@ import achanvear.peru.jobs.application.CreateJobUseCase;
 import achanvear.peru.jobs.application.DeleteJobUseCase;
 import achanvear.peru.jobs.application.GetCandidateDrawerDetailUseCase;
 import achanvear.peru.jobs.application.GetAppliedJobIdsUseCase;
+import achanvear.peru.hiring.application.AdvanceCandidateToTheoryInterviewUseCase;
 import achanvear.peru.jobs.application.GetJobApplicantsUseCase;
 import achanvear.peru.jobs.application.GetJobByIdUseCase;
+import achanvear.peru.jobs.application.GetCompanyHiringStatsUseCase;
 import achanvear.peru.jobs.application.GetMyJobPostsUseCase;
 import achanvear.peru.jobs.application.JobAiSuggestionService;
 import achanvear.peru.jobs.application.ManageRecruitmentAutomationUseCase;
@@ -25,6 +27,7 @@ import achanvear.peru.jobs.application.dto.JobAiSuggestionResponse;
 import achanvear.peru.jobs.application.dto.JobApplicationResponse;
 import achanvear.peru.jobs.application.dto.JobPostPageResponse;
 import achanvear.peru.jobs.application.dto.JobPostResponse;
+import achanvear.peru.jobs.application.dto.CompanyHiringStatsResponse;
 import achanvear.peru.jobs.application.dto.RecruitmentAutomationConfigResponse;
 import achanvear.peru.jobs.application.query.JobSearchQuery;
 import achanvear.peru.jobs.web.request.AdvanceCandidateRequest;
@@ -61,11 +64,13 @@ public class JobController {
     private final UpdateJobUseCase updateJobUseCase;
     private final ChangeJobStatusUseCase changeJobStatusUseCase;
     private final GetMyJobPostsUseCase getMyJobPostsUseCase;
+    private final GetCompanyHiringStatsUseCase getCompanyHiringStatsUseCase;
     private final GetJobApplicantsUseCase getJobApplicantsUseCase;
     private final UpdateApplicationStatusUseCase updateApplicationStatusUseCase;
     private final ManageRecruitmentAutomationUseCase manageRecruitmentAutomationUseCase;
     private final DeleteJobUseCase deleteJobUseCase;
     private final GetCandidateDrawerDetailUseCase getCandidateDrawerDetailUseCase;
+    private final AdvanceCandidateToTheoryInterviewUseCase advanceCandidateToTheoryInterviewUseCase;
     private final GetAppliedJobIdsUseCase getAppliedJobIdsUseCase;
     private final JobAiSuggestionService jobAiSuggestionService;
 
@@ -77,13 +82,15 @@ public class JobController {
             UpdateJobUseCase updateJobUseCase,
             ChangeJobStatusUseCase changeJobStatusUseCase,
             GetMyJobPostsUseCase getMyJobPostsUseCase,
+            GetCompanyHiringStatsUseCase getCompanyHiringStatsUseCase,
             GetJobApplicantsUseCase getJobApplicantsUseCase,
             UpdateApplicationStatusUseCase updateApplicationStatusUseCase,
             ManageRecruitmentAutomationUseCase manageRecruitmentAutomationUseCase,
             DeleteJobUseCase deleteJobUseCase,
             GetCandidateDrawerDetailUseCase getCandidateDrawerDetailUseCase,
             GetAppliedJobIdsUseCase getAppliedJobIdsUseCase,
-            JobAiSuggestionService jobAiSuggestionService
+            JobAiSuggestionService jobAiSuggestionService,
+            AdvanceCandidateToTheoryInterviewUseCase advanceCandidateToTheoryInterviewUseCase
     ) {
         this.getAppliedJobIdsUseCase = getAppliedJobIdsUseCase;
         this.jobAiSuggestionService = jobAiSuggestionService;
@@ -95,11 +102,13 @@ public class JobController {
         this.updateJobUseCase = updateJobUseCase;
         this.changeJobStatusUseCase = changeJobStatusUseCase;
         this.getMyJobPostsUseCase = getMyJobPostsUseCase;
+        this.getCompanyHiringStatsUseCase = getCompanyHiringStatsUseCase;
         this.getJobApplicantsUseCase = getJobApplicantsUseCase;
         this.updateApplicationStatusUseCase = updateApplicationStatusUseCase;
         this.manageRecruitmentAutomationUseCase = manageRecruitmentAutomationUseCase;
         this.deleteJobUseCase = deleteJobUseCase;
         this.getCandidateDrawerDetailUseCase = getCandidateDrawerDetailUseCase;
+        this.advanceCandidateToTheoryInterviewUseCase = advanceCandidateToTheoryInterviewUseCase;
     }
 
     @PostMapping
@@ -216,7 +225,17 @@ public class JobController {
                 request.salaryMin(),
                 request.salaryMax(),
                 request.currency(),
-                request.vacancies()
+                request.vacancies(),
+                request.requirements(),
+                request.selectionMode(),
+                request.hideSalary(),
+                request.maxCandidatesForScreening(),
+                request.candidatesForTheoryInterview(),
+                request.minimumScore(),
+                request.closingMode(),
+                request.closingDate() != null ? Instant.parse(request.closingDate()) : null,
+                request.maxApplicants(),
+                request.notificationTiming()
         );
 
         JobPostResponse response = updateJobUseCase.execute(command);
@@ -298,6 +317,18 @@ public class JobController {
         JobPostPageResponse response = getMyJobPostsUseCase.execute(query, companyId);
 
         return ResponseEntity.ok(ApiResponse.success(response, "My job posts retrieved successfully"));
+    }
+
+    @GetMapping("/my-posts/stats")
+    @PreAuthorize("hasAnyAuthority('COMPANY', 'COMPANY_COLLABORATOR', 'SUPERADMIN')")
+    public ResponseEntity<ApiResponse<CompanyHiringStatsResponse>> getCompanyHiringStats(
+            @AuthenticationPrincipal AuthenticatedUser principal
+    ) {
+        CompanyHiringStatsResponse response = principal.getCompanyId() == null
+                ? new CompanyHiringStatsResponse(0, 0, 0, 0)
+                : getCompanyHiringStatsUseCase.execute(resolveCompanyId(principal));
+
+        return ResponseEntity.ok(ApiResponse.success(response, "Company hiring stats retrieved successfully"));
     }
 
     @GetMapping("/{id}/applicants")
@@ -423,7 +454,7 @@ public class JobController {
 
     @PostMapping("/{jobPostId}/applicants/{applicationId}/advance")
     @PreAuthorize("hasAnyAuthority('COMPANY', 'COMPANY_COLLABORATOR', 'SUPERADMIN')")
-    public ResponseEntity<ApiResponse<JobApplicationResponse>> advanceCandidate(
+    public ResponseEntity<ApiResponse<CandidateDrawerDetailResponse>> advanceCandidate(
             @PathVariable String jobPostId,
             @PathVariable String applicationId,
             @Valid @RequestBody AdvanceCandidateRequest request,
@@ -431,27 +462,61 @@ public class JobController {
     ) {
         String companyId = resolveCompanyId(principal);
 
-        // Map the action to the corresponding application status
-        String newStatus;
-        if ("ADVANCE".equalsIgnoreCase(request.action())) {
-            newStatus = "IN_REVIEW";
-        } else if ("REJECT".equalsIgnoreCase(request.action())) {
-            newStatus = "REJECTED";
-        } else {
+        CandidateDrawerDetailResponse current = getCandidateDrawerDetailUseCase.execute(
+                jobPostId,
+                applicationId,
+                companyId,
+                principal.isSuperAdmin()
+        );
+
+        boolean advance = "ADVANCE".equalsIgnoreCase(request.action());
+        boolean reject = "REJECT".equalsIgnoreCase(request.action());
+        if (!advance && !reject) {
             throw new BusinessRuleViolationException("Invalid action: " + request.action() + ". Must be ADVANCE or REJECT");
         }
 
-        UpdateApplicationStatusCommand command = new UpdateApplicationStatusCommand(
-                applicationId,
+        if (advance) {
+            if ("REJECTED".equalsIgnoreCase(current.applicationStatus())) {
+                throw new BusinessRuleViolationException("A rejected candidate cannot be advanced");
+            }
+
+            boolean alreadyInInterview = java.util.Set.of(
+                    "THEORY_INTERVIEW", "TECHNICAL_INTERVIEW", "UNDER_REVIEW", "APPROVED", "HIRED"
+            ).contains(current.currentStage());
+            if (alreadyInInterview) {
+                return ResponseEntity.ok(ApiResponse.success(current, "Candidate is already in the interview process"));
+            }
+
+            updateApplicationStatusUseCase.execute(new UpdateApplicationStatusCommand(
+                    applicationId,
+                    jobPostId,
+                    companyId,
+                    principal.isSuperAdmin(),
+                    "SHORTLISTED"
+            ));
+            advanceCandidateToTheoryInterviewUseCase.execute(
+                    jobPostId,
+                    current.candidateUserId(),
+                    current.screeningScore(),
+                    current.screeningSummary()
+            );
+        } else if (!"REJECTED".equalsIgnoreCase(current.applicationStatus())) {
+            updateApplicationStatusUseCase.execute(new UpdateApplicationStatusCommand(
+                    applicationId,
+                    jobPostId,
+                    companyId,
+                    principal.isSuperAdmin(),
+                    "REJECTED"
+            ));
+        }
+
+        CandidateDrawerDetailResponse response = getCandidateDrawerDetailUseCase.execute(
                 jobPostId,
+                applicationId,
                 companyId,
-                principal.isSuperAdmin(),
-                newStatus
+                principal.isSuperAdmin()
         );
-
-        JobApplicationResponse response = updateApplicationStatusUseCase.execute(command);
-
-        return ResponseEntity.ok(ApiResponse.success(response, "Candidate " + request.action().toLowerCase() + "d successfully"));
+        return ResponseEntity.ok(ApiResponse.success(response, "Candidate selection updated successfully"));
     }
 
     @PostMapping("/ai-suggest")

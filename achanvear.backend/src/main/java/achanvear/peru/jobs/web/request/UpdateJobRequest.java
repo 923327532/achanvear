@@ -16,6 +16,19 @@ public record UpdateJobRequest(
         @NotNull @DecimalMin("0.00") BigDecimal salaryMin,
         @NotNull @DecimalMin("0.00") BigDecimal salaryMax,
         @NotBlank String currency,
-        @NotNull @Min(1) Integer vacancies
+        @NotNull @Min(1) Integer vacancies,
+        @Size(max = 5000) String requirements,
+        // Nivel de automatizacion (MANUAL|SEMI_AUTOMATED|FULLY_AUTOMATED)
+        String selectionMode,
+        Boolean hideSalary,
+        Integer maxCandidatesForScreening,
+        Integer candidatesForTheoryInterview,
+        Integer minimumScore,
+        // Cierre de vacantes
+        String closingMode,
+        String closingDate,
+        Integer maxApplicants,
+        // Cuando notificar al candidato
+        String notificationTiming
 ) {
 }

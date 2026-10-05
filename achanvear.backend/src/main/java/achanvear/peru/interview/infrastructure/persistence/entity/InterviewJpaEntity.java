@@ -50,6 +50,13 @@ public class InterviewJpaEntity {
     @Column(name = "python_session_id")
     private String pythonSessionId;
 
+    /**
+     * Fecha y hora del horario elegido por el candidato. Se persiste al elegir
+     * el slot para que la entrevista no dependa de buscar el schedule.
+     */
+    @Column(name = "slot_date_time")
+    private String slotDateTime;
+
     @Column(name = "created_at")
     private Instant createdAt;
 
@@ -137,6 +144,9 @@ public class InterviewJpaEntity {
 
     public String getPythonSessionId() { return pythonSessionId; }
     public void setPythonSessionId(String pythonSessionId) { this.pythonSessionId = pythonSessionId; }
+
+    public String getSlotDateTime() { return slotDateTime; }
+    public void setSlotDateTime(String slotDateTime) { this.slotDateTime = slotDateTime; }
 
     public Instant getCreatedAt() { return createdAt; }
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }

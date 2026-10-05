@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/features/auth/hooks/useAuth";
+import { BrandLogo } from "@/shared/components/ui/BrandLogo";
 import { ROUTES, homeRouteForRole } from "@/lib/constants";
 
 export function Header() {
@@ -40,21 +41,17 @@ export function Header() {
   ];
 
   return (
-    <header className="bg-white shadow-sm">
+    <header className="bg-gradient-to-r from-[#1B3A6B] via-[#135e7a] to-[#0EA5A0] shadow-lg shadow-teal-900/10">
       <nav className="mx-auto flex max-w-7xl items-center justify-between p-6 lg:px-8" aria-label="Global">
         <div className="flex lg:flex-1">
           <Link href={ROUTES.home} className="-m-1.5 p-1.5 flex items-center">
-            <span className="sr-only">Achanvear</span>
-            <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-teal-600 text-white font-bold text-lg">
-              A
-            </div>
-            <span className="ml-3 text-xl font-bold text-blue-900">Achanvear</span>
+            <BrandLogo href={null} size="sm" textClassName="ml-3 text-xl font-bold text-white" className="gap-0" />
           </Link>
         </div>
         <div className="flex lg:hidden">
           <button
             type="button"
-            className="-m-2.5 inline-flex items-center justify-center rounded-md p-2.5 text-gray-700"
+            className="-m-2.5 inline-flex items-center justify-center rounded-md p-2.5 text-white/90 hover:bg-white/10"
             onClick={() => setOpenMenu(openMenu === "mobile" ? null : "mobile")}
           >
             <span className="sr-only">Abrir menú principal</span>
@@ -68,11 +65,11 @@ export function Header() {
             <div key={item.id} className="relative">
               <button
                 type="button"
-                className="flex items-center gap-x-1 text-sm font-semibold leading-6 text-gray-900 hover:text-teal-600 transition-colors"
+                className="flex items-center gap-x-1 text-sm font-semibold leading-6 text-white/90 hover:text-white transition-colors"
                 onClick={() => setOpenMenu(openMenu === item.id ? null : item.id)}
               >
                 {item.label}
-                <svg className={`h-5 w-5 flex-none text-gray-400 transition-transform ${openMenu === item.id ? "rotate-180" : ""}`} viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <svg className={`h-5 w-5 flex-none text-white/60 transition-transform ${openMenu === item.id ? "rotate-180" : ""}`} viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                   <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.25 4.25a.75.75 0 01-1.06 0L5.23 8.29a.75.75 0 01.02-1.06z" clipRule="evenodd" />
                 </svg>
               </button>
@@ -94,32 +91,32 @@ export function Header() {
               )}
             </div>
           ))}
-          <Link href="/about" className="text-sm font-semibold leading-6 text-gray-900 hover:text-teal-600 transition-colors">
+          <Link href="/about" className="text-sm font-semibold leading-6 text-white/90 hover:text-white transition-colors">
             Nosotros
           </Link>
         </div>
         <div className="hidden lg:flex lg:flex-1 lg:justify-end lg:gap-x-4">
           {user ? (
             <div className="flex items-center gap-x-4">
-              <Link href={user ? homeRouteForRole(user.role) : "/dashboard"} className="text-sm font-semibold leading-6 text-gray-900 hover:text-teal-600">
+              <Link href={user ? homeRouteForRole(user.role) : "/dashboard"} className="text-sm font-semibold leading-6 text-white/90 hover:text-white">
                 Mi panel
               </Link>
               <button
                 onClick={logout}
-                className="text-sm font-semibold leading-6 text-gray-900 hover:text-teal-600"
+                className="text-sm font-semibold leading-6 text-white/90 hover:text-white"
               >
                 Cerrar sesión
               </button>
             </div>
           ) : (
             <>
-              <Link href={ROUTES.login} className="text-sm font-semibold leading-6 text-gray-900 hover:text-teal-600 flex items-center">
+              <Link href={ROUTES.login} className="text-sm font-semibold leading-6 text-white/90 hover:text-white flex items-center">
                 Iniciar sesión
                 <span aria-hidden="true" className="ml-1">→</span>
               </Link>
               <Link
                 href="/onboarding/freelancer"
-                className="rounded-md bg-gradient-to-r from-blue-900 to-teal-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:from-blue-800 hover:to-teal-500 transition-all"
+                className="rounded-md bg-white px-4 py-2 text-sm font-semibold text-[#0EA5A0] shadow-sm hover:bg-white/90 transition-all"
               >
                 Crear cuenta
               </Link>
@@ -134,11 +131,11 @@ export function Header() {
               <div key={item.id}>
                 <button
                   type="button"
-                  className="flex w-full items-center justify-between text-sm font-semibold leading-6 text-gray-900"
+                  className="flex w-full items-center justify-between text-sm font-semibold leading-6 text-white/90"
                   onClick={() => setOpenMenu(openMenu === `mobile-${item.id}` ? "mobile" : `mobile-${item.id}`)}
                 >
                   {item.label}
-                  <svg className={`h-5 w-5 flex-none text-gray-400 transition-transform ${openMenu === `mobile-${item.id}` ? "rotate-180" : ""}`} viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                  <svg className={`h-5 w-5 flex-none text-white/60 transition-transform ${openMenu === `mobile-${item.id}` ? "rotate-180" : ""}`} viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                     <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.25 4.25a.75.75 0 01-1.06 0L5.23 8.29a.75.75 0 01.02-1.06z" clipRule="evenodd" />
                   </svg>
                 </button>
@@ -148,7 +145,7 @@ export function Header() {
                       <Link
                         key={subItem.href}
                         href={subItem.href}
-                        className="block py-2 text-sm font-medium text-gray-700 hover:text-teal-600"
+                        className="block py-2 text-sm font-medium text-white/70 hover:text-white"
                         onClick={() => setOpenMenu(null)}
                       >
                         {subItem.label}
@@ -158,24 +155,24 @@ export function Header() {
                 )}
               </div>
             ))}
-            <Link href="/about" className="block py-2 text-sm font-semibold leading-6 text-gray-900 hover:text-teal-600" onClick={() => setOpenMenu(null)}>
+            <Link href="/about" className="block py-2 text-sm font-semibold leading-6 text-white/90 hover:text-white" onClick={() => setOpenMenu(null)}>
               Nosotros
             </Link>
             {user ? (
               <>
-                <Link href={user ? homeRouteForRole(user.role) : "/dashboard"} className="block py-2 text-sm font-semibold leading-6 text-gray-900 hover:text-teal-600" onClick={() => setOpenMenu(null)}>
+                <Link href={user ? homeRouteForRole(user.role) : "/dashboard"} className="block py-2 text-sm font-semibold leading-6 text-white/90 hover:text-white" onClick={() => setOpenMenu(null)}>
                   Mi panel
                 </Link>
-                <button onClick={() => { logout(); setOpenMenu(null); }} className="block w-full text-left py-2 text-sm font-semibold leading-6 text-gray-900 hover:text-teal-600">
+                <button onClick={() => { logout(); setOpenMenu(null); }} className="block w-full text-left py-2 text-sm font-semibold leading-6 text-white/90 hover:text-white">
                   Cerrar sesión
                 </button>
               </>
             ) : (
               <>
-                <Link href={ROUTES.login} className="block py-2 text-sm font-semibold leading-6 text-gray-900 hover:text-teal-600" onClick={() => setOpenMenu(null)}>
+                <Link href={ROUTES.login} className="block py-2 text-sm font-semibold leading-6 text-white/90 hover:text-white" onClick={() => setOpenMenu(null)}>
                   Iniciar sesión
                 </Link>
-                <Link href={ROUTES.register} className="block py-2 text-sm font-semibold leading-6 text-teal-600" onClick={() => setOpenMenu(null)}>
+                <Link href={ROUTES.register} className="block py-2 text-sm font-semibold leading-6 text-[#22D3EE]" onClick={() => setOpenMenu(null)}>
                   Crear cuenta
                 </Link>
               </>

@@ -82,6 +82,23 @@ export const profileApi = {
     }
   },
 
+  uploadFile: async (folder: StorageFolder, file: File): Promise<PresignedUrlResponse> => {
+    const formData = new FormData();
+    formData.append("folder", folder);
+    formData.append("file", file);
+
+    const response = await api.post<ApiResponse<PresignedUrlResponse>>(
+      "/profiles/storage/upload",
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      }
+    );
+    return parseResponse(response);
+  },
+
   // ── Company profile ────────────────────────────────────────────────────────
 
   // GET /companies/profile
@@ -128,6 +145,17 @@ export const profileApi = {
     companyPlan: string;
   }): Promise<CompanyProfile> => {
     const response = await api.put<ApiResponse<CompanyProfile>>(`/companies/${id}`, data);
+    return parseResponse(response);
+  },
+
+  updateCompanyMedia: async (data: {
+    logoUrl?: string;
+    bannerUrl?: string;
+  }): Promise<{ logoUrl: string | null; bannerUrl: string | null }> => {
+    const response = await api.patch<ApiResponse<{ logoUrl: string | null; bannerUrl: string | null }>>(
+      "/companies/profile-media",
+      data
+    );
     return parseResponse(response);
   },
 

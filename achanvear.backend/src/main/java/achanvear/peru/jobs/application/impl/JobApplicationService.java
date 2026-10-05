@@ -35,6 +35,11 @@ import achanvear.peru.jobs.domain.repository.ApplicationRepository;
 import achanvear.peru.jobs.domain.repository.JobPostRepository;
 import achanvear.peru.jobs.domain.repository.RecruitmentAutomationConfigRepository;
 import achanvear.peru.jobs.infrastructure.persistence.JobApplicationMapper;
+import achanvear.peru.hiring.domain.repository.HiringProcessRepository;
+import achanvear.peru.payments.application.service.PublicationCreditService;
+import achanvear.peru.payments.domain.model.PlanType;
+import achanvear.peru.payments.domain.model.ProjectPublishingPolicy;
+import achanvear.peru.payments.domain.repository.SubscriptionRepository;
 import achanvear.peru.shared.domain.exception.ResourceNotFoundException;
 import achanvear.peru.shared.exception.BusinessRuleViolationException;
 import achanvear.peru.shared.exception.ForbiddenOperationException;
@@ -68,6 +73,9 @@ public class JobApplicationService implements
     private final EventPublisher eventPublisher;
     private final JobApplicationMapper jobApplicationMapper;
     private final RecruitmentAutomationConfigRepository automationConfigRepository;
+    private final HiringProcessRepository hiringProcessRepository;
+    private final SubscriptionRepository subscriptionRepository;
+    private final PublicationCreditService publicationCreditService;
 
     public JobApplicationService(
             JobPostRepository jobPostRepository,
@@ -77,7 +85,10 @@ public class JobApplicationService implements
             IdentityCandidateLookupPort identityCandidateLookupPort,
             EventPublisher eventPublisher,
             JobApplicationMapper jobApplicationMapper,
-            RecruitmentAutomationConfigRepository automationConfigRepository
+            RecruitmentAutomationConfigRepository automationConfigRepository,
+            HiringProcessRepository hiringProcessRepository,
+            SubscriptionRepository subscriptionRepository,
+            PublicationCreditService publicationCreditService
     ) {
         this.jobPostRepository = jobPostRepository;
         this.applicationRepository = applicationRepository;
@@ -87,6 +98,9 @@ public class JobApplicationService implements
         this.eventPublisher = eventPublisher;
         this.jobApplicationMapper = jobApplicationMapper;
         this.automationConfigRepository = automationConfigRepository;
+        this.hiringProcessRepository = hiringProcessRepository;
+        this.subscriptionRepository = subscriptionRepository;
+        this.publicationCreditService = publicationCreditService;
     }
 
     @Override
@@ -100,6 +114,8 @@ public class JobApplicationService implements
         CompanyLookupPort.CompanySummary company = companyLookupPort.findById(companyId)
                 .orElseThrow(() -> new ResourceNotFoundException("Company not found"));
         validateCompanyForPublishing(company, companyId);
+        validateJobPublishingAllowance(company);
+        validateRecruitmentAutomationAllowance(company, command.selectionMode());
 
         if (jobPostRepository.existsByTitleAndCompanyId(command.title().trim(), companyId)) {
             throw new BusinessRuleViolationException("Company already has a job post with the same title");
@@ -116,6 +132,7 @@ public class JobApplicationService implements
                 command.currency(),
                 command.vacancies(),
                 command.requirements(),
+                command.selectionMode(),
                 command.closingMode(),
                 command.closingDate(),
                 command.maxApplicants()
@@ -166,6 +183,46 @@ public class JobApplicationService implements
         return jobApplicationMapper.toResponse(jobPost);
     }
 
+    private void validateJobPublishingAllowance(CompanyLookupPort.CompanySummary company) {
+        var subscription = subscriptionRepository.findByCompanyUserId(company.ownerUserId())
+                .filter(sub -> sub.isActive());
+        boolean hasActiveSubscription = subscription.isPresent();
+        PlanType plan = subscription.map(sub -> sub.getPlan()).orElse(PlanType.FREE);
+        int currentJobs = (int) jobPostRepository.countByCompanyIdSince(company.id(), company.createdAt());
+
+        boolean canPublish = ProjectPublishingPolicy.canPublishJob(
+                plan,
+                currentJobs,
+                hasActiveSubscription,
+                company.createdAt()
+        );
+
+        if (!canPublish && publicationCreditService.getBalance(company.ownerUserId()) > 0) {
+            publicationCreditService.consumeOne(company.ownerUserId());
+            return;
+        }
+
+        if (!canPublish) {
+            throw new BusinessRuleViolationException(
+                    ProjectPublishingPolicy.getJobUpgradeMessage(currentJobs, company.createdAt())
+            );
+        }
+    }
+
+    private void validateRecruitmentAutomationAllowance(CompanyLookupPort.CompanySummary company, String selectionMode) {
+        if (selectionMode == null || selectionMode.isBlank() || "MANUAL".equalsIgnoreCase(selectionMode.trim())) {
+            return;
+        }
+
+        boolean hasActiveSubscription = subscriptionRepository.findByCompanyUserId(company.ownerUserId())
+                .filter(sub -> sub.isActive())
+                .isPresent();
+
+        if (!ProjectPublishingPolicy.canUseRecruitmentAutomation(hasActiveSubscription)) {
+            throw new BusinessRuleViolationException(ProjectPublishingPolicy.getRecruitmentAutomationUpgradeMessage());
+        }
+    }
+
     @Override
     public JobPostResponse execute(ApplyJobCommand command) {
         JobPost jobPost = jobPostRepository.findById(JobPostId.from(command.jobPostId()))
@@ -206,6 +263,11 @@ public class JobApplicationService implements
                 .orElseThrow(() -> new ResourceNotFoundException("Job post not found"));
 
         authorizeCompanyOwnership(jobPost, command.requesterCompanyId(), command.superAdmin());
+        if (!command.superAdmin()) {
+            CompanyLookupPort.CompanySummary company = companyLookupPort.findById(jobPost.getCompanyId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Company not found"));
+            validateRecruitmentAutomationAllowance(company, command.selectionMode());
+        }
 
         jobPost.update(
                 command.title(),
@@ -218,9 +280,73 @@ public class JobApplicationService implements
                 command.vacancies()
         );
 
+        if (command.requirements() != null) {
+            jobPost.updateRequirements(command.requirements());
+        }
+
+        if (command.closingMode() != null || command.closingDate() != null || command.maxApplicants() != null) {
+            jobPostFactory.applySelection(
+                    jobPost,
+                    command.closingMode(),
+                    command.closingDate(),
+                    command.maxApplicants()
+            );
+        }
+
         jobPostRepository.save(jobPost);
 
+        upsertAutomationConfig(jobPost, command);
+
         return jobApplicationMapper.toResponse(jobPost);
+    }
+
+    private void upsertAutomationConfig(JobPost jobPost, UpdateJobCommand command) {
+        if (command.selectionMode() == null || command.selectionMode().isBlank()) {
+            return;
+        }
+
+        RecruitmentAutomationLevel level;
+        try {
+            level = RecruitmentAutomationLevel.valueOf(command.selectionMode().trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            level = RecruitmentAutomationLevel.MANUAL;
+        }
+
+        final RecruitmentAutomationLevel resolvedLevel = level;
+
+        RecruitmentAutomationConfig autoConfig = automationConfigRepository
+                .findByJobPostId(jobPost.getId().value())
+                .orElseGet(() -> RecruitmentAutomationConfig.create(jobPost.getId().value(), resolvedLevel));
+
+        autoConfig.updateLevel(resolvedLevel);
+
+        if (command.notificationTiming() != null && !command.notificationTiming().isBlank()) {
+            try {
+                autoConfig.setNotificationTiming(
+                        NotificationTiming.valueOf(command.notificationTiming().trim().toUpperCase())
+                );
+            } catch (IllegalArgumentException e) {
+                // Valor invalido: se mantiene el actual
+            }
+        }
+
+        if (resolvedLevel == RecruitmentAutomationLevel.FULLY_AUTOMATED) {
+            java.util.Map<String, String> criteria = new java.util.HashMap<>(autoConfig.getScreeningCriteria());
+            if (command.maxCandidatesForScreening() != null) {
+                criteria.put("maxCandidatesForScreening", command.maxCandidatesForScreening().toString());
+            }
+            if (command.candidatesForTheoryInterview() != null) {
+                criteria.put("candidatesForTheoryInterview", command.candidatesForTheoryInterview().toString());
+            }
+            if (command.minimumScore() != null) {
+                criteria.put("minimumScore", command.minimumScore().toString());
+            }
+            if (!criteria.isEmpty()) {
+                autoConfig.updateScreeningCriteria(criteria);
+            }
+        }
+
+        automationConfigRepository.save(autoConfig);
     }
 
     @Override
@@ -377,7 +503,32 @@ public class JobApplicationService implements
                 application.getCvUrl(),
                 application.getCoverLetter(),
                 application.getAppliedAt(),
-                application.getStatus().name()
+                application.getStatus().name(),
+                application.getScreeningScore(),
+                application.getScreeningResult(),
+                application.getScreeningSummary(),
+                resolveCurrentStage(application)
         );
+    }
+
+    private String resolveCurrentStage(JobApplication application) {
+        if (application.getStatus() == ApplicationStatus.REJECTED) {
+            return "REJECTED";
+        }
+        if (application.getStatus() == ApplicationStatus.HIRED) {
+            return "HIRED";
+        }
+        return hiringProcessRepository.findByJobIdAndCandidateId(
+                        application.getJobPostId().toString(),
+                        application.getCandidateUserId().toString()
+                )
+                .map(process -> process.getStage().name())
+                .orElseGet(() -> switch (application.getStatus()) {
+                    case SUBMITTED -> "PENDING";
+                    case IN_REVIEW -> "SCREENING_REVIEW";
+                    case SHORTLISTED -> "THEORY_INTERVIEW";
+                    case REJECTED -> "REJECTED";
+                    case HIRED -> "HIRED";
+                });
     }
 }

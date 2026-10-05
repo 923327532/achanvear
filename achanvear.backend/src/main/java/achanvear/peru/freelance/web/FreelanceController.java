@@ -9,6 +9,9 @@ import achanvear.peru.freelance.application.dto.ProjectAiSuggestionResponse;
 import achanvear.peru.freelance.application.dto.ProposalAiSuggestionResponse;
 import achanvear.peru.freelance.application.port.out.StoragePort;
 import achanvear.peru.freelance.application.query.FreelanceProjectSearchQuery;
+import achanvear.peru.freelance.domain.model.FreelanceProject;
+import achanvear.peru.freelance.domain.model.ProjectStatus;
+import achanvear.peru.freelance.domain.repository.FreelanceProjectRepository;
 import achanvear.peru.jobs.application.JobAiSuggestionService;
 import achanvear.peru.jobs.web.request.JobAiSuggestionRequest;
 import achanvear.peru.shared.security.AuthenticatedUser;
@@ -22,6 +25,8 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.math.BigDecimal;
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -40,6 +45,7 @@ public class FreelanceController {
     private final AcceptProposalUseCase acceptProposalUseCase;
     private final GetMyProposalsUseCase getMyProposalsUseCase;
     private final PauseResumeProjectUseCase pauseResumeProjectUseCase;
+    private final FreelanceProjectRepository freelanceProjectRepository;
     private final StoragePort storagePort;
     private final JobAiSuggestionService jobAiSuggestionService;
 
@@ -56,6 +62,7 @@ public class FreelanceController {
             AcceptProposalUseCase acceptProposalUseCase,
             GetMyProposalsUseCase getMyProposalsUseCase,
             PauseResumeProjectUseCase pauseResumeProjectUseCase,
+            FreelanceProjectRepository freelanceProjectRepository,
             StoragePort storagePort,
             JobAiSuggestionService jobAiSuggestionService
     ) {
@@ -71,8 +78,45 @@ public class FreelanceController {
         this.acceptProposalUseCase = acceptProposalUseCase;
         this.getMyProposalsUseCase = getMyProposalsUseCase;
         this.pauseResumeProjectUseCase = pauseResumeProjectUseCase;
+        this.freelanceProjectRepository = freelanceProjectRepository;
         this.storagePort = storagePort;
         this.jobAiSuggestionService = jobAiSuggestionService;
+    }
+
+    @GetMapping("/projects/stats")
+    @PreAuthorize("hasAnyAuthority('COMPANY', 'COMPANY_COLLABORATOR')")
+    public ResponseEntity<ApiResponse<FreelanceProjectStatsResponse>> getProjectStats(
+            @AuthenticationPrincipal AuthenticatedUser authenticatedUser
+    ) {
+        List<FreelanceProject> projects = freelanceProjectRepository.findByClientId(authenticatedUser.getUserId());
+
+        long activeCount = projects.stream()
+                .filter(project -> project.getStatus() == ProjectStatus.OPEN
+                        || project.getStatus() == ProjectStatus.IN_PROGRESS
+                        || project.getStatus() == ProjectStatus.PAUSED)
+                .count();
+        long newProposalsCount = projects.stream()
+                .filter(project -> project.getStatus() == ProjectStatus.OPEN)
+                .mapToLong(project -> project.getProposals().size())
+                .sum();
+        long completedCount = projects.stream()
+                .filter(project -> project.getStatus() == ProjectStatus.COMPLETED)
+                .count();
+        BigDecimal totalInvestment = projects.stream()
+                .filter(project -> project.getStatus() == ProjectStatus.COMPLETED
+                        || project.getStatus() == ProjectStatus.IN_PROGRESS)
+                .map(FreelanceProject::getBudget)
+                .filter(java.util.Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        FreelanceProjectStatsResponse response = new FreelanceProjectStatsResponse(
+                activeCount,
+                newProposalsCount,
+                completedCount,
+                totalInvestment
+        );
+
+        return ResponseEntity.ok(ApiResponse.success(response, "Freelance project stats retrieved successfully"));
     }
 
     @GetMapping("/profiles/me")
@@ -534,3 +578,10 @@ public class FreelanceController {
         return ResponseEntity.ok(ApiResponse.success(null, "Project deleted successfully"));
     }
 }
+
+record FreelanceProjectStatsResponse(
+        long activeCount,
+        long newProposalsCount,
+        long completedCount,
+        BigDecimal totalInvestment
+) {}

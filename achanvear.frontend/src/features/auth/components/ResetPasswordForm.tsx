@@ -3,6 +3,7 @@
 // src/features/auth/components/ResetPasswordForm.tsx
 import Link from "next/link";
 import { Input } from "@/shared/components/ui/Input";
+import { BrandLogo } from "@/shared/components/ui/BrandLogo";
 import { useResetPassword } from "@/features/auth/hooks/useResetPassword";
 
 export function ResetPasswordForm() {
@@ -12,17 +13,7 @@ export function ResetPasswordForm() {
     <div className="flex min-h-screen flex-col items-center justify-center bg-slate-50 px-4 py-12">
 
       {/* Logo */}
-      <Link href="/" className="mb-6 flex items-center gap-2.5">
-        <div
-          className="flex h-10 w-10 items-center justify-center rounded-xl text-sm font-bold text-white"
-          style={{ backgroundColor: "#1B3A6B" }}
-        >
-          A
-        </div>
-        <span className="text-xl font-bold" style={{ color: "#1B3A6B" }}>
-          Achanvear
-        </span>
-      </Link>
+      <BrandLogo className="mb-6" />
 
       {/* Card */}
       <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-8 shadow-lg">

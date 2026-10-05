@@ -20,6 +20,7 @@ public class CompanyApplicationMapper {
                 company.getSpecialty(),
                 company.getCompanySize().name(),
                 company.getLogoUrl(),
+                company.getBannerUrl(),
                 company.getBiography(),
                 company.getAchievements(),
                 company.getAddress(),

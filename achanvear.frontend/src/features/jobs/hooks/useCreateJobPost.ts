@@ -11,6 +11,7 @@ export function useCreateJobPost() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["jobs"] });
       queryClient.invalidateQueries({ queryKey: ["my-job-posts"] });
+      queryClient.invalidateQueries({ queryKey: ["company-hiring-stats"] });
     },
   });
 }

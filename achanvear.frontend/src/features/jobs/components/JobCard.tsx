@@ -4,6 +4,7 @@
 import { MapPin, Clock, Building2, CheckCircle2 } from "lucide-react";
 import type { Job } from "../types/job.types";
 import { useAppliedJobIds } from "../hooks/useAppliedJobIds";
+import { toProfileImageUrl } from "@/lib/mediaUrls";
 
 interface JobCardProps {
   job: Job;
@@ -32,6 +33,7 @@ export function JobCard({ job, onApply, onViewDetail }: JobCardProps) {
 
   const companyName = job.company?.tradeName || job.company?.businessName || "Empresa";
   const companyInitial = companyName.charAt(0).toUpperCase();
+  const companyLogoUrl = toProfileImageUrl(job.company?.logoUrl);
   const typeLabel = JOB_TYPE_LABELS[job.type] ?? job.type;
   const typeColor = JOB_TYPE_COLORS[job.type] ?? "bg-slate-600 text-white";
 
@@ -48,9 +50,9 @@ export function JobCard({ job, onApply, onViewDetail }: JobCardProps) {
     <div className="flex flex-col rounded-xl border border-slate-200 bg-white p-5 transition-shadow hover:shadow-sm">
       {/* Header — empresa */}
       <div className="mb-3 flex items-start gap-3">
-        {job.company?.logoUrl ? (
+        {companyLogoUrl ? (
           <img
-            src={job.company.logoUrl}
+            src={companyLogoUrl}
             alt={companyName}
             className="h-10 w-10 flex-shrink-0 rounded-lg object-cover border border-slate-100"
           />

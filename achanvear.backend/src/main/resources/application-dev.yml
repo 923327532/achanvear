@@ -23,6 +23,10 @@ aws:
     region: ${AWS_REGION:us-east-1}
     profile-photo-folder: freelancer/profile-photos
     curriculum-folder: freelancer/curriculums
+    service-images-folder: services/images
+    service-videos-folder: services/videos
+    service-pdfs-folder: services/pdfs
+    service-certificates-folder: services/certificates
     chat-attachments-folder: chat/attachments
     upload-expiration-minutes: 10
     download-expiration-minutes: 10

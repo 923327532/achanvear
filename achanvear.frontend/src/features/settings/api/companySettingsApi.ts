@@ -87,10 +87,11 @@ export const companySettingsApi = {
     }
   },
 
-  subscribeToPlan: async (plan: string, companyEmail: string): Promise<string> => {
+  subscribeToPlan: async (plan: string, companyEmail: string, token: string): Promise<string> => {
     const res = await api.post<ApiResponse<string>>("/payments/plans/subscribe", {
       plan,
       companyEmail,
+      token,
     });
     return parseResponse(res);
   },

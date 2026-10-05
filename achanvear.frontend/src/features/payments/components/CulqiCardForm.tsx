@@ -9,21 +9,42 @@ import { useSaveCulqiCard } from "../hooks/usePayments";
 interface Props {
   onSuccess?: () => void;
   onError?: (error: string) => void;
+  /**
+   * Modo de uso:
+   * - "save-card" (default): guarda la tarjeta como método de pago.
+   * - "charge": solo obtiene el token de Culqi y lo entrega vía onTokenized
+   *   para cobrar una suscripción (la tarjeta NO se guarda).
+   */
+  mode?: "save-card" | "charge";
+  /** En modo "charge": recibe el token y el email para cobrar. */
+  onTokenized?: (data: { token: string; email: string }) => Promise<void> | void;
+  /** Texto del botón en modo "charge". */
+  submitLabel?: string;
+  buttonLabel?: string;
 }
 
-export function CulqiCardForm({ onSuccess, onError }: Props) {
+export function CulqiCardForm({
+  onSuccess,
+  onError,
+  mode = "save-card",
+  onTokenized,
+  submitLabel,
+  buttonLabel,
+}: Props) {
   const [isSdkReady, setIsSdkReady] = useState(false);
   const [email, setEmail] = useState("");
   const [cardholderName, setCardholderName] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [isCharging, setIsCharging] = useState(false);
 
   const emailRef = useRef(email);
   const nameRef = useRef(cardholderName);
   const phoneRef = useRef(phoneNumber);
   const isProcessingRef = useRef(false);
-  const { saveAsync, isLoading } = useSaveCulqiCard();
+  const { saveAsync, isLoading: isSaving } = useSaveCulqiCard();
+  const isLoading = mode === "charge" ? isCharging : isSaving;
 
   useEffect(() => {
     emailRef.current = email;
@@ -79,27 +100,41 @@ export function CulqiCardForm({ onSuccess, onError }: Props) {
       isProcessingRef.current = true;
       setError(null);
       try {
-        await saveAsync({
-          token,
-          email: emailRef.current.trim() || window.Culqi?.token?.email,
-          cardholderName: nameRef.current.trim() || undefined,
-          phoneNumber: phoneRef.current.trim() || undefined,
-        });
+        const resolvedEmail =
+          emailRef.current.trim() || window.Culqi?.token?.email || "";
+
+        if (mode === "charge") {
+          setIsCharging(true);
+          await onTokenized?.({ token, email: resolvedEmail });
+        } else {
+          await saveAsync({
+            token,
+            email: resolvedEmail || undefined,
+            cardholderName: nameRef.current.trim() || undefined,
+            phoneNumber: phoneRef.current.trim() || undefined,
+          });
+        }
         setSuccess(true);
         onSuccess?.();
       } catch (err: any) {
-        const msg = err?.response?.data?.message || err?.message || "Error al guardar la tarjeta";
+        const msg =
+          err?.response?.data?.message ||
+          err?.message ||
+          (mode === "charge"
+            ? "Error al procesar el pago"
+            : "Error al guardar la tarjeta");
         setError(msg);
         onError?.(msg);
       } finally {
         isProcessingRef.current = false;
+        setIsCharging(false);
       }
     };
 
     return () => {
       delete window.culqi;
     };
-  }, [onError, onSuccess, saveAsync]);
+  }, [onError, onSuccess, saveAsync, mode, onTokenized]);
 
   const handleOpenCulqi = () => {
     setError(null);
@@ -119,7 +154,7 @@ export function CulqiCardForm({ onSuccess, onError }: Props) {
     window.Culqi.settings({
       title: "Achanvear",
       currency: "PEN",
-      // Sin `order`: solo se muestran pagos con tarjeta (comportamiento deseado al guardar la tarjeta)
+      // Sin `order`: solo se muestran pagos con tarjeta
     });
     window.Culqi.options({
       lang: "es",
@@ -138,7 +173,7 @@ export function CulqiCardForm({ onSuccess, onError }: Props) {
         buttonBackground: "#00A19B",
         menuColor: "#1B3A6B",
         linksColor: "#00A19B",
-        buttonText: "Guardar tarjeta",
+        buttonText: mode === "charge" ? "Pagar" : "Guardar tarjeta",
         buttonTextColor: "#ffffff",
         priceColor: "#1B3A6B",
       },
@@ -152,9 +187,13 @@ export function CulqiCardForm({ onSuccess, onError }: Props) {
         <div className="w-14 h-14 rounded-full bg-emerald-50 flex items-center justify-center">
           <CheckCircle className="w-7 h-7 text-emerald-500" />
         </div>
-        <p className="text-sm font-semibold text-gray-800">Tarjeta registrada</p>
+        <p className="text-sm font-semibold text-gray-800">
+          {mode === "charge" ? "Pago procesado" : "Tarjeta registrada"}
+        </p>
         <p className="text-xs text-gray-400">
-          Ya puedes usar esta tarjeta para pagar en Achanvear.
+          {mode === "charge"
+            ? "Tu pago fue procesado correctamente."
+            : "Ya puedes usar esta tarjeta para pagar en Achanvear."}
         </p>
       </div>
     );
@@ -232,12 +271,14 @@ export function CulqiCardForm({ onSuccess, onError }: Props) {
         {isLoading ? (
           <>
             <Loader2 className="w-4 h-4 animate-spin" />
-            Guardando tarjeta...
+            {submitLabel ?? (mode === "charge" ? "Procesando pago..." : "Guardando tarjeta...")}
           </>
         ) : (
           <>
             <CreditCard className="w-4 h-4" />
-            {isSdkReady ? "Agregar tarjeta con Culqi" : "Cargando Culqi..."}
+            {isSdkReady
+              ? buttonLabel ?? (mode === "charge" ? "Pagar con Culqi" : "Agregar tarjeta con Culqi")
+              : "Cargando Culqi..."}
           </>
         )}
       </button>

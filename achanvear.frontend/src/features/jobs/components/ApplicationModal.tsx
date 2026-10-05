@@ -6,6 +6,7 @@ import { X, Loader2, Upload, CheckCircle2, Info, Bot, Send } from "lucide-react"
 import { useApplyJob } from "../hooks/useApplyJob";
 import type { Job } from "../types/job.types";
 import { freelanceApi } from "@/features/freelance/api/freelanceApi";
+import { onboardingApi } from "@/features/onboarding/api/onboardingApi";
 
 interface ApplicationModalProps {
   job: Job;
@@ -20,7 +21,8 @@ export function ApplicationModal({ job, onClose, onSuccess }: ApplicationModalPr
   const [submitted, setSubmitted] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { apply, isLoading, isError, error } = useApplyJob(job.id);
+  const { applyAsync, isLoading, isError, error } = useApplyJob(job.id);
+  const [isUploadingCv, setIsUploadingCv] = useState(false);
 
   // ── Estado del chat IA ─────────────────────────────────────────────────────
   const [showAiChat, setShowAiChat] = useState(false);
@@ -41,13 +43,32 @@ export function ApplicationModal({ job, onClose, onSuccess }: ApplicationModalPr
     e.stopPropagation();
     setDragActive(false);
     const file = e.dataTransfer.files?.[0];
-    if (file && file.type === "application/pdf") setCvFile(file);
+    if (!file) return;
+    if (isValidCv(file)) {
+      setValidationError(null);
+      setCvFile(file);
+    } else {
+      setValidationError("El CV debe ser un PDF de hasta 10 MB.");
+    }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file && file.type === "application/pdf") setCvFile(file);
+    if (!file) return;
+    if (isValidCv(file)) {
+      setValidationError(null);
+      setCvFile(file);
+    } else {
+      setValidationError("El CV debe ser un PDF de hasta 10 MB.");
+      e.target.value = "";
+    }
   };
+
+  function isValidCv(file: File) {
+    return (file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf"))
+      && file.size > 0
+      && file.size <= 10 * 1024 * 1024;
+  }
 
   // ── Función IA: autocompletar carta de presentación ──────────────────────
   const handleAiAssist = async () => {
@@ -75,22 +96,30 @@ Genera una carta de presentación personalizada basada en esta información.`;
     }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     setValidationError(null);
     if (coverLetter.trim().length < 50) {
       setValidationError("La carta de presentación debe tener al menos 50 caracteres.");
       return;
     }
 
-    apply(
-      { cvUrl: "", coverLetter: coverLetter.trim() },
-      {
-        onSuccess: () => {
-          setSubmitted(true);
-          onSuccess?.();
-        },
-      }
-    );
+    try {
+      setIsUploadingCv(true);
+      const cvUrl = cvFile
+        ? (await onboardingApi.uploadFile("CURRICULUM", cvFile)).publicFileUrl
+        : "";
+      await applyAsync({ cvUrl, coverLetter: coverLetter.trim() });
+      setSubmitted(true);
+      onSuccess?.();
+    } catch (uploadError) {
+      setValidationError(
+        uploadError instanceof Error
+          ? uploadError.message
+          : "No se pudo subir el CV ni enviar la postulación."
+      );
+    } finally {
+      setIsUploadingCv(false);
+    }
   };
 
   return (
@@ -127,7 +156,7 @@ Genera una carta de presentación personalizada basada en esta información.`;
                 <p className="text-base font-semibold text-slate-900">¡Postulación enviada!</p>
                 <p className="mt-1 text-sm text-slate-500">
                   Tu postulación a <span className="font-semibold">{job.title}</span> fue enviada correctamente.
-                  Nuestro Agente IA la evaluará pronto.
+                  Revisaremos tu CV y perfil según los requisitos del empleo.
                 </p>
               </div>
               <button
@@ -222,7 +251,7 @@ Genera una carta de presentación personalizada basada en esta información.`;
           <div className="flex items-start gap-2.5 rounded-xl bg-blue-50 border border-blue-100 px-4 py-3">
             <Info className="h-4 w-4 flex-shrink-0 text-blue-500 mt-0.5" strokeWidth={1.5} />
             <p className="text-xs text-blue-700">
-              Tu postulación será evaluada primero por nuestro Agente IA. Si pasas el screening, recibirás una invitación para la entrevista.
+              La evaluación considera el CV que adjuntes y la información de tu perfil. El avance a entrevista depende de la modalidad de selección del empleo.
             </p>
           </div>
 
@@ -246,14 +275,14 @@ Genera una carta de presentación personalizada basada en esta información.`;
         {/* Footer */}
         {!submitted && (
           <div className="flex gap-3 border-t border-slate-100 px-6 py-4 flex-shrink-0">
-            <button type="button" onClick={onClose} disabled={isLoading}
+            <button type="button" onClick={onClose} disabled={isLoading || isUploadingCv}
               className="flex-1 rounded-xl border border-slate-300 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-40">
               Cancelar
             </button>
-            <button type="button" onClick={handleSubmit} disabled={isLoading}
+            <button type="button" onClick={handleSubmit} disabled={isLoading || isUploadingCv}
               className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-[#1B3A6B] py-2.5 text-sm font-semibold text-white hover:bg-[#162f58] transition-colors disabled:opacity-40">
-              {isLoading ? (
-                <><Loader2 className="h-4 w-4 animate-spin" /> Enviando...</>
+              {isLoading || isUploadingCv ? (
+                <><Loader2 className="h-4 w-4 animate-spin" /> {isUploadingCv ? "Subiendo CV..." : "Enviando..."}</>
               ) : "Enviar Postulación"}
             </button>
           </div>

@@ -220,6 +220,7 @@ public class CompanyOnboardingController {
                 specialty != null ? specialty : company.specialty(),
                 companySize != null ? companySize : company.companySize(),
                 logoUrl != null ? logoUrl : company.logoUrl(),
+                company.bannerUrl(),
                 biography != null ? biography : company.biography(),
                 company.achievements(),
                 address != null ? address : company.address(),

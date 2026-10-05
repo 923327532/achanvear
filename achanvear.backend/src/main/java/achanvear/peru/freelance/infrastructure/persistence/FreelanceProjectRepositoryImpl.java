@@ -12,6 +12,7 @@ import org.springframework.data.domain.*;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Repository;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -106,6 +107,14 @@ public class FreelanceProjectRepositoryImpl implements FreelanceProjectRepositor
         return jpaRepository.findByClientUserId(clientId).stream()
                 .map(mapper::toFreelanceProjectDomain)
                 .toList();
+    }
+
+    @Override
+    public long countByClientIdSince(UUID clientId, Instant since) {
+        if (clientId == null || since == null) {
+            return 0;
+        }
+        return jpaRepository.countByClientUserIdAndCreatedAtGreaterThanEqual(clientId, since);
     }
 
     @Override

@@ -24,6 +24,7 @@ public interface CompanyMapper {
                 entity.getSpecialty(),
                 CompanySize.valueOf(entity.getCompanySize()),
                 entity.getLogoUrl(),
+                entity.getBannerUrl(),
                 entity.getBiography(),
                 entity.getAchievements(),
                 entity.getAddress(),

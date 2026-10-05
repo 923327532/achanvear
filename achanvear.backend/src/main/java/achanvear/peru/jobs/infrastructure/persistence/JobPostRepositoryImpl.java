@@ -11,6 +11,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Repository;
 
+import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -70,6 +71,11 @@ public class JobPostRepositoryImpl implements JobPostRepository {
     public Page<JobPost> findByCompanyId(UUID companyId, Pageable pageable) {
         return jobPostJpaRepository.findByCompanyId(companyId, pageable)
                 .map(jobPostMapper::toDomain);
+    }
+
+    @Override
+    public long countByCompanyIdSince(UUID companyId, Instant since) {
+        return jobPostJpaRepository.countByCompanyIdAndCreatedAtGreaterThanEqual(companyId, since);
     }
 
     @Override

@@ -83,15 +83,24 @@ public class CandidateDrawerDetailService implements GetCandidateDrawerDetailUse
 
         String currentStage = "PENDING";
         Double screeningScore = application.getScreeningScore();
-        String screeningSummary = screeningScore != null
-                ? "Evaluacion curricular registrada por IA para esta postulacion."
-                : null;
+        String screeningSummary = application.getScreeningSummary();
         String hiringProcessId = null;
 
-        if (hiringProcessOpt.isPresent()) {
+        if (application.getStatus().name().equals("REJECTED")) {
+            currentStage = "REJECTED";
+        } else if (application.getStatus().name().equals("HIRED")) {
+            currentStage = "HIRED";
+        } else if (hiringProcessOpt.isPresent()) {
             HiringProcess hp = hiringProcessOpt.get();
             hiringProcessId = hp.getId().toString();
             currentStage = hp.getStage().name();
+        } else if (screeningScore != null && application.getStatus().name().equals("IN_REVIEW")) {
+            currentStage = "SCREENING_REVIEW";
+        } else if (application.getStatus().name().equals("SHORTLISTED")) {
+            currentStage = "THEORY_INTERVIEW";
+        } else if (application.getStatus().name().equals("HIRED")
+                || application.getStatus().name().equals("REJECTED")) {
+            currentStage = application.getStatus().name();
         }
 
         // 5. Get interview data
@@ -130,7 +139,10 @@ public class CandidateDrawerDetailService implements GetCandidateDrawerDetailUse
         }
 
         // 6. Build timeline
-        List<CandidateDrawerDetailResponse.StageTimeline> stages = buildTimeline(currentStage);
+        List<CandidateDrawerDetailResponse.StageTimeline> stages = buildTimeline(
+                currentStage,
+                screeningScore != null
+        );
         CandidateDrawerDetailResponse.ExecutiveReport executiveReport = buildExecutiveReport(
                 candidateName,
                 jobPost.getTitle(),
@@ -249,12 +261,31 @@ public class CandidateDrawerDetailService implements GetCandidateDrawerDetailUse
         return opportunities.isEmpty() ? "Mantener seguimiento en la siguiente etapa del proceso." : String.join("; ", opportunities) + ".";
     }
 
-    private List<CandidateDrawerDetailResponse.StageTimeline> buildTimeline(String currentStage) {
+    private List<CandidateDrawerDetailResponse.StageTimeline> buildTimeline(
+            String currentStage,
+            boolean screeningCompleted
+    ) {
         List<CandidateDrawerDetailResponse.StageTimeline> stages = new ArrayList<>();
+        if ("REJECTED".equals(currentStage)) {
+            stages.add(new CandidateDrawerDetailResponse.StageTimeline(
+                    "SUBMITTED", "Postulación recibida", "COMPLETED", Instant.now()
+            ));
+            if (screeningCompleted) {
+                stages.add(new CandidateDrawerDetailResponse.StageTimeline(
+                        "SCREENING", "Evaluación curricular",
+                        "COMPLETED", Instant.now()
+                ));
+            }
+            stages.add(new CandidateDrawerDetailResponse.StageTimeline(
+                    "REJECTED", "No continúa", "CURRENT", null
+            ));
+            return stages;
+        }
 
         String[][] stageDefs = {
                 {"SUBMITTED", "Postulación recibida"},
                 {"SCREENING", "Evaluación curricular"},
+                {"SCREENING_REVIEW", "Revisión de recomendación IA"},
                 {"THEORY_INTERVIEW", "Entrevista teórica"},
                 {"TECHNICAL_INTERVIEW", "Entrevista técnica"},
                 {"UNDER_REVIEW", "Revisión final"},

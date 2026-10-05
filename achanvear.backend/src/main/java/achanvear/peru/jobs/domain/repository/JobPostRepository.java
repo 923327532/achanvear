@@ -6,6 +6,7 @@ import achanvear.peru.jobs.domain.model.JobPostId;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -20,6 +21,8 @@ public interface JobPostRepository {
     boolean existsByTitleAndCompanyId(String title, UUID companyId);
 
     Page<JobPost> findByCompanyId(UUID companyId, Pageable pageable);
+
+    long countByCompanyIdSince(UUID companyId, Instant since);
 
     void deleteById(JobPostId id);
 }

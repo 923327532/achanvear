@@ -17,6 +17,7 @@ public class JobApplication {
     // Campos de scoring
     private Double screeningScore;
     private Boolean screeningResult;
+    private String screeningSummary;
     private Integer theoryScore;
     private Integer technicalScore;
     private String finalStatus;
@@ -31,6 +32,7 @@ public class JobApplication {
             ApplicationStatus status,
             Double screeningScore,
             Boolean screeningResult,
+            String screeningSummary,
             Integer theoryScore,
             Integer technicalScore,
             String finalStatus
@@ -44,6 +46,7 @@ public class JobApplication {
         this.status = Objects.requireNonNull(status, "Application status cannot be null");
         this.screeningScore = screeningScore;
         this.screeningResult = screeningResult;
+        this.screeningSummary = screeningSummary;
         this.theoryScore = theoryScore;
         this.technicalScore = technicalScore;
         this.finalStatus = finalStatus;
@@ -67,6 +70,7 @@ public class JobApplication {
                 null,
                 null,
                 null,
+                null,
                 null
         );
     }
@@ -81,12 +85,13 @@ public class JobApplication {
             ApplicationStatus status,
             Double screeningScore,
             Boolean screeningResult,
+            String screeningSummary,
             Integer theoryScore,
             Integer technicalScore,
             String finalStatus
     ) {
         return new JobApplication(id, jobPostId, candidateUserId, cvUrl, coverLetter, appliedAt, status,
-                screeningScore, screeningResult, theoryScore, technicalScore, finalStatus);
+                screeningScore, screeningResult, screeningSummary, theoryScore, technicalScore, finalStatus);
     }
 
     public void changeStatus(ApplicationStatus newStatus) {
@@ -158,9 +163,16 @@ public class JobApplication {
      * Java solo almacena el resultado, no calcula nada.
      */
     public void registerScreeningResult(double score, boolean passed) {
+        registerScreeningResult(score, passed, true, null);
+    }
+
+    public void registerScreeningResult(double score, boolean recommended, boolean autoAdvance, String summary) {
         this.screeningScore = score;
-        this.screeningResult = passed;
-        this.status = passed ? ApplicationStatus.SHORTLISTED : ApplicationStatus.REJECTED;
+        this.screeningResult = recommended;
+        this.screeningSummary = summary;
+        this.status = autoAdvance
+                ? (recommended ? ApplicationStatus.SHORTLISTED : ApplicationStatus.REJECTED)
+                : ApplicationStatus.IN_REVIEW;
     }
 
     /**
@@ -192,6 +204,10 @@ public class JobApplication {
 
     public Boolean getScreeningResult() {
         return screeningResult;
+    }
+
+    public String getScreeningSummary() {
+        return screeningSummary;
     }
 
     public Integer getTheoryScore() {

@@ -1,5 +1,6 @@
 package achanvear.peru.shared.application.port;
 
+import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -18,6 +19,9 @@ public interface CompanyLookupPort {
             String companySize,
             String logoUrl,
             String status,
+            UUID ownerUserId,
+            String companyPlan,
+            Instant createdAt,
             double averageRating,
             int totalRatings,
             int publishedProjectsCount

@@ -242,6 +242,10 @@ public class JobPost extends AggregateRoot<JobPostId> {
         validateSalaryRange(this.salaryMin, this.salaryMax);
     }
 
+    public void updateRequirements(String requirements) {
+        this.requirements = requirements;
+    }
+
     public boolean belongsTo(UUID companyId) {
         return this.companyId.equals(companyId);
     }

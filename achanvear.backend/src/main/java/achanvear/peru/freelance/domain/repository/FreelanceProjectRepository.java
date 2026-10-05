@@ -6,6 +6,7 @@ import achanvear.peru.freelance.domain.model.FreelanceProjectId;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -21,6 +22,8 @@ public interface FreelanceProjectRepository {
     Optional<FreelanceProject> findById(String projectId);
 
     List<FreelanceProject> findByClientId(UUID clientId);
+
+    long countByClientIdSince(UUID clientId, Instant since);
 
     List<FreelanceProject> findByFreelancerId(UUID freelancerId);
 

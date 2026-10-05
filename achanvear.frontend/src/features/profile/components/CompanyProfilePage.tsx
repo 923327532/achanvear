@@ -5,6 +5,7 @@ import { useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { profileApi } from "../api/profileApi";
 import { jobApi } from "@/features/jobs/api/jobApi";
+import { toProfileImageUrl } from "@/lib/mediaUrls";
 import {
   Building2,
   Globe,
@@ -283,27 +284,15 @@ export function CompanyProfilePage() {
     prefix: string
   ): Promise<string | null> => {
     try {
-      const presigned = await profileApi.getPresignedUrl(
-        `${prefix}-${Date.now()}-${file.name}`,
-        file.type,
-        folder as "PROFILE_PHOTO" | "CURRICULUM" | "PORTFOLIO"
-      );
-      const uploadUrl = presigned.uploadUrl;
-      const publicFileUrl = presigned.publicFileUrl;
-
-      const response = await fetch(uploadUrl, {
-        method: "PUT",
-        body: file,
-        headers: { "Content-Type": file.type },
+      const renamedFile = new File([file], `${prefix}-${Date.now()}-${file.name}`, {
+        type: file.type,
       });
+      const uploaded = await profileApi.uploadFile(
+        folder as "PROFILE_PHOTO" | "CURRICULUM" | "PORTFOLIO",
+        renamedFile
+      );
 
-      if (!response.ok) {
-        throw new Error(
-          `Error al subir archivo a S3 (HTTP ${response.status}). Verifica la configuración CORS del bucket.`
-        );
-      }
-
-      return publicFileUrl;
+      return uploaded.publicFileUrl;
     } catch (err: any) {
       console.error("Error uploading file:", err);
       throw err;
@@ -318,16 +307,10 @@ export function CompanyProfilePage() {
     try {
       const publicUrl = await uploadFileViaBackend(file, "PROFILE_PHOTO", "banner");
       if (publicUrl && company) {
-        await profileApi.updateCompany(company.id, {
-          businessName: company.businessName,
-          legalName: company.legalName,
-          industry: company.industry,
-          specialty: company.specialty,
-          companySize: company.companySize,
-          biography: company.biography,
-          address: company.address,
-          paymentMethodType: company.paymentMethodType,
-          companyPlan: company.companyPlan,
+        await profileApi.updateCompanyMedia({ bannerUrl: publicUrl });
+        setBannerError(false);
+        queryClient.setQueryData(["company-profile"], {
+          ...company,
           bannerUrl: publicUrl,
         });
       }
@@ -347,16 +330,10 @@ export function CompanyProfilePage() {
     try {
       const publicUrl = await uploadFileViaBackend(file, "PROFILE_PHOTO", "logo");
       if (publicUrl && company) {
-        await profileApi.updateCompany(company.id, {
-          businessName: company.businessName,
-          legalName: company.legalName,
-          industry: company.industry,
-          specialty: company.specialty,
-          companySize: company.companySize,
-          biography: company.biography,
-          address: company.address,
-          paymentMethodType: company.paymentMethodType,
-          companyPlan: company.companyPlan,
+        await profileApi.updateCompanyMedia({ logoUrl: publicUrl });
+        setLogoError(false);
+        queryClient.setQueryData(["company-profile"], {
+          ...company,
           logoUrl: publicUrl,
         });
       }
@@ -388,7 +365,8 @@ export function CompanyProfilePage() {
   const description = company?.biography || "";
   const ruc = company?.ruc || "";
   const address = company?.address || "";
-  const logoUrl = company?.logoUrl || null;
+  const logoUrl = toProfileImageUrl(company?.logoUrl);
+  const bannerUrl = toProfileImageUrl(company?.bannerUrl);
   const initials = companyName
     .split(" ")
     .map((w) => w[0])
@@ -406,9 +384,9 @@ export function CompanyProfilePage() {
 
           {/* ── BANNER SUPERIOR ── */}
           <div className="relative h-40 sm:h-48 lg:h-56 bg-gradient-to-r from-[#0a1628] via-[#1e3a8a] to-[#0d9488] overflow-hidden rounded-t-2xl sm:rounded-t-3xl">
-            {company?.bannerUrl && !bannerError && (
+            {bannerUrl && !bannerError && (
               <img
-                src={company.bannerUrl}
+                src={bannerUrl}
                 alt="Banner"
                 className="absolute inset-0 w-full h-full object-cover"
                 onError={() => setBannerError(true)}

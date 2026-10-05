@@ -1,6 +1,7 @@
 package achanvear.peru.profile.infrastructure.external;
 
 import achanvear.peru.profile.application.port.out.ProfileStoragePort;
+import software.amazon.awssdk.core.sync.RequestBody;
 import org.springframework.stereotype.Component;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.core.ResponseBytes;
@@ -11,6 +12,8 @@ import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequest;
+import software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequest;
+import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
 
 import java.time.Duration;
@@ -36,6 +39,7 @@ public class S3ProfileStorageAdapter implements ProfileStoragePort {
 
     @Override
     public byte[] downloadFile(String fileKey) {
+        validateStorageConfiguration();
         GetObjectRequest getObjectRequest = GetObjectRequest.builder()
                 .bucket(properties.bucket())
                 .key(fileKey)
@@ -43,6 +47,33 @@ public class S3ProfileStorageAdapter implements ProfileStoragePort {
 
         ResponseBytes<GetObjectResponse> objectBytes = s3Client.getObjectAsBytes(getObjectRequest);
         return objectBytes.asByteArray();
+    }
+
+    @Override
+    public PresignedDownloadResponse generatePresignedDownloadUrl(String fileKey) {
+        validateStorageConfiguration();
+        if (fileKey == null || fileKey.isBlank()) {
+            throw new IllegalArgumentException("File key cannot be blank");
+        }
+
+        GetObjectRequest getObjectRequest = GetObjectRequest.builder()
+                .bucket(properties.bucket())
+                .key(fileKey)
+                .build();
+
+        GetObjectPresignRequest presignRequest = GetObjectPresignRequest.builder()
+                .signatureDuration(Duration.ofMinutes(properties.uploadExpirationMinutes()))
+                .getObjectRequest(getObjectRequest)
+                .build();
+
+        PresignedGetObjectRequest presignedRequest;
+        try {
+            presignedRequest = s3Presigner.presignGetObject(presignRequest);
+        } catch (SdkClientException | AwsServiceException exception) {
+            throw new IllegalStateException("No se pudo generar la URL de lectura. Revisa permisos GetObject, region y bucket S3.", exception);
+        }
+
+        return new PresignedDownloadResponse(fileKey, presignedRequest.url().toString());
     }
 
 
@@ -83,6 +114,34 @@ public class S3ProfileStorageAdapter implements ProfileStoragePort {
         );
     }
 
+    @Override
+    public UploadResponse uploadFile(
+            String folder,
+            String fileName,
+            String contentType,
+            byte[] fileContent
+    ) {
+        validateStorageConfiguration();
+
+        String resolvedFolder = resolveAllowedFolder(folder);
+        String safeFileName = sanitizeFileName(fileName);
+        String fileKey = resolvedFolder + "/" + UUID.randomUUID() + "-" + safeFileName;
+
+        PutObjectRequest putObjectRequest = PutObjectRequest.builder()
+                .bucket(properties.bucket())
+                .key(fileKey)
+                .contentType(contentType)
+                .build();
+
+        try {
+            s3Client.putObject(putObjectRequest, RequestBody.fromBytes(fileContent));
+        } catch (SdkClientException | AwsServiceException exception) {
+            throw new IllegalStateException("No se pudo subir el archivo. Revisa credenciales AWS, region y bucket S3.", exception);
+        }
+
+        return new UploadResponse(fileKey, buildS3ObjectUrl(fileKey));
+    }
+
     private void validateStorageConfiguration() {
         if (isBlank(properties.bucket())) {
             throw new IllegalStateException("AWS_S3_BUCKET_NAME no esta configurado");
@@ -96,13 +155,27 @@ public class S3ProfileStorageAdapter implements ProfileStoragePort {
     }
 
     private String resolveAllowedFolder(String folder) {
+        if (folder == null || folder.isBlank()) {
+            throw new IllegalArgumentException("Folder cannot be blank");
+        }
+
         ProfileStorageFolder storageFolder = ProfileStorageFolder.valueOf(folder.trim().toUpperCase());
 
-        return switch (storageFolder) {
+        String resolvedFolder = switch (storageFolder) {
             case PROFILE_PHOTO -> properties.profilePhotoFolder();
             case CURRICULUM -> properties.curriculumFolder();
             case PORTFOLIO -> properties.portfolioFolder();
         };
+
+        // Sin esta validacion, una carpeta sin configurar generaba claves tipo
+        // "null/uuid-archivo.png" y URLs presignadas invalidas hacia S3.
+        if (isBlank(resolvedFolder)) {
+            throw new IllegalStateException(
+                    "La carpeta S3 para " + storageFolder + " no esta configurada en app.aws.s3.profile"
+            );
+        }
+
+        return resolvedFolder.trim();
     }
 
     private String sanitizeFileName(String fileName) {

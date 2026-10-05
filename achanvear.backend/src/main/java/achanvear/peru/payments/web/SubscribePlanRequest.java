@@ -11,6 +11,9 @@ public record SubscribePlanRequest(
 
         @NotBlank(message = "Company email is required")
         @Email(message = "Invalid email format")
-        String companyEmail
+        String companyEmail,
+
+        @NotBlank(message = "Culqi card token is required")
+        String token
 ) {
 }

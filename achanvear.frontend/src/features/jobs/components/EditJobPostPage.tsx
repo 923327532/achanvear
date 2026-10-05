@@ -7,21 +7,24 @@ import {
   ArrowLeft,
   MapPin,
   Eye,
+  Users,
+  Sparkles,
+  Bot,
+  Zap,
   ChevronRight,
   Loader2,
+  Crown,
+  Lock,
+  X,
 } from "lucide-react";
 import { useJobDetail } from "../hooks/useJobDetail";
 import { useUpdateJobPost } from "../hooks/useUpdateJobPost";
-import type { JobType } from "../types/job.types";
-
-// FIX: se quitó por completo la sección "Configura el proceso de selección"
-// (y con ella selectionMode, maxCandidatesForScreening,
-// candidatesForTheoryInterview, minimumScore). Confirmado en Swagger que
-// PUT /jobs/{id} solo acepta title, description, location, type, salaryMin,
-// salaryMax, currency y vacancies — el backend ignora silenciosamente
-// cualquier otro campo. Mostrar un control de edición que nunca se guarda es
-// peor que no mostrarlo: el modo de selección solo se define al CREAR el
-// empleo (CreateJobPostPage.tsx), no se puede cambiar después por ahora.
+import { useCurrentPlan } from "@/features/settings/hooks/useCompanySettings";
+import type {
+  JobType,
+  SelectionMode,
+  ClosingMode,
+} from "../types/job.types";
 
 type JobTypeOption = {
   label: string;
@@ -34,6 +37,42 @@ const JOB_TYPES: JobTypeOption[] = [
   { label: "FREELANCE", value: "FREELANCE" },
 ];
 
+type SelectionCard = {
+  id: SelectionMode;
+  title: string;
+  description: string;
+  badge?: { text: string; variant: "yellow" | "default" };
+  secondaryBadge?: string;
+  icon: React.ReactNode;
+};
+
+const SELECTION_CARDS: SelectionCard[] = [
+  {
+    id: "MANUAL",
+    title: "Seleccion Manual",
+    description:
+      "Tu equipo revisa todas las postulaciones y decide a quien entrevistar. Control total del proceso.",
+    secondaryBadge: "Recomendado para empresas con RRHH propio",
+    icon: <Users className="w-5 h-5" />,
+  },
+  {
+    id: "SEMI_AUTOMATED",
+    title: "Seleccion Semiautomatizada",
+    description:
+      "La IA filtra y clasifica a los mejores candidatos segun el perfil requerido. Tu decides a quien entrevistar.",
+    badge: { text: "POPULAR", variant: "yellow" },
+    secondaryBadge: "Recomendado para MYPEs",
+    icon: <Sparkles className="w-5 h-5" />,
+  },
+  {
+    id: "FULLY_AUTOMATED",
+    title: "Seleccion Totalmente Automatizada",
+    description:
+      "La IA filtra candidatos y conduce las entrevistas iniciales. Recibes un reporte final con los mejores perfiles.",
+    icon: <Bot className="w-5 h-5" />,
+  },
+];
+
 export default function EditJobPostPage() {
   const router = useRouter();
   const params = useParams();
@@ -41,6 +80,8 @@ export default function EditJobPostPage() {
 
   const { job, isLoading: loadingJob, isError } = useJobDetail(id);
   const { mutate: updateJob, isPending } = useUpdateJobPost();
+  const { currentPlan } = useCurrentPlan();
+  const isFreePlan = !currentPlan || currentPlan.planType?.toUpperCase() === "FREE";
 
   // ─── Form state ──────────────────────────────────────────────────────────
   const [title, setTitle] = useState("");
@@ -52,6 +93,23 @@ export default function EditJobPostPage() {
   const [hideSalary, setHideSalary] = useState(false);
   const [description, setDescription] = useState("");
   const [requirements, setRequirements] = useState("");
+  const [selectionMode, setSelectionMode] = useState<SelectionMode>("MANUAL");
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+
+  // ─── Automation config (only for FULLY_AUTOMATED) ───────────────────────
+  const [maxCandidatesForScreening, setMaxCandidatesForScreening] = useState("50");
+  const [candidatesForTheoryInterview, setCandidatesForTheoryInterview] = useState("10");
+  const [minimumScore, setMinimumScore] = useState(75);
+
+  // ─── Closing mode ───────────────────────────────────────────────────────
+  const [closingMode, setClosingMode] = useState<ClosingMode>("CONTINUOUS");
+  const [maxApplicants, setMaxApplicants] = useState("50");
+  const [closingDate, setClosingDate] = useState("");
+
+  // ─── Notification timing ────────────────────────────────────────────────
+  const [notificationTiming, setNotificationTiming] = useState<
+    "IMMEDIATE" | "AFTER_2_HOURS" | "AFTER_CLOSING"
+  >("IMMEDIATE");
 
   // ─── Cargar datos del job cuando esté disponible ─────────────────────────
   useEffect(() => {
@@ -65,8 +123,25 @@ export default function EditJobPostPage() {
       setHideSalary(job.salaryMin === 0 && job.salaryMax === 0);
       setDescription(job.description);
       setRequirements(job.requirements ?? "");
+
+      const mode = (job.selectionMode ?? job.closingMode) as SelectionMode | undefined;
+      if (mode === "MANUAL" || mode === "SEMI_AUTOMATED" || mode === "FULLY_AUTOMATED") {
+        setSelectionMode(mode);
+      }
+
+      const closing = job.closingMode as ClosingMode | undefined;
+      if (closing === "MAX_APPLICANTS" || closing === "FIXED_DATE" || closing === "CONTINUOUS") {
+        setClosingMode(closing);
+      }
+      if (job.maxApplicants != null && job.maxApplicants > 0) {
+        setMaxApplicants(String(job.maxApplicants));
+      }
+      if (job.closingDate) {
+        setClosingDate(job.closingDate.slice(0, 16));
+      }
     }
   }, [job]);
+
 
   // ─── Validation ──────────────────────────────────────────────────────────
   const errors = useMemo(() => {
@@ -74,11 +149,45 @@ export default function EditJobPostPage() {
     if (!title.trim()) errs.push("El titulo del puesto es requerido");
     if (!description.trim()) errs.push("La descripcion es requerida");
     if (!remote && !location.trim()) errs.push("La ubicacion es requerida");
+    if (
+      selectionMode === "FULLY_AUTOMATED" &&
+      (!maxCandidatesForScreening || Number(maxCandidatesForScreening) < 1)
+    ) {
+      errs.push("El maximo de candidatos para screening debe ser al menos 1");
+    }
+    if (
+      selectionMode === "FULLY_AUTOMATED" &&
+      (!candidatesForTheoryInterview || Number(candidatesForTheoryInterview) < 1)
+    ) {
+      errs.push("Los candidatos para entrevista teorica deben ser al menos 1");
+    }
+    if (
+      closingMode === "MAX_APPLICANTS" &&
+      (!maxApplicants || Number(maxApplicants) < 1)
+    ) {
+      errs.push("El numero maximo de postulantes debe ser al menos 1");
+    }
+    if (closingMode === "FIXED_DATE" && !closingDate) {
+      errs.push("Debes indicar la fecha de cierre");
+    }
     if (salaryMin && salaryMax && Number(salaryMin) > Number(salaryMax)) {
       errs.push("El salario minimo no puede ser mayor al maximo");
     }
     return errs;
-  }, [title, description, remote, location, salaryMin, salaryMax]);
+  }, [
+    title,
+    description,
+    remote,
+    location,
+    selectionMode,
+    maxCandidatesForScreening,
+    candidatesForTheoryInterview,
+    closingMode,
+    maxApplicants,
+    closingDate,
+    salaryMin,
+    salaryMax,
+  ]);
 
   // ─── Preview ─────────────────────────────────────────────────────────────
   const displayLocation = remote ? "Trabajo Remoto" : location || "No especificada";
@@ -108,6 +217,30 @@ export default function EditJobPostPage() {
           salaryMax: hideSalary ? 0 : Number(salaryMax) || 0,
           currency: "PEN",
           vacancies: 1,
+          requirements: requirements.trim() || undefined,
+          selectionMode,
+          hideSalary: hideSalary || undefined,
+          maxCandidatesForScreening:
+            selectionMode === "FULLY_AUTOMATED"
+              ? Number(maxCandidatesForScreening)
+              : undefined,
+          candidatesForTheoryInterview:
+            selectionMode === "FULLY_AUTOMATED"
+              ? Number(candidatesForTheoryInterview)
+              : undefined,
+          minimumScore:
+            selectionMode === "FULLY_AUTOMATED" ? minimumScore : undefined,
+          // Cierre de vacantes
+          closingMode,
+          maxApplicants:
+            closingMode === "MAX_APPLICANTS" ? Number(maxApplicants) : undefined,
+          closingDate:
+            closingMode === "FIXED_DATE" && closingDate
+              ? new Date(closingDate).toISOString()
+              : undefined,
+          // Cuando notificar al candidato
+          notificationTiming:
+            selectionMode === "FULLY_AUTOMATED" ? notificationTiming : undefined,
         },
       },
       {
@@ -116,6 +249,14 @@ export default function EditJobPostPage() {
         },
       }
     );
+  };
+
+  const handleSelectionModeClick = (mode: SelectionMode) => {
+    if (isFreePlan && mode !== "MANUAL") {
+      setShowUpgradeModal(true);
+      return;
+    }
+    setSelectionMode(mode);
   };
 
   // ─── Loading state ───────────────────────────────────────────────────────
@@ -166,7 +307,7 @@ export default function EditJobPostPage() {
           Editar oferta laboral
         </h1>
         <p className="text-sm text-slate-500 mb-8">
-          El modo de selección y la configuración de IA se definen solo al crear el empleo y no pueden modificarse después.
+          Ajusta los datos del puesto, el proceso de seleccion y el modo de cierre de la vacante.
         </p>
 
         {/* Two column layout */}
@@ -317,6 +458,407 @@ export default function EditJobPostPage() {
               />
             </div>
 
+            {/* 7. Configuracion de seleccion */}
+            <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
+              <h2 className="text-lg font-bold text-[#0a1628] mb-1">
+                Configura el proceso de seleccion
+              </h2>
+              <p className="text-sm text-slate-500 mb-5">
+                Elige como quieres que se filtren y evaluen las postulaciones
+              </p>
+
+              <div className="space-y-3">
+                {SELECTION_CARDS.map((card) => {
+                  const isSelected = selectionMode === card.id;
+                  const isFullyAuto = card.id === "FULLY_AUTOMATED";
+
+                  return (
+                    <div key={card.id}>
+                      <button
+                        type="button"
+                        onClick={() => handleSelectionModeClick(card.id)}
+                        className={`w-full text-left rounded-xl border-2 p-5 transition-all ${
+                          isSelected
+                            ? "border-blue-600 bg-blue-50/60 shadow-sm"
+                            : "border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm"
+                        }`}
+                      >
+                        <div className="flex items-start gap-4">
+                          <div
+                            className={`shrink-0 w-10 h-10 rounded-lg flex items-center justify-center transition-colors ${
+                              isSelected
+                                ? "bg-[#0a1628] text-white"
+                                : "bg-slate-100 text-slate-500"
+                            }`}
+                          >
+                            {card.icon}
+                          </div>
+
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span
+                                className={`font-semibold text-base ${
+                                  isSelected ? "text-[#0a1628]" : "text-slate-800"
+                                }`}
+                              >
+                                {card.title}
+                              </span>
+                              {card.badge && (
+                                <span
+                                  className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                                    card.badge.variant === "yellow"
+                                      ? "bg-amber-100 text-amber-800"
+                                      : "bg-slate-200 text-slate-700"
+                                  }`}
+                                >
+                                  {card.badge.text}
+                                </span>
+                              )}
+                              {isFreePlan && card.id !== "MANUAL" && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-slate-900 text-white">
+                                  <Lock className="w-3 h-3" />
+                                  Plan superior
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-sm text-slate-600 mt-1 leading-relaxed">
+                              {card.description}
+                            </p>
+                            {card.secondaryBadge && (
+                              <span className="inline-block mt-2 text-[11px] text-slate-400 font-medium">
+                                {card.secondaryBadge}
+                              </span>
+                            )}
+                          </div>
+
+                          <div
+                            className={`shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center mt-1 ${
+                              isSelected ? "border-blue-600" : "border-slate-300"
+                            }`}
+                          >
+                            {isSelected && (
+                              <div className="w-2.5 h-2.5 rounded-full bg-blue-600" />
+                            )}
+                          </div>
+                        </div>
+                      </button>
+
+
+                      {isFullyAuto && isSelected && (
+                        <div className="mt-3 ml-14 pl-4 border-l-2 border-blue-200 space-y-4 py-2">
+                          <div className="flex items-center gap-2 text-sm font-medium text-blue-700">
+                            <Zap className="w-4 h-4" />
+                            <span>Maximo ahorro de tiempo</span>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-slate-600 mb-1.5">
+                              Maximo de candidatos para screening
+                            </label>
+                            <input
+                              type="number"
+                              value={maxCandidatesForScreening}
+                              onChange={(e) =>
+                                setMaxCandidatesForScreening(e.target.value)
+                              }
+                              min={1}
+                              className="w-full h-10 px-3 rounded-lg border border-slate-300 bg-white text-[#0a1628] text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-slate-600 mb-1.5">
+                              Candidatos que pasan a entrevista teorica
+                            </label>
+                            <input
+                              type="number"
+                              value={candidatesForTheoryInterview}
+                              onChange={(e) =>
+                                setCandidatesForTheoryInterview(e.target.value)
+                              }
+                              min={1}
+                              className="w-full h-10 px-3 rounded-lg border border-slate-300 bg-white text-[#0a1628] text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-slate-600 mb-1.5">
+                              Puntaje minimo para aprobar:{" "}
+                              <span className="font-bold text-blue-700">
+                                {minimumScore}%
+                              </span>
+                            </label>
+                            <input
+                              type="range"
+                              value={minimumScore}
+                              onChange={(e) =>
+                                setMinimumScore(Number(e.target.value))
+                              }
+                              min={0}
+                              max={100}
+                              className="w-full h-2 rounded-lg appearance-none cursor-pointer accent-blue-600 bg-slate-200"
+                            />
+                            <div className="flex justify-between text-[10px] text-slate-400 mt-0.5">
+                              <span>0%</span>
+                              <span>50%</span>
+                              <span>100%</span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+
+                          <div>
+                            <label className="block text-xs font-medium text-slate-600 mb-2">
+                              ¿Cuando notificar al candidato?
+                            </label>
+                            <div className="space-y-2">
+                              {(
+                                [
+                                  {
+                                    id: "IMMEDIATE",
+                                    label: "Al instante",
+                                    help: "El candidato recibe la notificacion apenas se evalua su perfil",
+                                  },
+                                  {
+                                    id: "AFTER_2_HOURS",
+                                    label: "En 2 horas",
+                                    help: "Las notificaciones se agrupan y envian cada 2 horas",
+                                  },
+                                  {
+                                    id: "AFTER_CLOSING",
+                                    label: "Al cierre de postulaciones",
+                                    help: "Todos los candidatos reciben su resultado cuando se cierren las postulaciones",
+                                  },
+                                ] as const
+                              ).map((opt) => (
+                                <button
+                                  key={opt.id}
+                                  type="button"
+                                  onClick={() => setNotificationTiming(opt.id)}
+                                  className={`w-full text-left rounded-lg border-2 p-3 transition-all ${
+                                    notificationTiming === opt.id
+                                      ? "border-blue-600 bg-blue-50/60"
+                                      : "border-slate-200 bg-white hover:border-slate-300"
+                                  }`}
+                                >
+                                  <div className="flex items-start gap-2">
+                                    <div
+                                      className={`shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center mt-0.5 ${
+                                        notificationTiming === opt.id
+                                          ? "border-blue-600"
+                                          : "border-slate-300"
+                                      }`}
+                                    >
+                                      {notificationTiming === opt.id && (
+                                        <div className="w-2.5 h-2.5 rounded-full bg-blue-600" />
+                                      )}
+                                    </div>
+                                    <div>
+                                      <span
+                                        className={`text-xs font-semibold ${
+                                          notificationTiming === opt.id
+                                            ? "text-[#0a1628]"
+                                            : "text-slate-700"
+                                        }`}
+                                      >
+                                        {opt.label}
+                                      </span>
+                                      <p className="text-[11px] text-slate-500 mt-0.5">
+                                        {opt.help}
+                                      </p>
+                                    </div>
+                                  </div>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+            {/* 8. Cierre de vacantes */}
+            <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
+              <h2 className="text-lg font-bold text-[#0a1628] mb-1">
+                Cierre de vacantes
+              </h2>
+              <p className="text-sm text-slate-500 mb-5">
+                Configura cuando se cerraran las postulaciones para este empleo
+              </p>
+
+              <div className="space-y-3">
+                <button
+                  type="button"
+                  onClick={() => setClosingMode("CONTINUOUS")}
+                  className={`w-full text-left rounded-xl border-2 p-4 transition-all ${
+                    closingMode === "CONTINUOUS"
+                      ? "border-blue-600 bg-blue-50/60 shadow-sm"
+                      : "border-slate-200 bg-white hover:border-slate-300"
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div
+                      className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center ${
+                        closingMode === "CONTINUOUS"
+                          ? "bg-[#0a1628] text-white"
+                          : "bg-slate-100 text-slate-500"
+                      }`}
+                    >
+                      <span className="text-sm font-bold">∞</span>
+                    </div>
+                    <div className="flex-1">
+                      <span
+                        className={`font-semibold text-sm ${
+                          closingMode === "CONTINUOUS"
+                            ? "text-[#0a1628]"
+                            : "text-slate-800"
+                        }`}
+                      >
+                        Siempre abierto
+                      </span>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        Las postulaciones estaran abiertas hasta que la empresa decida cerrarlas manualmente
+                      </p>
+                    </div>
+                    <div
+                      className={`shrink-0 w-4 h-4 rounded-full border-2 flex items-center justify-center mt-1 ${
+                        closingMode === "CONTINUOUS"
+                          ? "border-blue-600"
+                          : "border-slate-300"
+                      }`}
+                    >
+                      {closingMode === "CONTINUOUS" && (
+                        <div className="w-2 h-2 rounded-full bg-blue-600" />
+                      )}
+                    </div>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setClosingMode("MAX_APPLICANTS")}
+                  className={`w-full text-left rounded-xl border-2 p-4 transition-all ${
+                    closingMode === "MAX_APPLICANTS"
+                      ? "border-blue-600 bg-blue-50/60 shadow-sm"
+                      : "border-slate-200 bg-white hover:border-slate-300"
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div
+                      className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center ${
+                        closingMode === "MAX_APPLICANTS"
+                          ? "bg-[#0a1628] text-white"
+                          : "bg-slate-100 text-slate-500"
+                      }`}
+                    >
+                      <Users className="w-4 h-4" />
+                    </div>
+                    <div className="flex-1">
+                      <span
+                        className={`font-semibold text-sm ${
+                          closingMode === "MAX_APPLICANTS"
+                            ? "text-[#0a1628]"
+                            : "text-slate-800"
+                        }`}
+                      >
+                        Por maximo de postulantes
+                      </span>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        Las postulaciones se cierran automaticamente al alcanzar el numero maximo de postulantes
+                      </p>
+                    </div>
+                    <div
+                      className={`shrink-0 w-4 h-4 rounded-full border-2 flex items-center justify-center mt-1 ${
+                        closingMode === "MAX_APPLICANTS"
+                          ? "border-blue-600"
+                          : "border-slate-300"
+                      }`}
+                    >
+                      {closingMode === "MAX_APPLICANTS" && (
+                        <div className="w-2 h-2 rounded-full bg-blue-600" />
+                      )}
+                    </div>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setClosingMode("FIXED_DATE")}
+                  className={`w-full text-left rounded-xl border-2 p-4 transition-all ${
+                    closingMode === "FIXED_DATE"
+                      ? "border-blue-600 bg-blue-50/60 shadow-sm"
+                      : "border-slate-200 bg-white hover:border-slate-300"
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div
+                      className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center ${
+                        closingMode === "FIXED_DATE"
+                          ? "bg-[#0a1628] text-white"
+                          : "bg-slate-100 text-slate-500"
+                      }`}
+                    >
+                      <span className="text-sm font-bold">📅</span>
+                    </div>
+                    <div className="flex-1">
+                      <span
+                        className={`font-semibold text-sm ${
+                          closingMode === "FIXED_DATE"
+                            ? "text-[#0a1628]"
+                            : "text-slate-800"
+                        }`}
+                      >
+                        Por fecha limite
+                      </span>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        Las postulaciones se cierran en una fecha especifica que tu elijas
+                      </p>
+                    </div>
+                    <div
+                      className={`shrink-0 w-4 h-4 rounded-full border-2 flex items-center justify-center mt-1 ${
+                        closingMode === "FIXED_DATE"
+                          ? "border-blue-600"
+                          : "border-slate-300"
+                      }`}
+                    >
+                      {closingMode === "FIXED_DATE" && (
+                        <div className="w-2 h-2 rounded-full bg-blue-600" />
+                      )}
+                    </div>
+                  </div>
+                </button>
+
+                {closingMode === "MAX_APPLICANTS" && (
+                  <div className="ml-11 pl-4 border-l-2 border-blue-200 pt-2 pb-1">
+                    <label className="block text-xs font-medium text-slate-600 mb-1.5">
+                      Numero maximo de postulantes
+                    </label>
+                    <input
+                      type="number"
+                      value={maxApplicants}
+                      onChange={(e) => setMaxApplicants(e.target.value)}
+                      min={1}
+                      className="w-full h-10 px-3 rounded-lg border border-slate-300 bg-white text-[#0a1628] text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                )}
+
+                {closingMode === "FIXED_DATE" && (
+                  <div className="ml-11 pl-4 border-l-2 border-blue-200 pt-2 pb-1">
+                    <label className="block text-xs font-medium text-slate-600 mb-1.5">
+                      Fecha de cierre
+                    </label>
+                    <input
+                      type="datetime-local"
+                      value={closingDate}
+                      onChange={(e) => setClosingDate(e.target.value)}
+                      className="w-full h-10 px-3 rounded-lg border border-slate-300 bg-white text-[#0a1628] text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+
+
             {/* ─── Validation errors ─────────────────────────────────────── */}
             {errors.length > 0 && (
               <div className="bg-red-50 border border-red-200 rounded-xl p-4">
@@ -395,6 +937,65 @@ export default function EditJobPostPage() {
           </div>
         </div>
       </div>
+
+      {showUpgradeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4">
+          <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl border border-slate-200">
+            <div className="flex items-start justify-between gap-4 border-b border-slate-100 p-6">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#0a1628] text-white">
+                  <Crown className="h-5 w-5" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-[#0a1628]">
+                    Actualiza tu plan
+                  </h2>
+                  <p className="text-sm text-slate-500">
+                    La IA de seleccion no esta incluida en Free
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowUpgradeModal(false)}
+                className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4 p-6">
+              <p className="text-sm leading-6 text-slate-600">
+                En el plan gratuito las postulaciones llegan a la empresa y el proceso queda manual. Para activar filtros con IA, entrevistas automaticas y reportes inteligentes, elige un plan superior.
+              </p>
+
+              <div className="rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900">
+                Free: solicitudes manuales, sin automatizacion IA.
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectionMode("MANUAL");
+                    setShowUpgradeModal(false);
+                  }}
+                  className="rounded-xl border border-slate-300 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                >
+                  Usar manual
+                </button>
+                <button
+                  type="button"
+                  onClick={() => router.push("/company/settings")}
+                  className="rounded-xl bg-[#0a1628] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#12233d]"
+                >
+                  Ver planes
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -11,6 +11,7 @@ public record UpdateCompanyCommand(
         String specialty,
         String companySize,
         String logoUrl,
+        String bannerUrl,
         String biography,
         String achievements,
         String address,

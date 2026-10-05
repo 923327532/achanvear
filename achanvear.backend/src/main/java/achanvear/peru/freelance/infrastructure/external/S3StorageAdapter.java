@@ -2,20 +2,33 @@ package achanvear.peru.freelance.infrastructure.external;
 
 import achanvear.peru.freelance.application.port.out.StoragePort;
 import org.springframework.stereotype.Component;
+import org.apache.pdfbox.Loader;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.text.PDFTextStripper;
 import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.core.ResponseBytes;
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.*;
 import achanvear.peru.freelance.infrastructure.external.FreelanceStorageFolder;
+import java.net.URI;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.UUID;
 
 @Component
 public class S3StorageAdapter implements StoragePort {
+
+    private static final long MAX_CV_BYTES = 10 * 1024 * 1024;
+    private static final int MAX_CV_PAGES = 20;
+    private static final int MAX_CV_TEXT_LENGTH = 15_000;
 
     private final S3Client s3Client;
     private final S3Presigner s3Presigner;
@@ -124,6 +137,62 @@ public class S3StorageAdapter implements StoragePort {
         return new PresignedDownloadResponse(fileKey, presignedRequest.url().toString());
     }
 
+    @Override
+    public byte[] downloadFile(String fileKey) {
+        validateStorageConfiguration();
+        if (fileKey == null || fileKey.isBlank()) {
+            throw new IllegalArgumentException("File key cannot be blank");
+        }
+
+        GetObjectRequest getObjectRequest = GetObjectRequest.builder()
+                .bucket(properties.bucket())
+                .key(fileKey)
+                .build();
+
+        ResponseBytes<GetObjectResponse> objectBytes = s3Client.getObjectAsBytes(getObjectRequest);
+        return objectBytes.asByteArray();
+    }
+
+    @Override
+    public String extractPdfText(String publicFileUrl) {
+        validateStorageConfiguration();
+        URI uri = URI.create(publicFileUrl);
+        String expectedHost = properties.bucket() + ".s3." + properties.region() + ".amazonaws.com";
+        if (!"https".equalsIgnoreCase(uri.getScheme()) || !expectedHost.equalsIgnoreCase(uri.getHost())) {
+            throw new IllegalArgumentException("CV URL must point to the configured S3 bucket");
+        }
+
+        String fileKey = URLDecoder.decode(uri.getRawPath().substring(1), StandardCharsets.UTF_8);
+        String curriculumPrefix = properties.curriculumFolder() + "/";
+        if (!fileKey.startsWith(curriculumPrefix)) {
+            throw new IllegalArgumentException("CV must be stored in the curriculum folder");
+        }
+
+        HeadObjectRequest headRequest = HeadObjectRequest.builder()
+                .bucket(properties.bucket())
+                .key(fileKey)
+                .build();
+        long contentLength = s3Client.headObject(headRequest).contentLength();
+        if (contentLength <= 0 || contentLength > MAX_CV_BYTES) {
+            throw new IllegalArgumentException("CV PDF must be between 1 byte and 10 MB");
+        }
+
+        GetObjectRequest getRequest = GetObjectRequest.builder()
+                .bucket(properties.bucket())
+                .key(fileKey)
+                .build();
+        ResponseBytes<GetObjectResponse> response = s3Client.getObjectAsBytes(getRequest);
+        try (PDDocument document = Loader.loadPDF(response.asByteArray())) {
+            PDFTextStripper stripper = new PDFTextStripper();
+            stripper.setStartPage(1);
+            stripper.setEndPage(Math.min(document.getNumberOfPages(), MAX_CV_PAGES));
+            String extractedText = stripper.getText(document).replaceAll("\\s+", " ").trim();
+            return extractedText.substring(0, Math.min(extractedText.length(), MAX_CV_TEXT_LENGTH));
+        } catch (java.io.IOException exception) {
+            throw new IllegalArgumentException("CV file is not a readable PDF", exception);
+        }
+    }
+
     private void validateStorageConfiguration() {
         if (isBlank(properties.bucket())) {
             throw new IllegalStateException("AWS_S3_BUCKET_NAME no esta configurado");
@@ -143,7 +212,7 @@ public class S3StorageAdapter implements StoragePort {
 
         FreelanceStorageFolder storageFolder = FreelanceStorageFolder.valueOf(folder.trim().toUpperCase());
 
-        return switch (storageFolder) {
+        String resolvedFolder = switch (storageFolder) {
             case PROFILE_PHOTO -> properties.profilePhotoFolder();
             case CURRICULUM -> properties.curriculumFolder();
             case SERVICE_IMAGES -> properties.serviceImagesFolder();
@@ -152,6 +221,16 @@ public class S3StorageAdapter implements StoragePort {
             case SERVICE_CERTIFICATES -> properties.serviceCertificatesFolder();
             case CHAT_ATTACHMENTS -> properties.chatAttachmentsFolder();
         };
+
+        // Sin esta validacion, una carpeta sin configurar generaba claves tipo
+        // "null/uuid-archivo.png" y URLs presignadas invalidas hacia S3.
+        if (isBlank(resolvedFolder)) {
+            throw new IllegalStateException(
+                    "La carpeta S3 para " + storageFolder + " no esta configurada en aws.s3"
+            );
+        }
+
+        return resolvedFolder.trim();
     }
 
     private String sanitizeFileName(String fileName) {

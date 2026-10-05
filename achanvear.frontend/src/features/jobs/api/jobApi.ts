@@ -21,6 +21,10 @@ export interface JobApplicationResponse {
   coverLetter: string | null;
   appliedAt: string;
   status: string;
+  screeningScore: number | null;
+  screeningResult: boolean | null;
+  screeningSummary: string | null;
+  currentStage: string;
 }
 
 // ─── Tipo para la respuesta del detalle del candidato ──────────────────────────
@@ -60,6 +64,13 @@ export interface CandidateDrawerDetailResponse {
     status: string;
     completedAt: string | null;
   }>;
+}
+
+export interface CompanyHiringStats {
+  activeJobs: number;
+  totalApplications: number;
+  interviewsInProgress: number;
+  finalists: number;
 }
 
 export const jobApi = {
@@ -115,6 +126,11 @@ export const jobApi = {
       sortDirection: filters?.sortDirection ?? "DESC",
     };
     const response = await api.get<ApiResponse<PaginatedJobs>>("/jobs/my-posts", { params });
+    return parseResponse(response);
+  },
+
+  getCompanyHiringStats: async (): Promise<CompanyHiringStats> => {
+    const response = await api.get<ApiResponse<CompanyHiringStats>>("/jobs/my-posts/stats");
     return parseResponse(response);
   },
 

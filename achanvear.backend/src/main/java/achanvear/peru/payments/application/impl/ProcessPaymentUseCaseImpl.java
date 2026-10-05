@@ -4,6 +4,7 @@ import achanvear.peru.payments.application.command.ProcessPaymentCommand;
 import achanvear.peru.payments.application.port.in.ProcessPaymentUseCase;
 import achanvear.peru.payments.application.service.AuditService;
 import achanvear.peru.payments.application.service.EscrowService;
+import achanvear.peru.payments.application.service.PublicationCreditService;
 import achanvear.peru.payments.domain.model.*;
 import achanvear.peru.payments.domain.repository.EscrowRepository;
 import achanvear.peru.payments.domain.repository.MilestoneRepository;
@@ -22,19 +23,22 @@ public class ProcessPaymentUseCaseImpl implements ProcessPaymentUseCase {
     private final MercadoPagoGateway mercadoPagoGateway;
     private final EscrowService escrowService;
     private final AuditService auditService;
+    private final PublicationCreditService publicationCreditService;
 
     public ProcessPaymentUseCaseImpl(
             PaymentRepository paymentRepository,
             MilestoneRepository milestoneRepository,
             MercadoPagoGateway mercadoPagoGateway,
             EscrowService escrowService,
-            AuditService auditService
+            AuditService auditService,
+            PublicationCreditService publicationCreditService
     ) {
         this.paymentRepository = paymentRepository;
         this.milestoneRepository = milestoneRepository;
         this.mercadoPagoGateway = mercadoPagoGateway;
         this.escrowService = escrowService;
         this.auditService = auditService;
+        this.publicationCreditService = publicationCreditService;
     }
 
     @Override
@@ -50,6 +54,20 @@ public class ProcessPaymentUseCaseImpl implements ProcessPaymentUseCase {
         var mpPayment = mercadoPagoGateway.getPayment(mpPaymentId);
         if (!mpPayment.isApproved()) {
             return ApiResponse.error("Payment not approved");
+        }
+
+        if (mpPayment.externalReference() != null && !mpPayment.externalReference().isBlank()) {
+            try {
+                boolean activated = publicationCreditService.activatePendingPurchase(
+                        java.util.UUID.fromString(mpPayment.externalReference()),
+                        mpPaymentId
+                );
+                if (activated) {
+                    return ApiResponse.success("Publication package activated", mpPaymentId);
+                }
+            } catch (IllegalArgumentException ignored) {
+                // Not a publication package purchase; continue with escrow flow.
+            }
         }
 
         // Paso 3: Encontrar milestone asociado

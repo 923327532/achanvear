@@ -31,6 +31,10 @@ public class InterviewMapper {
         entity.setInterviewType(interview.getType().name());
         entity.setStatus(interview.getStatus().name());
 
+        if (interview.getAssignedSlotDateTime() != null) {
+            entity.setSlotDateTime(interview.getAssignedSlotDateTime().toString());
+        }
+
         if (interview.getInterviewerProfile() != null) {
             entity.setInterviewerName(interview.getInterviewerProfile().getName());
             entity.setInterviewerVoice(interview.getInterviewerProfile().getVoice().name());
@@ -125,6 +129,15 @@ public class InterviewMapper {
                 ))
                 .toList();
 
+        java.time.LocalDateTime assignedSlotDateTime = null;
+        if (entity.getSlotDateTime() != null && !entity.getSlotDateTime().isBlank()) {
+            try {
+                assignedSlotDateTime = java.time.LocalDateTime.parse(entity.getSlotDateTime());
+            } catch (Exception ignored) {
+                // Formato inesperado: se ignora y se recurre al schedule como antes.
+            }
+        }
+
         return Interview.restore(
                 InterviewId.of(entity.getId()),
                 entity.getCandidateId(),
@@ -132,6 +145,7 @@ public class InterviewMapper {
                 InterviewType.valueOf(entity.getInterviewType()),
                 InterviewStatus.valueOf(entity.getStatus()),
                 null, // assignedSlot - not in entity
+                assignedSlotDateTime,
                 null, // abortReason - not in entity
                 interviewerProfile,
                 null, recordingSession,

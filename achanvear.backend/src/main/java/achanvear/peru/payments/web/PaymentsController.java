@@ -96,7 +96,7 @@ public class PaymentsController {
 
     // === 3. Current Company Plan ===
     @GetMapping("/plans/current")
-    @PreAuthorize("hasAuthority('COMPANY')")
+    @PreAuthorize("hasAnyAuthority('COMPANY', 'COMPANY_COLLABORATOR')")
     public ResponseEntity<ApiResponse<CurrentPlanResponse>> getCurrentPlan(
             @AuthenticationPrincipal AuthenticatedUser user
     ) {
@@ -106,7 +106,7 @@ public class PaymentsController {
 
     // === 4. Check Project Publishing Eligibility ===
     @GetMapping("/plans/eligibility/project-publishing")
-    @PreAuthorize("hasAuthority('COMPANY')")
+    @PreAuthorize("hasAnyAuthority('COMPANY', 'COMPANY_COLLABORATOR')")
     public ResponseEntity<ApiResponse<ProjectPublishingEligibilityResponse>> checkEligibility(
             @AuthenticationPrincipal AuthenticatedUser user
     ) {
@@ -116,24 +116,25 @@ public class PaymentsController {
 
     // === 5. Subscribe to Plan ===
     @PostMapping("/plans/subscribe")
-    @PreAuthorize("hasAuthority('COMPANY')")
+    @PreAuthorize("hasAnyAuthority('COMPANY', 'COMPANY_COLLABORATOR')")
     public ResponseEntity<ApiResponse<String>> subscribeToPlan(
             @AuthenticationPrincipal AuthenticatedUser user,
             @Valid @RequestBody SubscribePlanRequest request
     ) {
-        String initPoint = createSubscriptionUseCase.execute(
+        String chargeId = createSubscriptionUseCase.execute(
                 new CreateSubscriptionCommand(
                         PlanType.valueOf(request.plan()),
                         user.getUserId(),
-                        request.companyEmail()
+                        request.companyEmail(),
+                        request.token()
                 )
         );
-        return ResponseEntity.ok(ApiResponse.success(initPoint, "Subscription created. Redirect to payment."));
+        return ResponseEntity.ok(ApiResponse.success(chargeId, "Subscription created and charged via Culqi."));
     }
 
     // === 6. Create Milestone Deposit Intent ===
     @PostMapping("/milestones/deposit-intent")
-    @PreAuthorize("hasAuthority('COMPANY')")
+    @PreAuthorize("hasAnyAuthority('COMPANY', 'COMPANY_COLLABORATOR')")
     public ResponseEntity<ApiResponse<MilestoneDepositIntentResponse>> createDepositIntent(
             @AuthenticationPrincipal AuthenticatedUser user,
             @Valid @RequestBody CreateMilestoneDepositIntentRequest request
@@ -153,7 +154,7 @@ public class PaymentsController {
     }
 
     @PostMapping("/milestones/{milestoneId}/process-culqi-payment")
-    @PreAuthorize("hasAuthority('COMPANY')")
+    @PreAuthorize("hasAnyAuthority('COMPANY', 'COMPANY_COLLABORATOR')")
     public ResponseEntity<ApiResponse<String>> processCulqiPayment(
             @AuthenticationPrincipal AuthenticatedUser user,
             @PathVariable UUID milestoneId,
@@ -216,7 +217,7 @@ public class PaymentsController {
 
     // === 8. Release Milestone Payment ===
     @PostMapping("/milestones/{milestoneId}/release")
-    @PreAuthorize("hasAuthority('COMPANY')")
+    @PreAuthorize("hasAnyAuthority('COMPANY', 'COMPANY_COLLABORATOR')")
     public ResponseEntity<ApiResponse<MilestoneReleasedResponse>> releaseMilestone(
             @AuthenticationPrincipal AuthenticatedUser user,
             @PathVariable UUID milestoneId,

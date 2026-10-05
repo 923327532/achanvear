@@ -61,6 +61,10 @@ aws:
     region: ${AWS_REGION:us-east-1}
     profile-photo-folder: freelancer/profile-photos
     curriculum-folder: freelancer/curriculums
+    service-images-folder: services/images
+    service-videos-folder: services/videos
+    service-pdfs-folder: services/pdfs
+    service-certificates-folder: services/certificates
     chat-attachments-folder: chat/attachments
     upload-expiration-minutes: 15
     download-expiration-minutes: 60
@@ -86,9 +90,9 @@ app:
     access-token: ${MP_ACCESS_TOKEN:TEST-140685990943776-082500-4484eedb437f589364a5b1cdf3538dcf-3157090819}
     public-key: ${MP_PUBLIC_KEY:TEST-7c056e9c-ee8b-4711-b803-8f057abc5bb1}
     webhook-secret: ${MP_WEBHOOK_SECRET:test-secret}
-    success-url: ${MP_SUCCESS_URL:http://localhost:8081/payments/success}
-    failure-url: ${MP_FAILURE_URL:http://localhost:8081/payments/failure}
-    pending-url: ${MP_PENDING_URL:http://localhost:8081/payments/pending}
+    success-url: ${MP_SUCCESS_URL:http://localhost:3000/payments/success}
+    failure-url: ${MP_FAILURE_URL:http://localhost:3000/payments/failure}
+    pending-url: ${MP_PENDING_URL:http://localhost:3000/payments/pending}
   culqi:
     public-key: ${CULQI_PUBLIC_KEY:pk_test_3GaFfV2020niFpxr}
     secret-key: ${CULQI_SECRET_KEY:sk_test_PoHjHT7obOWW12yq}

@@ -24,7 +24,7 @@ public class JobApplicationJpaEntity extends BaseJpaEntity {
     @Column(name = "candidate_user_id", nullable = false)
     private UUID candidateUserId;
 
-    @Column(name = "cv_url", nullable = false, length = 500)
+    @Column(name = "cv_url", length = 500)
     private String cvUrl;
 
     @Column(name = "cover_letter", length = 2000)
@@ -42,6 +42,9 @@ public class JobApplicationJpaEntity extends BaseJpaEntity {
 
     @Column(name = "screening_result")
     private Boolean screeningResult;
+
+    @Column(name = "screening_summary", length = 2000)
+    private String screeningSummary;
 
     @Column(name = "theory_score")
     private Integer theoryScore;
@@ -135,6 +138,14 @@ public class JobApplicationJpaEntity extends BaseJpaEntity {
 
     public void setScreeningResult(Boolean screeningResult) {
         this.screeningResult = screeningResult;
+    }
+
+    public String getScreeningSummary() {
+        return screeningSummary;
+    }
+
+    public void setScreeningSummary(String screeningSummary) {
+        this.screeningSummary = screeningSummary;
     }
 
     public Integer getTheoryScore() {

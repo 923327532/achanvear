@@ -4,6 +4,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/features/auth/hooks/useAuth";
+import { BrandLogo } from "@/shared/components/ui/BrandLogo";
 import { Alert } from "@/components/ui/Alert";
 import type { CompanyOnboardingData } from "@/features/onboarding/types/onboarding.types";
 import { onboardingService } from "@/features/onboarding/api/onboardingApi";
@@ -269,10 +270,7 @@ export function CompanyOnboardingWizard() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-3">
-              <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-teal-600 text-white font-bold text-lg">
-                A
-              </div>
-              <span className="text-xl font-bold text-blue-900">Achanvear</span>
+              <BrandLogo href={null} size="sm" textClassName="text-xl font-bold text-blue-900" />
             </div>
             <div className="text-sm text-slate-600">
               Paso {currentStep} de {totalSteps}

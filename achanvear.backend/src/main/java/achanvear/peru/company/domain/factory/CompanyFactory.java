@@ -41,6 +41,7 @@ public class CompanyFactory {
                 specialty,
                 companySize,
                 logoUrl,
+                null,
                 biography,
                 achievements,
                 address,

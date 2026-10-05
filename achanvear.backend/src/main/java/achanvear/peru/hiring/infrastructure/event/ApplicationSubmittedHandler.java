@@ -9,12 +9,17 @@ import achanvear.peru.hiring.application.dto.ScreeningResultResponse;
 import achanvear.peru.jobs.domain.event.ApplicationSubmittedEvent;
 import achanvear.peru.jobs.domain.model.JobApplication;
 import achanvear.peru.jobs.domain.model.JobPost;
+import achanvear.peru.jobs.domain.model.RecruitmentAutomationConfig;
+import achanvear.peru.jobs.domain.model.RecruitmentAutomationLevel;
 import achanvear.peru.jobs.domain.repository.ApplicationRepository;
 import achanvear.peru.jobs.domain.repository.JobPostRepository;
+import achanvear.peru.jobs.domain.repository.RecruitmentAutomationConfigRepository;
+import achanvear.peru.freelance.application.port.out.StoragePort;
 import achanvear.peru.shared.application.port.IdentityCandidateLookupPort;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.context.event.EventListener;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,22 +45,28 @@ public class ApplicationSubmittedHandler {
     private final FreelancerProfileRepository freelancerProfileRepository;
     private final IdentityCandidateLookupPort candidateLookupPort;
     private final StartScreeningUseCase startScreeningUseCase;
+    private final RecruitmentAutomationConfigRepository automationConfigRepository;
+    private final StoragePort storagePort;
 
     public ApplicationSubmittedHandler(
             JobPostRepository jobPostRepository,
             ApplicationRepository applicationRepository,
             FreelancerProfileRepository freelancerProfileRepository,
             IdentityCandidateLookupPort candidateLookupPort,
-            StartScreeningUseCase startScreeningUseCase
+            StartScreeningUseCase startScreeningUseCase,
+            RecruitmentAutomationConfigRepository automationConfigRepository,
+            StoragePort storagePort
     ) {
         this.jobPostRepository = jobPostRepository;
         this.applicationRepository = applicationRepository;
         this.freelancerProfileRepository = freelancerProfileRepository;
         this.candidateLookupPort = candidateLookupPort;
         this.startScreeningUseCase = startScreeningUseCase;
+        this.automationConfigRepository = automationConfigRepository;
+        this.storagePort = storagePort;
     }
 
-    @EventListener
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void handleApplicationSubmitted(ApplicationSubmittedEvent event) {
         try {
@@ -77,6 +88,11 @@ public class ApplicationSubmittedHandler {
 
             JobApplication application = applicationRepository.findById(event.applicationId().value()).orElse(null);
             FreelancerProfile profile = freelancerProfileRepository.findByUserId(event.candidateUserId()).orElse(null);
+            RecruitmentAutomationConfig automationConfig = automationConfigRepository
+                    .findByJobPostId(jobPostUuid)
+                    .orElse(null);
+            boolean autoAdvance = automationConfig != null
+                    && automationConfig.getLevel() == RecruitmentAutomationLevel.FULLY_AUTOMATED;
 
             log.info("Candidato: {} <{}> - Postula a: {}", 
                      candidate.fullName(), candidate.email(), jobPost.getTitle());
@@ -84,13 +100,30 @@ public class ApplicationSubmittedHandler {
             // Parsear requirements del job
             List<String> requirementsList = List.of();
             if (jobPost.getRequirements() != null && !jobPost.getRequirements().isBlank()) {
-                requirementsList = Arrays.stream(jobPost.getRequirements().split(","))
+                requirementsList = Arrays.stream(jobPost.getRequirements().split("[,;\\n•]"))
                         .map(String::trim)
                         .filter(s -> !s.isEmpty())
                         .collect(Collectors.toList());
             }
 
             log.info("Job requirements: {}", requirementsList);
+            String cvUrl = text(application != null ? application.getCvUrl() : null);
+            if (cvUrl.isBlank()) {
+                cvUrl = text(profile != null ? profile.getCurriculumUrl() : null);
+            }
+            String cvText = text(profile != null ? profile.getCvData() : null);
+            if (!cvUrl.isBlank()) {
+                try {
+                    String extractedText = storagePort.extractPdfText(cvUrl);
+                    if (!extractedText.isBlank()) {
+                        cvText = (cvText + " " + extractedText).trim();
+                    }
+                } catch (Exception e) {
+                    log.warn("No se pudo extraer texto del CV del candidato {}: {}",
+                            event.candidateUserId(), e.getMessage());
+                }
+            }
+            Double scoreThreshold = resolveScoreThreshold(jobPost.getRequiredScoreThreshold(), automationConfig);
 
             // Iniciar screening - la IA evalua y si pasa, genera schedule de entrevista
             StartScreeningCommand command = new StartScreeningCommand(
@@ -103,17 +136,18 @@ public class ApplicationSubmittedHandler {
                     parseExperienceMin(jobPost),
                     deriveCareer(jobPost),
                     buildCandidateSkills(profile),
-                    resolveCandidateExperienceYears(profile),
+                    resolveCandidateExperienceYears(profile, cvText),
                     text(profile != null ? profile.getSpecialty() : null),
                     text(profile != null ? profile.getBiography() : null),
-                    text(application != null ? application.getCvUrl() : profile != null ? profile.getCurriculumUrl() : null),
-                    text(profile != null ? profile.getCvData() : null),
+                    cvUrl,
+                    cvText,
                     text(application != null ? application.getCoverLetter() : null),
-                    jobPost.getRequiredScoreThreshold()
+                    scoreThreshold,
+                    autoAdvance
             );
 
             ScreeningResultResponse screening = startScreeningUseCase.execute(command);
-            persistScreeningResult(application, screening);
+            persistScreeningResult(application, screening, autoAdvance);
             log.info("=== SCREENING COMPLETADO para candidato {} en job {}", 
                      event.candidateUserId(), jobPostUuid);
 
@@ -162,11 +196,8 @@ public class ApplicationSubmittedHandler {
      * usa la suma maxima declarada en certificaciones y, si no hay dato,
      * deja null para que la IA evalue la evidencia textual.
      */
-    private Integer resolveCandidateExperienceYears(FreelancerProfile profile) {
-        if (profile == null) {
-            return null;
-        }
-        String biography = text(profile.getBiography());
+    private Integer resolveCandidateExperienceYears(FreelancerProfile profile, String cvText) {
+        String biography = text(profile != null ? profile.getBiography() : null) + " " + text(cvText);
         var matcher = java.util.regex.Pattern
                 .compile("(\\d{1,2})\\s*(?:años|anos|years?)")
                 .matcher(biography.toLowerCase());
@@ -201,17 +232,43 @@ public class ApplicationSubmittedHandler {
         return skills.stream().distinct().toList();
     }
 
-    private void persistScreeningResult(JobApplication application, ScreeningResultResponse screening) {
-        if (application == null || screening == null || screening.score() == null) {
+    private void persistScreeningResult(
+            JobApplication application,
+            ScreeningResultResponse screening,
+            boolean autoAdvance
+    ) {
+        if (application == null || screening == null || screening.score() == null || screening.recommended() == null) {
             return;
         }
 
-        boolean passed = "THEORY_INTERVIEW".equalsIgnoreCase(screening.currentStage())
-                || "TECHNICAL_INTERVIEW".equalsIgnoreCase(screening.currentStage())
-                || "APPROVED".equalsIgnoreCase(screening.currentStage());
-
-        application.registerScreeningResult(screening.score(), passed);
+        application.registerScreeningResult(
+                screening.score(),
+                screening.recommended(),
+                autoAdvance,
+                screening.summary()
+        );
         applicationRepository.save(application);
+    }
+
+    private Double resolveScoreThreshold(
+            Double jobThreshold,
+            RecruitmentAutomationConfig automationConfig
+    ) {
+        if (automationConfig != null) {
+            String configuredMinimum = automationConfig.getScreeningCriteria().get("minimumScore");
+            if (configuredMinimum != null && !configuredMinimum.isBlank()) {
+                try {
+                    double threshold = Double.parseDouble(configuredMinimum);
+                    if (threshold < 0 || threshold > 100) {
+                        throw new IllegalArgumentException("minimumScore must be between 0 and 100");
+                    }
+                    return threshold;
+                } catch (NumberFormatException e) {
+                    throw new IllegalArgumentException("Configured minimumScore is not numeric", e);
+                }
+            }
+        }
+        return jobThreshold != null ? jobThreshold : 60.0;
     }
 
     private void addIfPresent(List<String> values, String value) {

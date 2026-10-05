@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import type { Service, ServiceFormData, ServiceCategory, ServicePlanFormData } from "../types/service.types";
 import { CATEGORY_LABELS } from "../types/service.types";
+import { toServiceMediaUrl } from "@/lib/mediaUrls";
 
 interface Props {
   service?: Service;
@@ -846,7 +847,7 @@ export function ServiceForm({ service, onSubmit, isSubmitting, freelancerProfile
               <div key={i} className="relative group">
                 {type === "images" ? (
                   <div className="w-20 h-20 rounded-lg overflow-hidden border border-gray-200">
-                    <img src={url} alt={`${label} ${i + 1}`} className="w-full h-full object-cover" />
+                    <img src={toServiceMediaUrl(url) ?? url} alt={`${label} ${i + 1}`} className="w-full h-full object-cover" />
                   </div>
                 ) : type === "videos" ? (
                   <div className="w-20 h-20 rounded-lg border border-gray-200 flex items-center justify-center bg-gray-50">

@@ -4,10 +4,10 @@
 import { Briefcase, Users, FileText, Building2 } from "lucide-react";
 
 interface StatsData {
-  activeJobs: number;
-  totalApplications: number;
-  interviewsInProgress: number;
-  finalists: number;
+  activeJobs: number | null;
+  totalApplications: number | null;
+  interviewsInProgress: number | null;
+  finalists: number | null;
 }
 
 const STATS = [
@@ -48,7 +48,7 @@ export function HiringStatsCards({ data }: { data: StatsData }) {
               <div className="flex items-center justify-center h-12 w-12 rounded-xl bg-slate-100">
                 <Icon className="w-6 h-6 text-slate-500" strokeWidth={1.5} />
               </div>
-              <span className="text-2xl font-bold text-[#1e3a8a]">{value}</span>
+              <span className="text-2xl font-bold text-[#1e3a8a]">{value ?? "—"}</span>
             </div>
             <p className="mt-3 text-sm text-slate-600">{stat.label}</p>
           </div>

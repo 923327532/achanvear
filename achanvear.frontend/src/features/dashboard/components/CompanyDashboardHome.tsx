@@ -11,7 +11,7 @@ import { HiringPipeline } from "@/features/jobs/components/HiringPipeline";
 import { QuickActions } from "@/features/jobs/components/QuickActions";
 
 export function CompanyDashboardHome() {
-  const { data: dashboard, refetch } = useCompanyDashboard();
+  const { data: dashboard, refetch, statsError } = useCompanyDashboard();
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -62,13 +62,19 @@ export function CompanyDashboardHome() {
           </a>
         </div>
 
+        {statsError && (
+          <div role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+            No se pudieron cargar las métricas de postulaciones y entrevistas. Intenta recargar el panel.
+          </div>
+        )}
+
         {/* Cards estadísticas */}
         <HiringStatsCards
           data={{
-            activeJobs: dashboard?.activeJobs ?? 0,
-            totalApplications: dashboard?.totalApplications ?? 0,
-            interviewsInProgress: dashboard?.interviewsInProgress ?? 0,
-            finalists: dashboard?.finalists ?? 0,
+            activeJobs: dashboard?.activeJobs ?? null,
+            totalApplications: dashboard?.totalApplications ?? null,
+            interviewsInProgress: dashboard?.interviewsInProgress ?? null,
+            finalists: dashboard?.finalists ?? null,
           }}
         />
 

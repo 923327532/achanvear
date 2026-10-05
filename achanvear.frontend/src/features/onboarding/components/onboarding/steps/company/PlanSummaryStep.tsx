@@ -6,6 +6,7 @@ import { ApiError } from "@/lib/errors";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { onboardingService } from "@/features/onboarding/api/onboardingApi";
+import { CulqiCardForm } from "@/features/payments/components/CulqiCardForm";
 import type { CompanyOnboardingData, Plan } from "@/features/onboarding/types/onboarding.types";
 
 interface PlanSummaryStepProps {
@@ -39,6 +40,7 @@ export function PlanSummaryStep({ data, onUpdate, onNext, onBack }: PlanSummaryS
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentError, setPaymentError] = useState<string | null>(null);
+  const [showCheckout, setShowCheckout] = useState(false);
 
   const handleContinue = async () => {
     // Free plan: continuar sin pago
@@ -48,18 +50,26 @@ export function PlanSummaryStep({ data, onUpdate, onNext, onBack }: PlanSummaryS
       return;
     }
 
-    // Paid plans: redirigir a MercadoPago
+    // Planes pagados: abrir checkout de Culqi (misma pasarela que el resto de pagos)
+    setPaymentError(null);
+    setShowCheckout(true);
+  };
+
+  // Culqi tokeniza la tarjeta y aquí cobramos la suscripción
+  const handleTokenized = async ({ token, email }: { token: string; email: string }) => {
     setIsProcessing(true);
     setPaymentError(null);
     try {
-      const initPoint = await onboardingService.subscribeToPlan(
+      await onboardingService.subscribeToPlan(
         selectedPlan!.id,
-        data.email
+        email || data.email,
+        token
       );
-      // Redirigir a MercadoPago
-      window.location.href = initPoint;
+      onUpdate({ planConfirmed: true });
+      onNext();
     } catch (err) {
       setPaymentError(err instanceof Error ? err.message : "Error al procesar el pago");
+      throw err;
     } finally {
       setIsProcessing(false);
     }
@@ -96,6 +106,40 @@ export function PlanSummaryStep({ data, onUpdate, onNext, onBack }: PlanSummaryS
   const savings = selectedPlan.price > 0
     ? (selectedPlan.price * 12) - Math.round(selectedPlan.price * 12 * 0.8)
     : 0;
+
+  // Checkout de Culqi para planes pagados (misma pasarela que el resto de pagos)
+  if (showCheckout && selectedPlan.price > 0) {
+    return (
+      <div className="min-h-[400px] flex items-center justify-center p-6">
+        <div className="w-full max-w-lg mx-auto bg-white rounded-3xl shadow-xl p-8">
+          <h2 className="text-2xl font-bold text-[#0F172A] mb-2">
+            Pago de tu plan {selectedPlan.name}
+          </h2>
+          <p className="text-sm text-[#64748B] mb-6">
+            Se cobrará S/. {price} {data.billingCycle === "yearly" ? "al año" : "al mes"}. El pago se
+            procesa de forma segura con Culqi.
+          </p>
+
+          <CulqiCardForm
+            mode="charge"
+            buttonLabel="Pagar suscripción con Culqi"
+            submitLabel="Procesando pago..."
+            onTokenized={handleTokenized}
+            onError={(msg) => setPaymentError(msg)}
+          />
+
+          {paymentError && <div className="mt-4"><Alert message={paymentError} /></div>}
+
+          <button
+            onClick={() => { setShowCheckout(false); setPaymentError(null); }}
+            className="mt-4 w-full border border-slate-300 text-slate-700 font-semibold py-3 rounded-xl hover:bg-slate-50 transition"
+          >
+            Volver al resumen
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   switch (selectedPlan.id) {
     case "FREE":
@@ -226,7 +270,7 @@ export function PlanSummaryStep({ data, onUpdate, onNext, onBack }: PlanSummaryS
                 Volver a planes
               </button>
               <button onClick={handleContinue} disabled={isProcessing} className="flex-1 bg-gradient-to-r from-[#3B82F6] to-[#1D4ED8] hover:from-[#1D4ED8] hover:to-[#1E3A8A] text-white font-semibold py-3 rounded-xl transition disabled:opacity-50">
-                {isProcessing ? "Redirigiendo a MercadoPago..." : "Continuar al pago"}
+                {isProcessing ? "Procesando pago..." : "Continuar al pago"}
               </button>
             </div>
           </div>
@@ -324,7 +368,7 @@ export function PlanSummaryStep({ data, onUpdate, onNext, onBack }: PlanSummaryS
                 Volver a planes
               </button>
               <button onClick={handleContinue} disabled={isProcessing} className="flex-1 bg-gradient-to-r from-[#0EA5A0] to-[#0d928d] hover:from-[#0d928d] hover:to-[#0c8682] text-white font-semibold py-3 rounded-xl shadow-lg transition disabled:opacity-50">
-                {isProcessing ? "Redirigiendo a MercadoPago..." : "Continuar al pago"}
+                {isProcessing ? "Procesando pago..." : "Continuar al pago"}
               </button>
             </div>
           </div>
@@ -412,7 +456,7 @@ export function PlanSummaryStep({ data, onUpdate, onNext, onBack }: PlanSummaryS
                 Volver a planes
               </button>
               <button onClick={handleContinue} disabled={isProcessing} className="flex-1 bg-gradient-to-r from-[#F59E0B] to-[#D97706] hover:from-[#D97706] hover:to-[#B45309] text-white font-semibold py-3 rounded-xl shadow-lg shadow-[#F59E0B]/30 transition disabled:opacity-50">
-                {isProcessing ? "Redirigiendo a MercadoPago..." : "Continuar al pago"}
+                {isProcessing ? "Procesando pago..." : "Continuar al pago"}
               </button>
             </div>
           </div>

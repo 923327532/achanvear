@@ -4,6 +4,8 @@ import achanvear.peru.jobs.application.dto.ApplicationResponse;
 import achanvear.peru.jobs.application.dto.CompanySummaryResponse;
 import achanvear.peru.jobs.application.dto.JobPostPageResponse;
 import achanvear.peru.jobs.application.dto.JobPostResponse;
+import achanvear.peru.jobs.domain.model.RecruitmentAutomationConfig;
+import achanvear.peru.jobs.domain.repository.RecruitmentAutomationConfigRepository;
 import achanvear.peru.shared.application.port.CompanyLookupPort;
 import achanvear.peru.jobs.domain.model.JobApplication;
 import achanvear.peru.jobs.domain.model.JobPost;
@@ -17,9 +19,14 @@ import java.time.ZoneId;
 public class JobApplicationMapper {
 
     private final CompanyLookupPort companyLookupPort;
+    private final RecruitmentAutomationConfigRepository automationConfigRepository;
 
-    public JobApplicationMapper(CompanyLookupPort companyLookupPort) {
+    public JobApplicationMapper(
+            CompanyLookupPort companyLookupPort,
+            RecruitmentAutomationConfigRepository automationConfigRepository
+    ) {
         this.companyLookupPort = companyLookupPort;
+        this.automationConfigRepository = automationConfigRepository;
     }
 
     public JobPostResponse toResponse(JobPost jobPost) {
@@ -39,6 +46,11 @@ public class JobApplicationMapper {
                 companySummary.status()
         );
 
+        String automationLevel = automationConfigRepository.findByJobPostId(jobPost.getId().value())
+                .map(RecruitmentAutomationConfig::getLevel)
+                .map(Enum::name)
+                .orElse(null);
+
         return new JobPostResponse(
                 jobPost.getId().toString(),
                 jobPost.getCompanyId().toString(),
@@ -57,7 +69,7 @@ public class JobApplicationMapper {
                 jobPost.getCreatedAt() != null
                         ? LocalDateTime.ofInstant(jobPost.getCreatedAt(), ZoneId.systemDefault())
                         : null,
-                jobPost.getSelectionMode() != null ? jobPost.getSelectionMode().name() : null,
+                automationLevel,
                 jobPost.getMaxApplicants(),
                 jobPost.getClosingDate(),
                 jobPost.getSelectionMode() != null ? jobPost.getSelectionMode().name() : null

@@ -5,6 +5,7 @@ import { X, MapPin, Clock, CheckCircle2, DollarSign } from "lucide-react";
 import { useJobDetail } from "../hooks/useJobDetail";
 import { useAppliedJobIds } from "../hooks/useAppliedJobIds";
 import type { Job } from "../types/job.types";
+import { toProfileImageUrl } from "@/lib/mediaUrls";
 
 interface JobDetailModalProps {
   job: Job;
@@ -33,6 +34,7 @@ export function JobDetailModal({ job, onClose, onApply }: JobDetailModalProps) {
   const hasApplied = appliedJobIds.includes(detail.id);
 
   const companyName = detail.company?.tradeName || detail.company?.businessName || "Empresa";
+  const companyLogoUrl = toProfileImageUrl(detail.company?.logoUrl);
   const typeLabel = JOB_TYPE_LABELS[detail.type] ?? detail.type;
   const typeColor = JOB_TYPE_COLORS[detail.type] ?? "bg-slate-600 text-white";
 
@@ -57,8 +59,8 @@ export function JobDetailModal({ job, onClose, onApply }: JobDetailModalProps) {
 
           {/* Job header */}
           <div className="flex items-start gap-3">
-            {detail.company?.logoUrl ? (
-              <img src={detail.company.logoUrl} alt={companyName}
+            {companyLogoUrl ? (
+              <img src={companyLogoUrl} alt={companyName}
                 className="h-12 w-12 flex-shrink-0 rounded-xl object-cover border border-slate-100" />
             ) : (
               <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-slate-100 text-sm font-bold text-slate-600">

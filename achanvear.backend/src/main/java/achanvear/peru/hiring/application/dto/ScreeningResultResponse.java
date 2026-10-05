@@ -8,6 +8,7 @@ public record ScreeningResultResponse(
         String candidateId,
         String currentStage,
         Double score,
+        Boolean recommended,
         String summary
 ) {
 
@@ -17,6 +18,7 @@ public record ScreeningResultResponse(
                 hiringProcess.getJobId(),
                 hiringProcess.getCandidateId(),
                 hiringProcess.getStage().name(),
+                null,
                 null,
                 null
         );
@@ -29,6 +31,24 @@ public record ScreeningResultResponse(
                 hiringProcess.getCandidateId(),
                 hiringProcess.getStage().name(),
                 score,
+                null,
+                summary
+        );
+    }
+
+    public static ScreeningResultResponse from(
+            HiringProcess hiringProcess,
+            Double score,
+            boolean recommended,
+            String summary
+    ) {
+        return new ScreeningResultResponse(
+                hiringProcess.getId().toString(),
+                hiringProcess.getJobId(),
+                hiringProcess.getCandidateId(),
+                hiringProcess.getStage().name(),
+                score,
+                recommended,
                 summary
         );
     }

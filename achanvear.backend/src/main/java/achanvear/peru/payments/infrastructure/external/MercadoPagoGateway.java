@@ -9,6 +9,7 @@ import org.springframework.web.client.RestClient;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.nio.charset.StandardCharsets;
 
 @Component
@@ -37,10 +38,14 @@ public class MercadoPagoGateway {
             return response;
         };
 
+        JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory();
+        requestFactory.setReadTimeout(Duration.ofSeconds(15));
+
         this.restClient = RestClient.builder()
                 .baseUrl("https://api.mercadopago.com")
                 .defaultHeader("Authorization", "Bearer " + properties.accessToken())
                 .defaultHeader("Content-Type", "application/json")
+                .requestFactory(requestFactory)
                 .requestInterceptor(loggingInterceptor)
                 .build();
     }
@@ -63,8 +68,8 @@ public class MercadoPagoGateway {
             String clientEmail
     ) {
         var items = new MercadoPagoPreferenceItem(
-                "Paquete de créditos: " + packageName,
-                "Compra de créditos en Achanvear",
+                "Paquete de publicaciones: " + packageName,
+                "Compra de publicaciones de empleo en Achanvear",
                 amount.intValue(), // MercadoPago usa centavos
                 1
         );
@@ -142,10 +147,10 @@ public class MercadoPagoGateway {
     public MercadoPagoSubscriptionResponse createSubscription(PlanType plan, String userId, String userEmail) {
         var subscriptionRequest = new CreateSubscriptionRequest(
                 plan.name() + " Plan - Achanvear",
-                "Suscripción mensual al plan " + plan.name(),
-                plan.monthlyPrice(),
                 userId,
-                userEmail
+                plan.monthlyPrice(),
+                userEmail,
+                properties.successUrl()
         );
 
         System.out.println("DEBUG MP - Request: " + subscriptionRequest);

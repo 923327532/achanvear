@@ -57,6 +57,20 @@ public class JobPostFactory {
     }
 
     /**
+     * Aplica la configuracion de cierre a una vacante existente.
+     * Reutiliza la misma resolucion de {@link SelectionMode} que el alta.
+     */
+    public void applySelection(
+            JobPost jobPost,
+            String closingMode,
+            Instant closingDate,
+            Integer maxApplicants
+    ) {
+        SelectionMode mode = resolveClosingMode(closingMode, closingDate, maxApplicants);
+        jobPost.configureSelection(maxApplicants, closingDate, null, null, mode);
+    }
+
+    /**
      * Determina el {@link SelectionMode} (modo de cierre) a partir de {@code closingMode}.
      * Si no se especifica uno valido, se infiere de los datos de cierre presentes.
      */

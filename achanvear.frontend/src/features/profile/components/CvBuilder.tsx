@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import type { CvGeneratedResponse } from "../types/cv.types";
 import html2pdf from "html2pdf.js";
-import { API_BASE_URL } from "@/lib/constants";
+import { toProfileImageUrl } from "@/lib/mediaUrls";
 
 
 
@@ -308,7 +308,7 @@ function BulletEditor({ bullets, onChange }: { bullets: string[]; onChange: (b: 
 export function CvBuilder({ isOpen, onClose, initialCv, isLoading, onRegenerateSection, isRegenerating, onSave, profilePhotoUrl }: CvBuilderProps) {
   const [formData, setFormData] = useState<FormData>(() => {
     const data = cvToFormData(initialCv);
-    if (profilePhotoUrl) data.header.profilePhotoUrl = profilePhotoUrl;
+    if (profilePhotoUrl) data.header.profilePhotoUrl = toProfileImageUrl(profilePhotoUrl) ?? profilePhotoUrl;
     return data;
   });
 
@@ -324,7 +324,7 @@ export function CvBuilder({ isOpen, onClose, initialCv, isLoading, onRegenerateS
   // Convertir foto de S3 a base64 usando el backend como proxy (evita CORS)
   const photoUrlRef = useRef<string | undefined>(undefined);
   useEffect(() => {
-    const photoUrl = profilePhotoUrl;
+    const photoUrl = toProfileImageUrl(profilePhotoUrl);
     if (!photoUrl || photoUrl.startsWith("data:")) return;
     // Evitar ejecutar si ya se procesó esta URL
     if (photoUrlRef.current === photoUrl) return;

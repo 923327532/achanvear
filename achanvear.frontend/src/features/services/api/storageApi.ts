@@ -1,38 +1,26 @@
 // features/services/api/storageApi.ts
 import api from "@/lib/axiosClient";
 
-interface PresignedUrlResponse {
+interface UploadResponse {
   fileKey: string;
-  uploadUrl: string;
   publicFileUrl: string;
 }
 
-async function getPresignedUrl(
+async function uploadViaBackend(
   type: "IMAGES" | "VIDEOS" | "PDFS" | "CERTIFICATES",
-  fileName: string,
-  contentType: string
-): Promise<PresignedUrlResponse> {
-  const res = await api.post<PresignedUrlResponse>("/services/storage/presigned-url", {
-    type,
-    fileName,
-    contentType,
-  });
+  file: File
+): Promise<string> {
+  const formData = new FormData();
+  formData.append("type", type);
+  formData.append("file", file);
 
-  return res.data;
-}
-
-async function uploadToS3(uploadUrl: string, file: File): Promise<void> {
-  const response = await fetch(uploadUrl, {
-    method: "PUT",
-    body: file,
+  const response = await api.post<UploadResponse>("/services/storage/upload", formData, {
     headers: {
-      "Content-Type": file.type,
+      "Content-Type": "multipart/form-data",
     },
   });
 
-  if (!response.ok) {
-    throw new Error(`Error al subir archivo a S3: ${response.statusText}`);
-  }
+  return response.data.publicFileUrl;
 }
 
 /**
@@ -79,15 +67,7 @@ export const storageApi = {
       }
     }
 
-    const { uploadUrl, publicFileUrl } = await getPresignedUrl(
-      type,
-      file.name,
-      file.type
-    );
-
-    await uploadToS3(uploadUrl, file);
-
-    return publicFileUrl;
+    return uploadViaBackend(type, file);
   },
 
   /**

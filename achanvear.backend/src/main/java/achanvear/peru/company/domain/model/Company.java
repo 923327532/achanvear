@@ -20,6 +20,7 @@ public class Company extends AggregateRoot<CompanyId> {
     private String specialty;
     private CompanySize companySize;
     private String logoUrl;
+    private String bannerUrl;
     private String biography;
     private String achievements;
     private String address;
@@ -39,6 +40,7 @@ public class Company extends AggregateRoot<CompanyId> {
             String specialty,
             CompanySize companySize,
             String logoUrl,
+            String bannerUrl,
             String biography,
             String achievements,
             String address,
@@ -57,6 +59,7 @@ public class Company extends AggregateRoot<CompanyId> {
         this.specialty = validateRequiredText(specialty, "Specialty", 2, 120);
         this.companySize = Objects.requireNonNull(companySize, "Company size cannot be null");
         this.logoUrl = normalizeOptionalText(logoUrl);
+        this.bannerUrl = normalizeOptionalText(bannerUrl);
         this.biography = validateRequiredText(biography, "Biography", 10, 1500);
         this.achievements = normalizeOptionalText(achievements);
         this.address = validateRequiredText(address, "Address", 5, 255);
@@ -77,6 +80,7 @@ public class Company extends AggregateRoot<CompanyId> {
             String specialty,
             CompanySize companySize,
             String logoUrl,
+            String bannerUrl,
             String biography,
             String achievements,
             String address,
@@ -96,6 +100,7 @@ public class Company extends AggregateRoot<CompanyId> {
                 specialty,
                 companySize,
                 logoUrl,
+                bannerUrl,
                 biography,
                 achievements,
                 address,
@@ -123,6 +128,7 @@ public class Company extends AggregateRoot<CompanyId> {
             String specialty,
             CompanySize companySize,
             String logoUrl,
+            String bannerUrl,
             String biography,
             String achievements,
             String address,
@@ -142,6 +148,7 @@ public class Company extends AggregateRoot<CompanyId> {
                 specialty,
                 companySize,
                 logoUrl,
+                bannerUrl,
                 biography,
                 achievements,
                 address,
@@ -161,6 +168,7 @@ public class Company extends AggregateRoot<CompanyId> {
             String specialty,
             CompanySize companySize,
             String logoUrl,
+            String bannerUrl,
             String biography,
             String achievements,
             String address,
@@ -176,6 +184,7 @@ public class Company extends AggregateRoot<CompanyId> {
         this.specialty = validateRequiredText(specialty, "Specialty", 2, 120);
         this.companySize = Objects.requireNonNull(companySize, "Company size cannot be null");
         this.logoUrl = normalizeOptionalText(logoUrl);
+        this.bannerUrl = normalizeOptionalText(bannerUrl);
         this.biography = validateRequiredText(biography, "Biography", 10, 1500);
         this.achievements = normalizeOptionalText(achievements);
         this.address = validateRequiredText(address, "Address", 5, 255);
@@ -249,6 +258,10 @@ public class Company extends AggregateRoot<CompanyId> {
 
     public String getLogoUrl() {
         return logoUrl;
+    }
+
+    public String getBannerUrl() {
+        return bannerUrl;
     }
 
     public String getBiography() {

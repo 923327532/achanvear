@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { ServiceStatusBadge } from "./ServiceStatusBadge";
 import { CATEGORY_LABELS, CATEGORY_COLORS } from "../types/service.types";
 import type { Service } from "../types/service.types";
+import { toServiceMediaUrl } from "@/lib/mediaUrls";
 
 interface Props {
   service: Service;
@@ -16,6 +17,7 @@ interface Props {
 
 export function ServiceCard({ service, onView, onDelete, isDeleting }: Props) {
   const router = useRouter();
+  const imageUrl = toServiceMediaUrl(service.imageUrls?.find((url) => url && url.trim().length > 0));
 
   return (
     <div className="bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow duration-200 flex flex-col overflow-hidden w-full">
@@ -25,10 +27,10 @@ export function ServiceCard({ service, onView, onDelete, isDeleting }: Props) {
           [""] (un string vacío) en vez de un array realmente vacío. Eso
           renderizaba <img src=""> y disparaba un error de consola / icono
           roto. Ahora se valida que el primer elemento tenga contenido real. */}
-      {service.imageUrls && service.imageUrls[0] ? (
+      {imageUrl ? (
         <div className="w-full h-24 overflow-hidden flex-shrink-0">
           <img
-            src={service.imageUrls[0]}
+            src={imageUrl}
             alt={service.title}
             className="w-full h-full object-cover"
           />

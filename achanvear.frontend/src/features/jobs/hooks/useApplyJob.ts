@@ -10,6 +10,7 @@ export function useApplyJob(jobId: string) {
     mutationFn: (payload: ApplyJobPayload) => jobApi.apply(jobId, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["job-detail", jobId] });
+      queryClient.invalidateQueries({ queryKey: ["job-applicants", jobId] });
       queryClient.invalidateQueries({ queryKey: ["jobs"] });
       // Actualizar el caché de applied-job-ids inmediatamente
       const currentIds = queryClient.getQueryData<string[]>(["applied-job-ids"]) ?? [];

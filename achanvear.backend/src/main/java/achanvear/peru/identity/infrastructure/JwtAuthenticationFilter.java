@@ -54,24 +54,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     ) throws ServletException, IOException {
         String authorizationHeader = request.getHeader(AUTHORIZATION_HEADER);
 
-        System.out.println("DEBUG JWT - Authorization Header: [" + authorizationHeader + "]");
-
         if (authorizationHeader == null || !authorizationHeader.startsWith(BEARER_PREFIX)) {
-            System.out.println("DEBUG JWT - No authorization header or invalid format");
             filterChain.doFilter(request, response);
             return;
         }
 
         String token = authorizationHeader.substring(BEARER_PREFIX.length());
-        System.out.println("DEBUG JWT - Token extracted: [" + token.substring(0, Math.min(20, token.length())) + "...]");
 
         if (!jwtTokenProvider.isValidToken(token)) {
-            System.out.println("DEBUG JWT - Token is invalid");
             filterChain.doFilter(request, response);
             return;
         }
-
-        System.out.println("DEBUG JWT - Token is valid");
 
         String userId = jwtTokenProvider.extractUserId(token);
         String email = jwtTokenProvider.extractEmail(token);
@@ -92,7 +85,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         // Si el token no tiene companyId pero el usuario es COMPANY o COMPANY_COLLABORATOR, buscar en BD
         if (companyId == null && ("COMPANY".equals(role) || "COMPANY_COLLABORATOR".equals(role))) {
-            System.out.println("DEBUG JWT - companyId not in token, looking up in database...");
             if ("COMPANY".equals(role)) {
                 companyId = companyRepository.findByOwnerUserId(UUID.fromString(userId))
                         .map(company -> company.getId().value())
@@ -102,12 +94,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         .map(CompanyCollaborator::getCompanyId)
                         .orElse(null);
             }
-            System.out.println("DEBUG JWT - companyId from DB: [" + companyId + "]");
         }
-
-        // Debug log para verificar el rol
-        System.out.println("DEBUG JWT - Role extracted: [" + role + "]");
-        System.out.println("DEBUG JWT - Authority: [" + new SimpleGrantedAuthority(role) + "]");
 
         List<SimpleGrantedAuthority> authorities = List.of(new SimpleGrantedAuthority(role));
 

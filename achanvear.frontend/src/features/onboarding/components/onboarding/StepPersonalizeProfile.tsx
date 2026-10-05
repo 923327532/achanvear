@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { toProfileImageUrl } from "@/lib/mediaUrls";
 // Tipos locales (no exportados desde onboarding.types)
 interface PortfolioLink { id: string; url: string; }
 interface Achievement { id: string; description: string; }
@@ -37,6 +38,7 @@ export function StepPersonalizeProfile({
 }: StepPersonalizeProfileProps) {
   const [newPortfolioUrl, setNewPortfolioUrl] = useState("");
   const [newAchievement, setNewAchievement] = useState("");
+  const displayProfilePhotoUrl = toProfileImageUrl(profilePhotoUrl);
 
   const addPortfolioLink = () => {
     if (!newPortfolioUrl.trim()) return;
@@ -98,9 +100,9 @@ export function StepPersonalizeProfile({
           </p>
           <div className="flex items-center gap-4">
             <div className="h-16 w-16 rounded-full bg-slate-200 flex items-center justify-center text-slate-400 text-sm font-medium overflow-hidden">
-              {profilePhotoUrl ? (
+              {displayProfilePhotoUrl ? (
                 <img
-                  src={profilePhotoUrl}
+                  src={displayProfilePhotoUrl}
                   alt="Profile"
                   className="h-full w-full object-cover"
                 />

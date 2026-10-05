@@ -293,11 +293,11 @@ export const onboardingService = {
     return parseResponse(response);
   },
 
-  /** Suscripción a plan via MercadoPago — devuelve URL de pago */
-  subscribeToPlan: async (planId: string, companyEmail: string): Promise<string> => {
+  /** Suscripción a plan via Culqi — cobra con la tarjeta tokenizada */
+  subscribeToPlan: async (planId: string, companyEmail: string, token: string): Promise<string> => {
     const response = await api.post<ApiResponse<string>>(
       "/payments/plans/subscribe",
-      { plan: planId, companyEmail }
+      { plan: planId, companyEmail, token }
     );
     return parseResponse(response);
   },

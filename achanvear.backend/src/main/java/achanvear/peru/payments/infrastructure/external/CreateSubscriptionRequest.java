@@ -10,13 +10,13 @@ public record CreateSubscriptionRequest(
         String payer_email,
         String back_url
 ) {
-    public CreateSubscriptionRequest(String reason, String description, int monthlyPrice, String userId, String userEmail) {
+    public CreateSubscriptionRequest(String reason, String userId, int monthlyPrice, String userEmail, String backUrl) {
         this(
                 reason,
                 userId,
                 new AutoRecurring(monthlyPrice),
                 userEmail,
-                "http://localhost:8081/payment/success"
+                backUrl
         );
     }
 

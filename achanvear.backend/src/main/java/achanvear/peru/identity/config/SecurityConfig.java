@@ -87,6 +87,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         // Permitir /error para que no oculte errores reales detrás de un 403
                         .requestMatchers("/error").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/profiles/photo-proxy").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/services/storage/file-proxy").permitAll()
                         // Rutas públicas de onboarding
                         .requestMatchers(HttpMethod.GET, "/onboarding/industries").permitAll()
                         .requestMatchers(HttpMethod.GET, "/onboarding/specialties/**").permitAll()

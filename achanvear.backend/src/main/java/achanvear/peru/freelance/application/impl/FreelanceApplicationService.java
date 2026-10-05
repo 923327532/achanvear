@@ -14,6 +14,10 @@ import achanvear.peru.freelance.domain.model.PaymentMethodType;
 import achanvear.peru.freelance.domain.repository.FreelanceProjectRepository;
 import achanvear.peru.freelance.domain.repository.FreelancerProfileRepository;
 import achanvear.peru.profile.*;
+import achanvear.peru.payments.domain.model.PlanType;
+import achanvear.peru.payments.domain.model.ProjectPublishingPolicy;
+import achanvear.peru.payments.domain.repository.SubscriptionRepository;
+import achanvear.peru.shared.application.port.CompanyLookupPort;
 import achanvear.peru.shared.application.port.IdentityFreelancerLookupPort;
 import achanvear.peru.shared.domain.exception.ResourceNotFoundException;
 import achanvear.peru.shared.exception.BusinessRuleViolationException;
@@ -55,6 +59,8 @@ public class FreelanceApplicationService implements
     private final TalentProfileRepository talentProfileRepository;
     private final EventPublisher eventPublisher;
     private final FreelanceApplicationMapper freelanceApplicationMapper;
+    private final CompanyLookupPort companyLookupPort;
+    private final SubscriptionRepository subscriptionRepository;
 
     public FreelanceApplicationService(
             FreelancerProfileRepository freelancerProfileRepository,
@@ -65,7 +71,9 @@ public class FreelanceApplicationService implements
             IdentityFreelancerLookupPort identityFreelancerLookupPort,
             TalentProfileRepository talentProfileRepository,
             EventPublisher eventPublisher,
-            FreelanceApplicationMapper freelanceApplicationMapper
+            FreelanceApplicationMapper freelanceApplicationMapper,
+            CompanyLookupPort companyLookupPort,
+            SubscriptionRepository subscriptionRepository
     ) {
         this.freelancerProfileRepository = freelancerProfileRepository;
         this.freelanceProjectRepository = freelanceProjectRepository;
@@ -76,6 +84,8 @@ public class FreelanceApplicationService implements
         this.talentProfileRepository = talentProfileRepository;
         this.eventPublisher = eventPublisher;
         this.freelanceApplicationMapper = freelanceApplicationMapper;
+        this.companyLookupPort = companyLookupPort;
+        this.subscriptionRepository = subscriptionRepository;
     }
 
 
@@ -231,8 +241,11 @@ public class FreelanceApplicationService implements
 
     @Override
     public FreelanceProjectResponse execute(CreateFreelanceProjectCommand command) {
+        UUID clientUserId = UUID.fromString(command.clientUserId());
+        validateFreelanceProjectPublishingAllowance(clientUserId);
+
         FreelanceProject project = freelanceProjectFactory.create(
-                UUID.fromString(command.clientUserId()),
+                clientUserId,
                 command.title(),
                 command.description(),
                 command.category(),
@@ -257,6 +270,30 @@ public class FreelanceApplicationService implements
         project.pullDomainEvents().forEach(eventPublisher::publish);
 
         return freelanceApplicationMapper.toProjectResponse(project);
+    }
+
+    private void validateFreelanceProjectPublishingAllowance(UUID clientUserId) {
+        CompanyLookupPort.CompanySummary company = companyLookupPort.findByOwnerUserId(clientUserId)
+                .orElseThrow(() -> new BusinessRuleViolationException("Debes completar el perfil de empresa para publicar proyectos."));
+
+        var subscription = subscriptionRepository.findByCompanyUserId(clientUserId)
+                .filter(sub -> sub.isActive());
+        boolean hasActiveSubscription = subscription.isPresent();
+        PlanType plan = subscription.map(sub -> sub.getPlan()).orElse(PlanType.FREE);
+        int currentProjects = (int) freelanceProjectRepository.countByClientIdSince(clientUserId, company.createdAt());
+
+        boolean canPublish = ProjectPublishingPolicy.canPublishFreelanceProject(
+                plan,
+                currentProjects,
+                hasActiveSubscription,
+                company.createdAt()
+        );
+
+        if (!canPublish) {
+            throw new BusinessRuleViolationException(
+                    ProjectPublishingPolicy.getFreelanceProjectUpgradeMessage(currentProjects, company.createdAt())
+            );
+        }
     }
 
     @Override
@@ -444,13 +481,52 @@ public class FreelanceApplicationService implements
     @Override
     @Transactional(readOnly = true)
     public FreelancerProfileResponse getFreelancerProfileById(String freelancerId) {
-        FreelancerProfile profile = freelancerProfileRepository.findById(String.valueOf(UUID.fromString(freelancerId)))
-                .orElseThrow(() -> new ResourceNotFoundException("Freelancer profile not found"));
+        UUID id = UUID.fromString(freelancerId);
+        FreelancerProfile profile = freelancerProfileRepository.findById(id.toString())
+                .or(() -> freelancerProfileRepository.findByUserId(id))
+                .orElse(null);
 
-        // Buscar TalentProfile para combinar datos
-        TalentProfile talentProfile = talentProfileRepository.findByUserId(profile.getUserId()).orElse(null);
+        if (profile != null) {
+            TalentProfile talentProfile = talentProfileRepository.findByUserId(profile.getUserId()).orElse(null);
+            return freelanceApplicationMapper.toFreelancerProfileResponse(profile, talentProfile);
+        }
 
-        return freelanceApplicationMapper.toFreelancerProfileResponse(profile, talentProfile);
+        TalentProfile talentProfile = talentProfileRepository.findByUserId(id).orElse(null);
+        IdentityFreelancerLookupPort.FreelancerUserSummary user = identityFreelancerLookupPort.findById(id);
+        if (user == null) {
+            throw new ResourceNotFoundException("Freelancer profile not found");
+        }
+
+        return new FreelancerProfileResponse(
+                null,
+                id.toString(),
+                user.fullName(),
+                null,
+                talentProfile != null ? talentProfile.getHeadline() : null,
+                talentProfile != null ? talentProfile.getProfilePhotoUrl() : null,
+                talentProfile != null ? talentProfile.getBiography() : null,
+                null,
+                talentProfile != null ? talentProfile.getLocation() : null,
+                null,
+                user.dni(),
+                talentProfile != null ? talentProfile.getCurriculumUrl() : null,
+                null,
+                user.status(),
+                java.util.List.of(),
+                talentProfile != null ? talentProfile.getHeadline() : null,
+                talentProfile != null ? talentProfile.getLocation() : null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+        );
     }
 
 

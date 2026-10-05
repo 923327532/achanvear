@@ -408,29 +408,51 @@ public class InterviewApplicationService implements
         }
     }
 
-    private String resolveDateFromSchedule(String jobId, String candidateId) {
-        try {
-            var schedules = interviewScheduleRepository.findByCandidateId(candidateId);
-            return schedules.stream()
-                    .filter(s -> s.getJobId().equals(jobId) && s.getChosenSlot() != null)
-                    .findFirst()
-                    .map(s -> s.getChosenSlot().getDateTime().format(DATE_FMT))
-                    .orElse("");
-        } catch (Exception e) {
-            return "";
+    private String resolveDateFromSchedule(Interview interview) {
+        // 1) Preferir la fecha guardada en la propia entrevista (fuente confiable)
+        if (interview.getAssignedSlotDateTime() != null) {
+            return interview.getAssignedSlotDateTime().format(DATE_FMT);
         }
+
+        // 2) Fallback: buscar el schedule elegido del candidato para ese puesto
+        for (InterviewSchedule s : findChosenSchedules(interview)) {
+            return s.getChosenSlot().getDateTime().format(DATE_FMT);
+        }
+        return "";
     }
 
-    private String resolveTimeFromSchedule(String jobId, String candidateId) {
+    private String resolveTimeFromSchedule(Interview interview) {
+        // 1) Preferir la hora guardada en la propia entrevista (fuente confiable)
+        if (interview.getAssignedSlotDateTime() != null) {
+            return interview.getAssignedSlotDateTime().format(TIME_FMT);
+        }
+
+        // 2) Fallback: buscar el schedule elegido del candidato para ese puesto
+        for (InterviewSchedule s : findChosenSchedules(interview)) {
+            return s.getChosenSlot().getDateTime().format(TIME_FMT);
+        }
+        return "";
+    }
+
+    /**
+     * Busca schedules con horario ya elegido que correspondan a la entrevista.
+     * Se compara por jobId y tambien por hiringProcessId porque en algunas
+     * entidades el jobId de la entrevista apunta al proceso de contratacion.
+     */
+    private java.util.List<InterviewSchedule> findChosenSchedules(Interview interview) {
         try {
+            String jobId = interview.getJobId();
+            String candidateId = interview.getCandidateId();
             var schedules = interviewScheduleRepository.findByCandidateId(candidateId);
             return schedules.stream()
-                    .filter(s -> s.getJobId().equals(jobId) && s.getChosenSlot() != null)
-                    .findFirst()
-                    .map(s -> s.getChosenSlot().getDateTime().format(TIME_FMT))
-                    .orElse("");
+                    .filter(s -> s.getChosenSlot() != null)
+                    .filter(s -> {
+                        if (jobId == null) return false;
+                        return jobId.equals(s.getJobId()) || jobId.equals(s.getHiringProcessId());
+                    })
+                    .toList();
         } catch (Exception e) {
-            return "";
+            return java.util.List.of();
         }
     }
 
@@ -443,8 +465,8 @@ public class InterviewApplicationService implements
             Integer score = interviewScore != null ? interviewScore.getValue() : null;
             boolean passed = score != null && score >= 75;
             String jobTitle = resolveJobTitle(interview.getJobId());
-            String date = resolveDateFromSchedule(interview.getJobId(), candidateId);
-            String time = resolveTimeFromSchedule(interview.getJobId(), candidateId);
+            String date = resolveDateFromSchedule(interview);
+            String time = resolveTimeFromSchedule(interview);
 
             // Auto-cancel expired interviews
             String status = interview.getStatus().name();

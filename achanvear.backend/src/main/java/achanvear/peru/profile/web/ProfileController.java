@@ -18,6 +18,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
@@ -25,6 +29,8 @@ import java.util.List;
 @RestController
 @RequestMapping("/profiles")
 public class ProfileController {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(ProfileController.class);
 
     private final CreateTalentProfileUseCase createTalentProfileUseCase;
     private final UpdateTalentProfileUseCase updateTalentProfileUseCase;
@@ -237,6 +243,35 @@ public class ProfileController {
         return ResponseEntity.ok(ApiResponse.success(response, "Presigned upload url generated successfully"));
     }
 
+    @PostMapping(value = "/storage/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ApiResponse<ProfileStoragePort.UploadResponse>> uploadFile(
+            @RequestParam("folder") String folder,
+            @RequestParam("file") MultipartFile file
+    ) {
+        if (file.isEmpty()) {
+            return ResponseEntity.badRequest().body(ApiResponse.failure("El archivo esta vacio"));
+        }
+
+        try {
+            ProfileStoragePort.UploadResponse response = profileStoragePort.uploadFile(
+                    folder,
+                    file.getOriginalFilename(),
+                    file.getContentType(),
+                    file.getBytes()
+            );
+            ProfileStoragePort.UploadResponse browserReadableResponse = new ProfileStoragePort.UploadResponse(
+                    response.fileKey(),
+                    buildProfilePhotoProxyUrl(response.fileKey())
+            );
+            return ResponseEntity.ok(ApiResponse.success(browserReadableResponse, "File uploaded successfully"));
+        } catch (java.io.IOException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.failure("No se pudo leer el archivo enviado"));
+        } catch (RuntimeException e) {
+            LOGGER.error("Profile storage upload failed", e);
+            return ResponseEntity.badRequest().body(ApiResponse.failure("No se pudo subir el archivo: " + e.getMessage()));
+        }
+    }
+
     @GetMapping("/photo-proxy")
     public ResponseEntity<Resource> serveProfilePhoto(
             @RequestParam String fileKey
@@ -260,8 +295,18 @@ public class ProfileController {
                     .header(HttpHeaders.CACHE_CONTROL, "public, max-age=86400")
                     .body(resource);
         } catch (Exception e) {
+            LOGGER.warn("Profile photo proxy failed for key {}", fileKey, e);
             return ResponseEntity.notFound().build();
         }
+    }
+
+    private String buildProfilePhotoProxyUrl(String fileKey) {
+        return ServletUriComponentsBuilder.fromCurrentContextPath()
+                .path("/profiles/photo-proxy")
+                .queryParam("fileKey", fileKey)
+                .build()
+                .encode()
+                .toUriString();
     }
 
 

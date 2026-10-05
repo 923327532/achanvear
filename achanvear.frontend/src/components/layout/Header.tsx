@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/features/auth/hooks/useAuth";
+import { BrandLogo } from "@/shared/components/ui/BrandLogo";
 import { ROUTES, homeRouteForRole } from "@/lib/constants";
 
 export function Header() {
@@ -44,11 +45,7 @@ export function Header() {
       <nav className="mx-auto flex max-w-full items-center justify-between px-6 py-5 lg:px-12" aria-label="Global">
         <div className="flex lg:flex-1">
           <Link href={ROUTES.home} className="-m-1.5 p-1.5 flex items-center">
-            <span className="sr-only">Achanvear</span>
-            <div className="flex items-center justify-center h-10 w-10 rounded-lg bg-teal-600 text-white font-bold text-xl">
-              A
-            </div>
-            <span className="ml-3 text-2xl font-bold text-blue-900">Achanvear</span>
+            <BrandLogo href={null} size="md" textClassName="ml-3 text-2xl font-bold text-blue-900" className="gap-0" />
           </Link>
         </div>
         <div className="flex lg:hidden">

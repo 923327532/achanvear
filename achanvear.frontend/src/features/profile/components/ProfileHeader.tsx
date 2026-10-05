@@ -4,6 +4,7 @@ import { useState, useRef } from "react";
 import { Camera, Pencil, Check, X, Loader2, BadgeCheck } from "lucide-react";
 import { useUpdateProfile, useUploadFile } from "../hooks/useProfile";
 import type { Profile } from "../types/profile.types";
+import { toProfileImageUrl } from "@/lib/mediaUrls";
 
 interface Props {
   profile: Profile;
@@ -24,6 +25,7 @@ export function ProfileHeader({ profile }: Props) {
   const profileId   = profile.id;
   const displayName = profile.name || "Freelancer";
   const initials    = getInitials(displayName);
+  const profilePhotoUrl = toProfileImageUrl(profile.profilePhotoUrl);
 
   const handleSave = async () => {
     if (!profileId) return;
@@ -57,8 +59,8 @@ export function ProfileHeader({ profile }: Props) {
         <div className="flex items-end justify-between -mt-12 mb-4">
           <div className="relative">
             <div className="w-24 h-24 rounded-full border-4 border-white shadow-md overflow-hidden bg-[#1B3A6B] flex items-center justify-center">
-              {profile.profilePhotoUrl ? (
-                <img src={profile.profilePhotoUrl} alt="avatar" className="w-full h-full object-cover" />
+              {profilePhotoUrl ? (
+                <img src={profilePhotoUrl} alt="avatar" className="w-full h-full object-cover" />
               ) : (
                 <span className="text-2xl font-bold text-white">{initials}</span>
               )}

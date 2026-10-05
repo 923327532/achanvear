@@ -3,6 +3,7 @@
 // src/features/auth/components/RegisterForm.tsx
 import Link from "next/link";
 import { Input } from "@/shared/components/ui/Input";
+import { BrandLogo } from "@/shared/components/ui/BrandLogo";
 import { useRegister } from "@/features/auth/hooks/useRegister";
 import { useGoogleLogin } from "@/features/auth/hooks/useGoogleLogin";
 import { UserRound, Building2 } from "lucide-react";
@@ -128,15 +129,7 @@ export function RegisterForm() {
     <div className="flex min-h-screen flex-col items-center justify-start bg-slate-50 px-3 py-6 sm:justify-center sm:px-4 sm:py-12">
 
       {/* Logo */}
-      <Link href="/" className="mb-6 flex items-center gap-2.5 sm:mb-8">
-        <div
-          className="flex h-10 w-10 items-center justify-center rounded-xl text-sm font-bold text-white"
-          style={{ backgroundColor: "#1B3A6B" }}
-        >
-          A
-        </div>
-        <span className="text-xl font-bold" style={{ color: "#1B3A6B" }}>Achanvear</span>
-      </Link>
+      <BrandLogo className="mb-6 sm:mb-8" />
 
       {/* Card */}
       <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-4 shadow-lg sm:p-8">

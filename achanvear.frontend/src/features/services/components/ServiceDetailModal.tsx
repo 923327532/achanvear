@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { ServiceStatusBadge } from "./ServiceStatusBadge";
 import { CATEGORY_LABELS, CATEGORY_COLORS } from "../types/service.types";
 import type { Service } from "../types/service.types";
+import { toServiceMediaUrl } from "@/lib/mediaUrls";
 
 interface Props {
   open: boolean;
@@ -17,6 +18,7 @@ export function ServiceDetailModal({ open, service, onClose }: Props) {
   const router = useRouter();
 
   if (!open || !service) return null;
+  const imageUrl = toServiceMediaUrl(service.imageUrls?.find((url) => url && url.trim().length > 0));
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -39,10 +41,10 @@ export function ServiceDetailModal({ open, service, onClose }: Props) {
         <div className="overflow-y-auto flex-1">
 
           {/* Imagen full-width */}
-          {service.imageUrls && service.imageUrls.length > 0 ? (
+          {imageUrl ? (
             <div className="w-full h-56 flex-shrink-0">
               <img
-                src={service.imageUrls[0]}
+                src={imageUrl}
                 alt={service.title}
                 className="w-full h-full object-cover"
               />

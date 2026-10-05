@@ -66,7 +66,7 @@ public class EscrowController {
      * Lista todos los escrows del usuario autenticado como cliente.
      */
     @GetMapping("/client")
-    @PreAuthorize("hasAuthority('COMPANY')")
+    @PreAuthorize("hasAnyAuthority('COMPANY', 'COMPANY_COLLABORATOR')")
     public ResponseEntity<ApiResponse<List<EscrowStatusResponse>>> getClientEscrows(
             @AuthenticationPrincipal AuthenticatedUser user
     ) {

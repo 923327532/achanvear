@@ -113,6 +113,7 @@ public class InterviewScheduleService implements
                 schedule.getInterviewType(),
                 InterviewStatus.SCHEDULED,
                 command.slotIndex(),
+                schedule.getChosenSlot() != null ? schedule.getChosenSlot().getDateTime() : null,
                 null,
                 profile,
                 null,

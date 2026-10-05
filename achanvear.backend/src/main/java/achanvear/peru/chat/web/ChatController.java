@@ -48,6 +48,7 @@ public class ChatController {
         try (var conn = dataSource.getConnection();
              var stmt = conn.prepareStatement("""
                  SELECT c.id, c.company_id, c.freelancer_id, c.updated_at,
+                        CASE WHEN c.company_id = ? THEN c.freelancer_id ELSE c.company_id END AS participant_id,
                         u.full_name AS participant_name,
                         u.role AS participant_role,
                         (SELECT content FROM chat_messages WHERE conversation_id = c.id ORDER BY sent_at DESC LIMIT 1) AS last_message,
@@ -60,6 +61,7 @@ public class ChatController {
             stmt.setObject(1, userId);
             stmt.setObject(2, userId);
             stmt.setObject(3, userId);
+            stmt.setObject(4, userId);
 
             List<ConversationResponse> conversations = new ArrayList<>();
             try (ResultSet rs = stmt.executeQuery()) {
@@ -68,6 +70,7 @@ public class ChatController {
                     Timestamp updatedTs = rs.getTimestamp("updated_at");
                     conversations.add(new ConversationResponse(
                             rs.getObject("id", UUID.class).toString(),
+                            rs.getObject("participant_id", UUID.class).toString(),
                             rs.getString("participant_name"),
                             rs.getString("participant_role"),
                             rs.getString("last_message") != null ? rs.getString("last_message") : "",
@@ -82,6 +85,49 @@ public class ChatController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.failure("Failed to get conversations: " + e.getMessage()));
+        }
+    }
+
+    // ─── GET /chat/conversations/{id}/attachments ─────────────────────────────
+    @GetMapping("/conversations/{conversationId}/attachments")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<List<ConversationAttachmentResponse>>> getConversationAttachments(
+            @PathVariable String conversationId,
+            @AuthenticationPrincipal AuthenticatedUser user
+    ) {
+        try (var conn = dataSource.getConnection();
+             var stmt = conn.prepareStatement("""
+                 SELECT ca.id, ca.original_name, ca.mime_type, ca.file_size, ca.uploaded_at,
+                        cm.sender_id, u.full_name AS sender_name
+                 FROM chat_attachments ca
+                 JOIN chat_messages cm ON cm.id = ca.message_id
+                 JOIN chat_conversations cc ON cc.id = cm.conversation_id
+                 JOIN users u ON u.id = cm.sender_id
+                 WHERE cc.id = ? AND (cc.company_id = ? OR cc.freelancer_id = ?)
+                 ORDER BY ca.uploaded_at DESC
+             """)) {
+            stmt.setObject(1, UUID.fromString(conversationId));
+            stmt.setObject(2, user.getUserId());
+            stmt.setObject(3, user.getUserId());
+
+            List<ConversationAttachmentResponse> attachments = new ArrayList<>();
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    attachments.add(new ConversationAttachmentResponse(
+                            rs.getObject("id", UUID.class).toString(),
+                            rs.getString("original_name"),
+                            rs.getString("mime_type"),
+                            rs.getLong("file_size"),
+                            rs.getObject("sender_id", UUID.class).toString(),
+                            rs.getString("sender_name"),
+                            rs.getTimestamp("uploaded_at").toInstant().toString()
+                    ));
+                }
+            }
+            return ResponseEntity.ok(ApiResponse.success(attachments, "Conversation attachments retrieved"));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.failure("Failed to get conversation attachments: " + e.getMessage()));
         }
     }
 
@@ -364,17 +410,19 @@ public class ChatController {
             // Check if conversation already exists
             try (var checkStmt = conn.prepareStatement("""
                 SELECT c.id, c.company_id, c.freelancer_id, c.updated_at,
+                       CASE WHEN c.company_id = ? THEN c.freelancer_id ELSE c.company_id END AS participant_id,
                        u.full_name AS participant_name, u.role AS participant_role
                 FROM chat_conversations c
                 JOIN users u ON u.id = CASE WHEN c.company_id = ? THEN c.freelancer_id ELSE c.company_id END
                 WHERE (c.company_id = ? AND c.freelancer_id = ?)
                    OR (c.company_id = ? AND c.freelancer_id = ?)
             """)) {
-                checkStmt.setObject(1, otherUserId);
+                checkStmt.setObject(1, userId);
                 checkStmt.setObject(2, userId);
-                checkStmt.setObject(3, otherUserId);
+                checkStmt.setObject(3, userId);
                 checkStmt.setObject(4, otherUserId);
-                checkStmt.setObject(5, userId);
+                checkStmt.setObject(5, otherUserId);
+                checkStmt.setObject(6, userId);
 
                 try (ResultSet rs = checkStmt.executeQuery()) {
                     if (rs.next()) {
@@ -382,6 +430,7 @@ public class ChatController {
                         Timestamp updatedTs = rs.getTimestamp("updated_at");
                         ConversationResponse existing = new ConversationResponse(
                                 rs.getObject("id", UUID.class).toString(),
+                                rs.getObject("participant_id", UUID.class).toString(),
                                 rs.getString("participant_name"),
                                 rs.getString("participant_role"),
                                 "",
@@ -411,20 +460,23 @@ public class ChatController {
                     if (rs.next()) {
                         // Get participant name
                         String participantName = "";
+                        String participantRole = "";
                         try (var nameStmt = conn.prepareStatement(
                                 "SELECT full_name, role FROM users WHERE id = ?")) {
                             nameStmt.setObject(1, otherUserId);
                             try (ResultSet nameRs = nameStmt.executeQuery()) {
                                 if (nameRs.next()) {
                                     participantName = nameRs.getString("full_name");
+                                    participantRole = nameRs.getString("role");
                                 }
                             }
                         }
 
                         ConversationResponse created = new ConversationResponse(
                                 rs.getObject("id", UUID.class).toString(),
+                                otherUserId.toString(),
                                 participantName,
-                                "FREELANCER",
+                                participantRole,
                                 "",
                                 now.toString(),
                                 0
@@ -499,11 +551,22 @@ public class ChatController {
 
 record ConversationResponse(
         String id,
+        String participantId,
         String participantName,
         String participantRole,
         String lastMessage,
         String lastMessageAt,
         int unreadCount
+) {}
+
+record ConversationAttachmentResponse(
+        String id,
+        String originalName,
+        String mimeType,
+        long fileSize,
+        String senderId,
+        String senderName,
+        String uploadedAt
 ) {}
 
 record AttachmentResponse(

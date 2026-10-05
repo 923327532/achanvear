@@ -53,6 +53,18 @@ public class HiringApplicationService implements
 
         ScreeningResult screeningResult = aiScreeningClient.evaluate(command);
 
+        if (!command.autoAdvance()) {
+            return new ScreeningResultResponse(
+                    null,
+                    command.jobId(),
+                    command.candidateId(),
+                    "SCREENING_REVIEW",
+                    screeningResult.getScore(),
+                    screeningResult.isSelected(),
+                    screeningResult.getSummary()
+            );
+        }
+
         hiringProcess.completeScreening(
                 screeningResult.isSelected(),
                 screeningResult.getScore(),
@@ -65,6 +77,7 @@ public class HiringApplicationService implements
         return ScreeningResultResponse.from(
                 hiringProcess,
                 screeningResult.getScore(),
+                screeningResult.isSelected(),
                 screeningResult.getSummary()
         );
     }

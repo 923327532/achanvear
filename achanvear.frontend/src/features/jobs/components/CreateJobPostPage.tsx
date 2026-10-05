@@ -12,8 +12,12 @@ import {
   Bot,
   Zap,
   ChevronRight,
+  Crown,
+  Lock,
+  X,
 } from "lucide-react";
 import { useCreateJobPost } from "../hooks/useCreateJobPost";
+import { useCurrentPlan } from "@/features/settings/hooks/useCompanySettings";
 import AiJobAssistant from "./AiJobAssistant";
 import type { JobType, SelectionMode, JobAiSuggestion } from "../types/job.types";
 
@@ -67,6 +71,8 @@ const SELECTION_CARDS: SelectionCard[] = [
 export default function CreateJobPostPage() {
   const router = useRouter();
   const { mutate: createJob, isPending } = useCreateJobPost();
+  const { currentPlan } = useCurrentPlan();
+  const isFreePlan = !currentPlan || currentPlan.planType?.toUpperCase() === "FREE";
 
   // ─── Form state ──────────────────────────────────────────────────────────
   const [title, setTitle] = useState("");
@@ -79,6 +85,9 @@ export default function CreateJobPostPage() {
   const [description, setDescription] = useState("");
   const [requirements, setRequirements] = useState("");
   const [selectionMode, setSelectionMode] = useState<SelectionMode | null>(null);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [draftNotice, setDraftNotice] = useState<string | null>(null);
 
   // ─── Automation config (only for FULLY_AUTOMATED) ────────────────────────
   const [maxCandidatesForScreening, setMaxCandidatesForScreening] = useState("50");
@@ -172,9 +181,26 @@ export default function CreateJobPostPage() {
     if (suggestion.salaryMax != null) setSalaryMax(String(suggestion.salaryMax));
   };
 
+  const handleSelectionModeClick = (mode: SelectionMode) => {
+    setSubmitError(null);
+    setDraftNotice(null);
+    if (isFreePlan && mode !== "MANUAL") {
+      setShowUpgradeModal(true);
+      return;
+    }
+    setSelectionMode(mode);
+  };
+
   // ─── Submit ──────────────────────────────────────────────────────────────
   const handleSubmit = (status: "PUBLISHED" | "DRAFT") => {
     if (status === "PUBLISHED" && errors.length > 0) return;
+    setSubmitError(null);
+    setDraftNotice(null);
+
+    if (status === "DRAFT") {
+      setDraftNotice("Borrador guardado en esta pantalla. Para publicarlo necesitas publicaciones disponibles o actualizar tu plan.");
+      return;
+    }
 
     createJob(
       {
@@ -215,8 +241,11 @@ export default function CreateJobPostPage() {
         onSuccess: () => {
           router.push("/company");
         },
-        onError: () => {
-          // Error is handled by react-query
+        onError: (error) => {
+          const message = error instanceof Error
+            ? error.message
+            : "No puedes publicar otro empleo. Actualiza a un plan superior o compra un paquete de publicaciones.";
+          setSubmitError(message);
         },
       }
     );
@@ -406,7 +435,7 @@ export default function CreateJobPostPage() {
                     <div key={card.id}>
                       <button
                         type="button"
-                        onClick={() => setSelectionMode(card.id)}
+                        onClick={() => handleSelectionModeClick(card.id)}
                         className={`w-full text-left rounded-xl border-2 p-5 transition-all ${
                           isSelected
                             ? "border-blue-600 bg-blue-50/60 shadow-sm"
@@ -444,6 +473,12 @@ export default function CreateJobPostPage() {
                                   }`}
                                 >
                                   {card.badge.text}
+                                </span>
+                              )}
+                              {isFreePlan && card.id !== "MANUAL" && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-slate-900 text-white">
+                                  <Lock className="w-3 h-3" />
+                                  Plan superior
                                 </span>
                               )}
                             </div>
@@ -780,25 +815,45 @@ export default function CreateJobPostPage() {
             )}
 
             {/* ─── Action buttons ────────────────────────────────────────── */}
-            <div className="flex items-center justify-between pt-2">
+            {submitError && (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+                <p className="text-sm font-semibold text-amber-900">
+                  {submitError}
+                </p>
+                <p className="mt-1 text-xs leading-relaxed text-amber-800">
+                  Puedes guardar el borrador y volver cuando tengas un plan activo
+                  o publicaciones disponibles.
+                </p>
+              </div>
+            )}
+
+            {draftNotice && (
+              <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
+                <p className="text-sm font-semibold text-blue-900">
+                  {draftNotice}
+                </p>
+              </div>
+            )}
+
+            <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:items-center sm:justify-between">
               <button
                 onClick={() => router.push("/company")}
-                className="h-12 px-6 rounded-xl text-slate-500 font-medium hover:text-slate-700 transition"
+                className="h-11 w-full rounded-xl px-4 text-slate-500 font-medium transition hover:text-slate-700 sm:h-12 sm:w-auto sm:px-6"
               >
                 Cancelar
               </button>
-              <div className="flex items-center gap-3">
+              <div className="grid w-full grid-cols-1 gap-3 sm:w-auto sm:grid-cols-2">
                 <button
                   onClick={() => handleSubmit("DRAFT")}
                   disabled={isPending}
-                  className="h-12 px-8 rounded-xl border-2 border-blue-600 bg-white text-blue-700 font-semibold hover:bg-blue-50 transition disabled:opacity-50"
+                  className="h-11 w-full rounded-xl border-2 border-blue-600 bg-white px-4 text-sm font-semibold text-blue-700 transition hover:bg-blue-50 disabled:opacity-50 sm:h-12 sm:px-6"
                 >
                   Guardar borrador
                 </button>
                 <button
                   onClick={() => handleSubmit("PUBLISHED")}
                   disabled={isPending || errors.length > 0}
-                  className="h-12 px-8 rounded-xl bg-[#0a1628] text-white font-semibold hover:bg-[#1a2a42] transition disabled:opacity-50 flex items-center gap-2"
+                  className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#0a1628] px-4 text-sm font-semibold text-white transition hover:bg-[#1a2a42] disabled:opacity-50 sm:h-12 sm:px-6"
                 >
                   {isPending ? (
                     "Publicando..."
@@ -905,6 +960,64 @@ export default function CreateJobPostPage() {
       </div>
 
       {/* AI Assistant flotante */}
+      {showUpgradeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4">
+          <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl border border-slate-200">
+            <div className="flex items-start justify-between gap-4 border-b border-slate-100 p-6">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#0a1628] text-white">
+                  <Crown className="h-5 w-5" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-[#0a1628]">
+                    Actualiza tu plan
+                  </h2>
+                  <p className="text-sm text-slate-500">
+                    La IA de seleccion no esta incluida en Free
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowUpgradeModal(false)}
+                className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4 p-6">
+              <p className="text-sm leading-6 text-slate-600">
+                En el plan gratuito las postulaciones llegan a la empresa y el proceso queda en modo manual. Para activar filtros con IA, entrevistas automaticas y reportes inteligentes, elige un plan superior.
+              </p>
+
+              <div className="rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900">
+                Free: 2 empleos por 30 dias, solicitudes manuales y sin automatizacion IA.
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectionMode("MANUAL");
+                    setShowUpgradeModal(false);
+                  }}
+                  className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                >
+                  Usar manual
+                </button>
+                <button
+                  type="button"
+                  onClick={() => router.push("/company/settings")}
+                  className="w-full rounded-xl bg-[#0a1628] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#12233d]"
+                >
+                  Ver planes
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       <AiJobAssistant onApplySuggestion={handleAiSuggestion} />
     </div>
   );

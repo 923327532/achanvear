@@ -61,6 +61,7 @@ public interface JobPostMapper {
                 ApplicationStatus.valueOf(entity.getStatus()),
                 entity.getScreeningScore(),
                 entity.getScreeningResult(),
+                entity.getScreeningSummary(),
                 entity.getTheoryScore(),
                 entity.getTechnicalScore(),
                 entity.getFinalStatus()
@@ -89,6 +90,7 @@ public interface JobPostMapper {
         entity.setStatus(application.getStatus().name());
         entity.setScreeningScore(application.getScreeningScore());
         entity.setScreeningResult(application.getScreeningResult());
+        entity.setScreeningSummary(application.getScreeningSummary());
         entity.setTheoryScore(application.getTheoryScore());
         entity.setTechnicalScore(application.getTechnicalScore());
         entity.setFinalStatus(application.getFinalStatus());

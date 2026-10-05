@@ -1,4 +1,5 @@
 // src/app/(public)/page.tsx
+import type { Metadata } from "next";
 import {
   Users,
   DollarSign,
@@ -11,6 +12,36 @@ import {
   Star,
 } from "lucide-react";
 import Link from "next/link";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { faqSchema, FAQS, itemListSchema } from "@/lib/seo/jsonld";
+import { SITE_URL } from "@/lib/seo/site";
+
+export const metadata: Metadata = {
+  title: "Publica empleos y contrata freelancers en Perú",
+  description:
+    "Achanvear es la plataforma peruana para publicar empleos, buscar empleo, encontrar freelancers y profesionales independientes verificados por IA. Consigue proyectos y trabaja como independiente con pagos seguros.",
+  keywords: [
+    "publicar empleo",
+    "buscar empleo",
+    "freelancer",
+    "proyectos freelance",
+    "profesionales independientes",
+    "conseguir ser independiente",
+    "trabajar como independiente",
+    "empleos Perú",
+  ],
+  alternates: {
+    canonical: "/",
+  },
+  openGraph: {
+    url: SITE_URL,
+    title: "Achanvear | Publica empleos y contrata freelancers en Perú",
+    description:
+      "Publica empleos, busca trabajo y encuentra profesionales independientes certificados por IA en Perú.",
+    images: ["/opengraph-image.png"],
+  },
+};
+
 
 // ─────────────────────────────────────────────
 // HERO
@@ -240,16 +271,70 @@ function CtaSection() {
 }
 
 // ─────────────────────────────────────────────
+// FAQ SEO — responde a búsquedas reales de usuarios
+// ─────────────────────────────────────────────
+function FaqSection() {
+  return (
+    <section id="faq" className="bg-gray-50 py-16 sm:py-20">
+      <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
+        <div className="mb-10 text-center sm:mb-12">
+          <h2 className="text-2xl font-bold text-gray-900 sm:text-3xl lg:text-4xl">
+            Preguntas frecuentes sobre empleo y trabajo freelance en Perú
+          </h2>
+          <p className="mt-3 text-sm text-gray-500 sm:text-base">
+            Todo lo que necesitas saber para publicar empleos, buscar trabajo y contratar
+            profesionales independientes en Achanvear.
+          </p>
+        </div>
+
+        <div className="space-y-3">
+          {FAQS.map((faq) => (
+            <details
+              key={faq.question}
+              className="group rounded-2xl border border-gray-100 bg-white p-5 shadow-sm"
+            >
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-sm font-semibold text-gray-900 sm:text-base">
+                {faq.question}
+                <span className="text-teal-600 transition-transform group-open:rotate-45">+</span>
+              </summary>
+              <p className="mt-3 text-sm leading-relaxed text-gray-600">{faq.answer}</p>
+            </details>
+          ))}
+        </div>
+
+        <div className="mt-10 flex flex-wrap justify-center gap-3">
+          <Link
+            href="/register"
+            className="rounded-xl bg-teal-600 px-6 py-3 text-sm font-semibold text-white shadow-md transition-colors hover:bg-teal-700"
+          >
+            Publicar empleo
+          </Link>
+          <Link
+            href="/register"
+            className="rounded-xl border border-teal-600 px-6 py-3 text-sm font-semibold text-teal-700 transition-colors hover:bg-teal-50"
+          >
+            Buscar empleo como freelancer
+          </Link>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ─────────────────────────────────────────────
 // PAGE ROOT
 // ─────────────────────────────────────────────
 export default function LandingPage() {
   return (
     <>
+      <JsonLd data={faqSchema()} />
+      <JsonLd data={itemListSchema()} />
       <HeroSection />
       <StatsBar />
       <SectoresSection />
       <TestimoniosSection />
       <MisionSection />
+      <FaqSection />
       <CtaSection />
     </>
   );

@@ -3,6 +3,7 @@
 // src/app/(public)/layout.tsx
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Menu, X, Star, ChevronDown } from "lucide-react";
 
 // ─────────────────────────────────────────────
@@ -52,15 +53,15 @@ function Navbar() {
   };
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-gray-100 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80">
+    <header className="sticky top-0 z-50 w-full border-b border-white/10 bg-gradient-to-r from-[#1B3A6B] via-[#135e7a] to-[#0EA5A0] shadow-lg shadow-teal-900/10">
       <div ref={navRef} className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg text-sm font-bold text-white" style={{ backgroundColor: "#1B3A6B" }}>
-              A
-            </div>
-            <span className="text-lg font-semibold" style={{ color: "#1B3A6B" }}>Achanvear</span>
+            <span className="relative inline-flex h-8 w-8 items-center justify-center overflow-hidden rounded-lg">
+              <Image src="/logo/logo-512.png" alt="Achanvear" fill sizes="32px" className="object-contain" priority />
+            </span>
+            <span className="text-lg font-semibold text-white">Achanvear</span>
           </Link>
 
           {/* Nav — desktop */}
@@ -69,7 +70,7 @@ function Navbar() {
             <div className="relative">
               <button
                 onClick={() => toggleDropdown("freelancers")}
-                className="flex items-center gap-1 rounded-lg px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors"
+                className="flex items-center gap-1 rounded-lg px-3 py-2 text-sm text-white/90 hover:bg-white/10 hover:text-white transition-colors"
               >
                 Contrata Freelancers
                 <ChevronDown className={`h-4 w-4 transition-transform ${activeDropdown === "freelancers" ? "rotate-180" : ""}`} />
@@ -111,7 +112,7 @@ function Navbar() {
             <div className="relative">
               <button
                 onClick={() => toggleDropdown("jobs")}
-                className="flex items-center gap-1 rounded-lg px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors"
+                className="flex items-center gap-1 rounded-lg px-3 py-2 text-sm text-white/90 hover:bg-white/10 hover:text-white transition-colors"
               >
                 Encuentra Trabajo
                 <ChevronDown className={`h-4 w-4 transition-transform ${activeDropdown === "jobs" ? "rotate-180" : ""}`} />
@@ -152,7 +153,7 @@ function Navbar() {
             <div className="relative">
               <button
                 onClick={() => toggleDropdown("soluciones")}
-                className="flex items-center gap-1 rounded-lg px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors"
+                className="flex items-center gap-1 rounded-lg px-3 py-2 text-sm text-white/90 hover:bg-white/10 hover:text-white transition-colors"
               >
                 Soluciones
                 <ChevronDown className={`h-4 w-4 transition-transform ${activeDropdown === "soluciones" ? "rotate-180" : ""}`} />
@@ -191,7 +192,7 @@ function Navbar() {
             {/* Nosotros — scroll a sección misión */}
             <a
               href="#mision"
-              className="rounded-lg px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors"
+              className="rounded-lg px-3 py-2 text-sm text-white/90 hover:bg-white/10 hover:text-white transition-colors"
               onClick={() => setActiveDropdown(null)}
             >
               Nosotros
@@ -200,13 +201,12 @@ function Navbar() {
 
           {/* CTA buttons — desktop */}
           <div className="hidden items-center gap-3 md:flex">
-            <Link href="/login" className="text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors">
+            <Link href="/login" className="text-sm font-medium text-white/90 hover:text-white transition-colors">
               Iniciar sesión
             </Link>
             <Link
               href="/register"
-              className="rounded-lg px-4 py-2 text-sm font-semibold text-white transition-colors hover:opacity-90"
-              style={{ backgroundColor: "#0EA5A0" }}
+              className="rounded-lg bg-white px-4 py-2 text-sm font-semibold text-[#0EA5A0] transition-colors hover:bg-white/90"
             >
               Crear cuenta
             </Link>
@@ -214,7 +214,7 @@ function Navbar() {
 
           {/* Hamburger — mobile */}
           <button
-            className="flex items-center justify-center rounded-lg p-2 text-gray-600 hover:bg-gray-100 md:hidden"
+            className="flex items-center justify-center rounded-lg p-2 text-white/90 hover:bg-white/10 md:hidden"
             onClick={() => setMenuOpen(!menuOpen)}
             aria-label="Menú"
           >
@@ -224,22 +224,22 @@ function Navbar() {
 
         {/* Mobile menu */}
         {menuOpen && (
-          <div className="border-t border-gray-100 bg-white py-4 md:hidden">
+          <div className="border-t border-white/10 bg-[#1B3A6B] py-4 md:hidden">
             <nav className="flex flex-col gap-1">
               {["Contrata Freelancers", "Encuentra Trabajo", "Soluciones"].map((item) => (
-                <button key={item} className="py-2 px-2 text-left text-sm text-gray-600 hover:text-gray-900 transition-colors">
+                <button key={item} className="py-2 px-2 text-left text-sm text-white/90 hover:text-white transition-colors">
                   {item}
                 </button>
               ))}
-              <a href="#mision" className="py-2 px-2 text-left text-sm text-gray-600 hover:text-gray-900 transition-colors" onClick={() => setMenuOpen(false)}>
+              <a href="#mision" className="py-2 px-2 text-left text-sm text-white/90 hover:text-white transition-colors" onClick={() => setMenuOpen(false)}>
                 Nosotros
               </a>
             </nav>
-            <div className="mt-4 flex flex-col gap-2 border-t border-gray-100 pt-4">
-              <Link href="/login" className="py-2 text-center text-sm font-medium text-gray-700 hover:text-gray-900">
+            <div className="mt-4 flex flex-col gap-2 border-t border-white/10 pt-4">
+              <Link href="/login" className="py-2 text-center text-sm font-medium text-white/90 hover:text-white">
                 Iniciar sesión
               </Link>
-              <Link href="/register" className="rounded-lg px-4 py-2 text-center text-sm font-semibold text-white" style={{ backgroundColor: "#0EA5A0" }}>
+              <Link href="/register" className="rounded-lg bg-white px-4 py-2 text-center text-sm font-semibold text-[#0EA5A0]">
                 Crear cuenta
               </Link>
             </div>
@@ -260,7 +260,9 @@ function Footer() {
         <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 md:grid-cols-3 lg:gap-10">
           <div className="sm:col-span-2 md:col-span-1">
             <div className="mb-4 flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-600 text-sm font-bold text-white">A</div>
+              <span className="relative inline-flex h-8 w-8 items-center justify-center overflow-hidden rounded-lg">
+                <Image src="/logo/logo-512.png" alt="Achanvear" fill sizes="32px" className="object-contain" />
+              </span>
               <span className="text-base font-semibold text-white">Achanvear</span>
             </div>
             <p className="mb-5 max-w-xs text-sm leading-relaxed text-gray-400">

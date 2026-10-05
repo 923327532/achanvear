@@ -5,6 +5,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
+import java.time.Instant;
 import java.util.UUID;
 
 public interface JobPostJpaRepository extends
@@ -12,6 +13,10 @@ public interface JobPostJpaRepository extends
         JpaSpecificationExecutor<JobPostJpaEntity> {
 
     boolean existsByTitleIgnoreCaseAndCompanyId(String title, UUID companyId);
+
+    long countByCompanyIdAndStatus(UUID companyId, String status);
+
+    long countByCompanyIdAndCreatedAtGreaterThanEqual(UUID companyId, Instant createdAt);
 
     Page<JobPostJpaEntity> findByCompanyId(UUID companyId, Pageable pageable);
 }

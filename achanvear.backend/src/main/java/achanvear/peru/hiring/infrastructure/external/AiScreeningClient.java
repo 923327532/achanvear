@@ -65,13 +65,13 @@ public class AiScreeningClient {
                 @SuppressWarnings("unchecked")
                 Map<String, Object> selected = (Map<String, Object>) response.selected_candidates().get(0);
                 double score = ((Number) selected.getOrDefault("score", 0)).doubleValue();
-                String sessionId = (String) selected.getOrDefault("session_id", "");
+                String reason = (String) selected.getOrDefault("reason", "Recomendado por la evaluación curricular.");
 
                 return new ScreeningResult(
                         command.candidateId(),
                         true,
                         score,
-                        "Seleccionado con score: " + score + " | Sesion: " + sessionId
+                        reason
                 );
             }
 
@@ -90,20 +90,10 @@ public class AiScreeningClient {
                 );
             }
 
-            return new ScreeningResult(
-                    command.candidateId(),
-                    false,
-                    0.0,
-                    "No se pudo evaluar con el agente IA"
-            );
+            throw new IllegalStateException("El agente IA devolvió una respuesta vacía para el screening");
 
         } catch (Exception e) {
-            return new ScreeningResult(
-                    command.candidateId(),
-                    false,
-                    0.0,
-                    "Evaluacion IA no disponible. La postulacion queda sin entrevista automatica: " + e.getMessage()
-            );
+            throw new IllegalStateException("No se pudo completar la evaluación del candidato con IA", e);
         }
     }
 

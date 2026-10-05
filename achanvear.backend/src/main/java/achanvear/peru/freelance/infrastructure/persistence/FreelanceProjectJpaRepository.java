@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -18,6 +19,8 @@ public interface FreelanceProjectJpaRepository extends JpaRepository<FreelancePr
     Page<FreelanceProjectJpaEntity> findAll(Specification<FreelanceProjectJpaEntity> specification, Pageable pageable);
 
     List<FreelanceProjectJpaEntity> findByClientUserId(UUID clientUserId);
+
+    long countByClientUserIdAndCreatedAtGreaterThanEqual(UUID clientUserId, Instant createdAt);
 
     List<FreelanceProjectJpaEntity> findBySelectedFreelancerUserId(UUID freelancerUserId);
 

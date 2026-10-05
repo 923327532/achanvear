@@ -18,7 +18,8 @@ public record StartScreeningCommand(
         String candidateCvUrl,
         String candidateCvData,
         String coverLetter,
-        Double requiredScoreThreshold
+        Double requiredScoreThreshold,
+        boolean autoAdvance
 ) {
     public StartScreeningCommand(
             String jobId,
@@ -41,8 +42,33 @@ public record StartScreeningCommand(
                 jobId, candidateId, candidateName, jobTitle, jobDescription,
                 requiredSkills, experienceMin, career, candidateSkills,
                 candidateExperienceYears, candidateCareer, candidateBiography,
-                candidateCvUrl, candidateCvData, coverLetter, null
+                candidateCvUrl, candidateCvData, coverLetter, null, true
+        );
+    }
+
+    public StartScreeningCommand(
+            String jobId,
+            String candidateId,
+            String candidateName,
+            String jobTitle,
+            String jobDescription,
+            List<String> requiredSkills,
+            Integer experienceMin,
+            String career,
+            List<String> candidateSkills,
+            Integer candidateExperienceYears,
+            String candidateCareer,
+            String candidateBiography,
+            String candidateCvUrl,
+            String candidateCvData,
+            String coverLetter,
+            Double requiredScoreThreshold
+    ) {
+        this(
+                jobId, candidateId, candidateName, jobTitle, jobDescription,
+                requiredSkills, experienceMin, career, candidateSkills,
+                candidateExperienceYears, candidateCareer, candidateBiography,
+                candidateCvUrl, candidateCvData, coverLetter, requiredScoreThreshold, true
         );
     }
 }
-

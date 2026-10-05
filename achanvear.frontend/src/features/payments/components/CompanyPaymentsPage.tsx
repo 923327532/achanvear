@@ -1,11 +1,16 @@
 // features/payments/components/CompanyPaymentsPage.tsx
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { useAuth } from "@/features/auth/hooks/useAuth";
+import { useState } from "react";
 import { AddPaymentMethodModal } from "./AddPaymentMethodModal";
-import { useLocalPaymentMethods, useRemoveLocalMethod, useSetDefaultLocalMethod, useSavedCards, useRemoveSavedCard, useSetDefaultSavedCard } from "../hooks/usePayments";
+import {
+  useLocalPaymentMethods,
+  useRemoveLocalMethod,
+  useSetDefaultLocalMethod,
+  useSavedCards,
+  useRemoveSavedCard,
+  useSetDefaultSavedCard,
+} from "../hooks/usePayments";
 import {
   Wallet,
   Lock,
@@ -17,39 +22,250 @@ import {
   Trash2,
   Star,
   FileText,
+  ShieldCheck,
+  Landmark,
+  Building2,
 } from "lucide-react";
 
+type PaymentMethodView = {
+  id: string;
+  kind: "CARD" | "LOCAL";
+  type: string;
+  label: string;
+  detail: string;
+  isPrimary: boolean;
+  lastFourDigits?: string | null;
+  cardholderName?: string | null;
+  expirationDate?: string | null;
+  issuerName?: string | null;
+  paymentType?: string | null;
+};
+
+const bankThemes = [
+  { match: ["BCP", "BANCO DE CREDITO", "BANCO DE CRÉDITO"], name: "BCP", bg: "from-[#004b8d] via-[#0066b3] to-[#f58220]", chip: "bg-orange-100/90" },
+  { match: ["BBVA"], name: "BBVA", bg: "from-[#001b5f] via-[#004c99] to-[#00a3e0]", chip: "bg-sky-100/90" },
+  { match: ["INTERBANK"], name: "Interbank", bg: "from-[#003d2b] via-[#00a859] to-[#7ac143]", chip: "bg-emerald-100/90" },
+  { match: ["SCOTIA", "SCOTIABANK"], name: "Scotiabank", bg: "from-[#8a0014] via-[#e30613] to-[#ff6b6b]", chip: "bg-red-100/90" },
+  { match: ["NACION", "NACIÓN", "BANCO DE LA NACION", "BANCO DE LA NACIÓN"], name: "Banco de la Nacion", bg: "from-[#5b0013] via-[#a0062d] to-[#d6a03d]", chip: "bg-amber-100/90" },
+];
+
+function getBankTheme(method: PaymentMethodView) {
+  const source = `${method.issuerName ?? ""} ${method.label ?? ""} ${method.paymentType ?? ""}`.toUpperCase();
+  return bankThemes.find((theme) => theme.match.some((term) => source.includes(term))) ?? {
+    name: method.issuerName || method.paymentType || "Visa",
+    bg: "from-[#003b80] via-[#0066b3] to-[#0ea5a0]",
+    chip: "bg-slate-100/90",
+  };
+}
+
+function formatCardNumber(lastFour?: string | null) {
+  return `4000  1234  5678  ${lastFour || "****"}`;
+}
+
+function MethodMenu({
+  open,
+  onToggle,
+  onSetDefault,
+  onRemove,
+  showDefault,
+  isSettingDefault,
+  isRemoving,
+  light = false,
+}: {
+  open: boolean;
+  onToggle: () => void;
+  onSetDefault: () => void;
+  onRemove: () => void;
+  showDefault: boolean;
+  isSettingDefault: boolean;
+  isRemoving: boolean;
+  light?: boolean;
+}) {
+  return (
+    <div className="relative">
+      <button
+        onClick={onToggle}
+        className={`flex h-8 w-8 items-center justify-center rounded-lg transition-all ${
+          light ? "bg-white/15 text-white hover:bg-white/25" : "text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+        }`}
+      >
+        <MoreHorizontal className="h-4 w-4" />
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={onToggle} />
+          <div className="absolute right-0 top-full z-20 mt-1 w-52 rounded-lg border border-slate-100 bg-white py-1 shadow-xl">
+            {showDefault && (
+              <button
+                disabled={isSettingDefault}
+                onClick={onSetDefault}
+                className="flex w-full items-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-50"
+              >
+                <Star className="h-4 w-4 text-amber-400" />
+                Establecer principal
+              </button>
+            )}
+            <button
+              disabled={isRemoving}
+              onClick={onRemove}
+              className="flex w-full items-center gap-2 px-4 py-2.5 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 disabled:opacity-50"
+            >
+              <Trash2 className="h-4 w-4" />
+              Eliminar metodo
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function PaymentCardPreview({
+  method,
+  open,
+  onToggleMenu,
+  onSetDefault,
+  onRemove,
+  isSettingDefault,
+  isRemoving,
+}: {
+  method: PaymentMethodView;
+  open: boolean;
+  onToggleMenu: () => void;
+  onSetDefault: () => void;
+  onRemove: () => void;
+  isSettingDefault: boolean;
+  isRemoving: boolean;
+}) {
+  const theme = getBankTheme(method);
+
+  if (method.kind !== "CARD") {
+    return (
+      <div className="relative rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
+              {method.type === "YAPE" || method.type === "PLIN" ? <Wallet className="h-5 w-5" /> : <Landmark className="h-5 w-5" />}
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-slate-900">{method.label}</p>
+              <p className="truncate text-xs text-slate-500">{method.detail}</p>
+              {method.isPrimary && (
+                <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
+                  <Star className="h-3 w-3" /> Principal
+                </span>
+              )}
+            </div>
+          </div>
+          <MethodMenu open={open} onToggle={onToggleMenu} onSetDefault={onSetDefault} onRemove={onRemove} showDefault={!method.isPrimary} isSettingDefault={isSettingDefault} isRemoving={isRemoving} />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative">
+      <div className={`relative aspect-[1.586/1] overflow-hidden rounded-xl bg-gradient-to-br ${theme.bg} p-5 text-white shadow-lg shadow-slate-200`}>
+        <div className="absolute inset-0 opacity-20">
+          <div className="absolute left-1/2 top-0 h-full w-1/2 bg-white/20" />
+          <div className="absolute bottom-0 left-0 h-1/3 w-full bg-black/15" />
+          <div className="absolute right-8 top-8 h-24 w-24 rounded-full bg-white/10 blur-xl" />
+        </div>
+        <div className="relative flex h-full flex-col justify-between">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-xl font-semibold tracking-wide">Visa Empresarial</p>
+              <p className="mt-1 text-xs text-white/75">{theme.name}</p>
+            </div>
+            {method.isPrimary && <span className="rounded-full bg-white/18 px-2.5 py-1 text-[11px] font-medium backdrop-blur">Principal</span>}
+          </div>
+          <div className="space-y-3">
+            <div className={`h-9 w-11 rounded-md ${theme.chip} shadow-inner`}>
+              <div className="grid h-full grid-cols-2 grid-rows-2 gap-px p-1">
+                <span className="rounded-sm bg-slate-300/80" />
+                <span className="rounded-sm bg-slate-400/70" />
+                <span className="rounded-sm bg-slate-400/70" />
+                <span className="rounded-sm bg-slate-300/80" />
+              </div>
+            </div>
+            <p className="font-mono text-lg tracking-[0.14em] text-white drop-shadow-sm">{formatCardNumber(method.lastFourDigits)}</p>
+          </div>
+          <div className="flex items-end justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-[10px] uppercase tracking-[0.18em] text-white/65">Titular</p>
+              <p className="truncate font-mono text-sm uppercase tracking-[0.14em]">{method.cardholderName || "Empresa"}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-[10px] uppercase tracking-[0.18em] text-white/65">Vence</p>
+              <p className="font-mono text-sm tracking-[0.12em]">{method.expirationDate || "--/--"}</p>
+            </div>
+            <p className="text-2xl font-black italic tracking-tight">VISA</p>
+          </div>
+        </div>
+      </div>
+      <div className="absolute right-3 top-3">
+        <MethodMenu open={open} onToggle={onToggleMenu} onSetDefault={onSetDefault} onRemove={onRemove} showDefault={!method.isPrimary} isSettingDefault={isSettingDefault} isRemoving={isRemoving} light />
+      </div>
+    </div>
+  );
+}
+
+function MetricCard({
+  icon: Icon,
+  label,
+  value,
+  hint,
+  tone,
+}: {
+  icon: typeof Wallet;
+  label: string;
+  value: string;
+  hint: string;
+  tone: "blue" | "amber" | "slate";
+}) {
+  const tones = {
+    blue: "bg-blue-50 text-blue-600",
+    amber: "bg-amber-50 text-amber-600",
+    slate: "bg-slate-100 text-slate-600",
+  };
+
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="mb-4 flex items-center justify-between">
+        <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${tones[tone]}`}>
+          <Icon className="h-5 w-5" />
+        </div>
+        <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-500">{hint}</span>
+      </div>
+      <p className="text-2xl font-bold tracking-tight text-slate-950">{value}</p>
+      <p className="mt-1 text-sm text-slate-500">{label}</p>
+    </div>
+  );
+}
+
 export function CompanyPaymentsPage() {
-  const { user } = useAuth();
-  const router = useRouter();
-
-  useEffect(() => {
-    if (user?.role === "COMPANY_COLLABORATOR") {
-      router.replace("/company");
-    }
-  }, [user, router]);
-
-  // ── Estado ───────────────────────────────────────────────────────────────
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [showAddMethodModal, setShowAddMethodModal] = useState(false);
   const { methods: localPaymentMethods, isLoading: isLoadingMethods, refetch: refetchMethods } = useLocalPaymentMethods();
   const { removeAsync, isLoading: isRemovingMethod } = useRemoveLocalMethod();
   const { setDefaultAsync, isLoading: isSettingDefault } = useSetDefaultLocalMethod();
-
-  // Tarjetas guardadas con Culqi Checkout
   const { cards: savedCards, isLoading: isLoadingCards, refetch: refetchCards } = useSavedCards();
   const { removeAsync: removeCardAsync } = useRemoveSavedCard();
   const { setDefaultAsync: setDefaultCardAsync } = useSetDefaultSavedCard();
 
-  // Normaliza tarjetas y metodos locales en una sola lista visual
-  const paymentMethods = [
+  const paymentMethods: PaymentMethodView[] = [
     ...savedCards.map((card) => ({
       id: card.id,
       kind: "CARD" as const,
       type: "CARD",
       label: `Tarjeta ${card.issuerName ? card.issuerName.toUpperCase() : card.paymentType}`,
-      detail: `•••• •••• •••• ${card.lastFourDigits ?? "****"}${card.expirationDate ? `  ·  Vence ${card.expirationDate}` : ""}`,
+      detail: `**** **** **** ${card.lastFourDigits ?? "****"}${card.expirationDate ? ` · Vence ${card.expirationDate}` : ""}`,
       isPrimary: card.isDefault,
+      lastFourDigits: card.lastFourDigits,
+      cardholderName: card.cardholderName,
+      expirationDate: card.expirationDate,
+      issuerName: card.issuerName,
+      paymentType: card.paymentType,
     })),
     ...localPaymentMethods.map((method) => ({
       id: method.id,
@@ -58,6 +274,7 @@ export function CompanyPaymentsPage() {
       label: method.label,
       detail: method.detail,
       isPrimary: method.isPrimary,
+      paymentType: method.type,
     })),
   ];
 
@@ -69,288 +286,151 @@ export function CompanyPaymentsPage() {
   };
 
   const handleRemoveMethod = async (id: string, kind: "CARD" | "LOCAL") => {
-    if (!window.confirm("¿Estás seguro de eliminar este método de pago?")) return;
-    if (kind === "CARD") {
-      await removeCardAsync(id);
-    } else {
-      await removeAsync(id);
-    }
+    if (!window.confirm("Estas seguro de eliminar este metodo de pago?")) return;
+    if (kind === "CARD") await removeCardAsync(id);
+    else await removeAsync(id);
     await refetchAllMethods();
     setOpenMenuId(null);
   };
 
   const handleSetDefaultMethod = async (id: string, kind: "CARD" | "LOCAL") => {
-    if (kind === "CARD") {
-      await setDefaultCardAsync(id);
-    } else {
-      await setDefaultAsync(id);
-    }
+    if (kind === "CARD") await setDefaultCardAsync(id);
+    else await setDefaultAsync(id);
     await refetchAllMethods();
     setOpenMenuId(null);
   };
 
   return (
-    <div className="p-8">
-      {/* ═══════════════════════════════════════════════════════════════════
-          ENCABEZADO
-      ════════════════════════════════════════════════════════════════════ */}
-      <div className="px-0 pt-0 pb-6">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-[#0a1628] tracking-tight">
-              Gestión Financiera
-            </h1>
-            <p className="text-sm text-slate-500 mt-1">
-              Administra tus pagos, fondos retenidos y comisiones
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* ═══════════════════════════════════════════════════════════════════
-          FILA DE 3 TARJETAS (métricas vacías - sin datos hardcodeados)
-      ════════════════════════════════════════════════════════════════════ */}
-      <div className="pb-6">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-
-          {/* ── Card 1: Créditos disponibles ── */}
-          <div className="rounded-xl bg-gradient-to-br from-[#1e3a8a] to-[#0d9488] p-5 text-white shadow-sm">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-10 h-10 rounded-lg bg-white/15 backdrop-blur-sm flex items-center justify-center">
-                <Wallet className="w-5 h-5" />
-              </div>
-              <span className="text-[10px] font-medium text-white/60 bg-white/10 px-2 py-0.5 rounded-full">
-                Saldo operativo
-              </span>
-            </div>
-            <p className="text-2xl font-bold tracking-tight">S/ 0.00</p>
-            <p className="text-xs text-white/70 mt-1">Créditos disponibles</p>
-          </div>
-
-          {/* ── Card 2: Fondos retenidos ── */}
-          <div className="rounded-xl bg-white border border-slate-200 shadow-sm p-5">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center">
-                <Lock className="w-5 h-5 text-amber-500" />
-              </div>
-              <span className="text-[10px] font-medium text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
-                En 0 proyectos
-              </span>
-            </div>
-            <p className="text-2xl font-bold text-[#0a1628] tracking-tight">S/ 0.00</p>
-            <p className="text-xs text-slate-500 mt-1">Fondos retenidos</p>
-            <p className="text-[10px] text-slate-400 mt-0.5">
-              Dinero bloqueado en proyectos activos
-            </p>
-          </div>
-
-          {/* ── Card 3: Comisiones pagadas ── */}
-          <div className="rounded-xl bg-white border border-slate-200 shadow-sm p-5">
-            <div className="flex items-center justify-between mb-4">
-              <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
-                <Receipt className="w-5 h-5 text-blue-500" />
-              </div>
-              <span className="text-[10px] font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
-                0 contrataciones
-              </span>
-            </div>
-            <p className="text-2xl font-bold text-[#0a1628] tracking-tight">S/ 0.00</p>
-            <p className="text-xs text-slate-500 mt-1">Comisiones pagadas</p>
-            <p className="text-[10px] text-slate-400 mt-0.5">
-              Costos del mes actual
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* ═══════════════════════════════════════════════════════════════════
-          MÓDULO ESCROW
-      ════════════════════════════════════════════════════════════════════ */}
-      <div className="pb-8">
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 lg:p-8">
-
-          <div className="flex items-start gap-4 pb-6 border-b border-slate-100 mb-6">
-            <div className="w-12 h-12 rounded-2xl bg-amber-50 flex items-center justify-center shrink-0">
-              <Lock className="w-6 h-6 text-amber-500" />
-            </div>
+    <div className="min-h-full bg-[#f5f7fb] px-4 py-5 sm:px-6 lg:px-8">
+      <div className="mx-auto flex max-w-7xl flex-col gap-6">
+        <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <h2 className="text-lg sm:text-xl font-bold text-slate-900">
-                Fideicomiso (Escrow) — Proyectos Freelance
-              </h2>
-              <p className="text-sm text-slate-500 mt-1">
-                Fondos retenidos de forma segura hasta la finalización de cada proyecto
+              <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
+                <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
+                Finanzas de empresa
+              </div>
+              <h1 className="text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">Gestion financiera</h1>
+              <p className="mt-1 max-w-2xl text-sm text-slate-500">
+                Controla metodos de pago, fondos retenidos y facturacion desde una vista operativa.
               </p>
             </div>
-          </div>
-
-          <div className="mb-6 p-5 rounded-2xl bg-blue-50 border border-blue-100">
-            <div className="flex items-start gap-3">
-              <div className="w-8 h-8 rounded-xl bg-blue-100 flex items-center justify-center shrink-0 mt-0.5">
-                <Info className="w-4 h-4 text-blue-600" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-blue-800">¿Cómo funciona el Escrow?</p>
-                <p className="text-sm text-blue-600 mt-1 leading-relaxed">
-                  Cuando contratas un freelancer, el presupuesto se retiene de forma segura.
-                  El pago se libera automáticamente al freelancer cuando el proyecto es
-                  aprobado. Tú tienes el control total sobre cada liberación de pago.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="text-center py-12">
-            <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
-              <Lock className="w-7 h-7 text-slate-400" />
-            </div>
-            <p className="text-sm font-medium text-slate-500">No hay proyectos en escrow</p>
-            <p className="text-xs text-slate-400 mt-1">
-              Los proyectos aparecerán cuando contrates freelancers
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* ═══════════════════════════════════════════════════════════════════
-          MÉTODOS DE PAGO
-      ════════════════════════════════════════════════════════════════════ */}
-      <div className="pb-8">
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 w-full">
-
-          <h3 className="text-base font-semibold text-slate-800 mb-6 uppercase tracking-wide">
-            MÉTODOS DE PAGO
-          </h3>
-
-          {isLoadingAllMethods ? (
-            <div className="text-center py-8 mb-4">
-              <CreditCard className="w-10 h-10 text-slate-200 mx-auto mb-3" />
-              <p className="text-sm text-slate-400">Cargando metodos de pago...</p>
-            </div>
-          ) : paymentMethods.length > 0 ? (
-            <div className="space-y-3 mb-4">
-              {paymentMethods.map((method) => (
-                <div
-                  key={method.id}
-                  className="flex items-center justify-between p-4 rounded-lg bg-[#f8fafc] border border-slate-100"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-7 rounded flex items-center justify-center bg-white border border-slate-200 text-[10px] font-bold italic uppercase">
-                      {method.type === "YAPE" ? (
-                        <span className="text-purple-600 text-xs font-bold">Yape</span>
-                      ) : method.type === "PLIN" ? (
-                        <span className="text-blue-600 text-xs font-bold">Plin</span>
-                      ) : method.type === "CARD" ? (
-                        <span className="text-blue-700 text-xs font-bold italic">Visa</span>
-                      ) : (
-                        <CreditCard className="w-4 h-4 text-slate-400" />
-                      )}
-                    </div>
-
-                    <div>
-                      <p className="text-sm font-medium text-slate-900">{method.label}</p>
-                      <p className="text-xs text-slate-500">{method.detail}</p>
-                    </div>
-
-                    {method.isPrimary && (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
-                        <Star className="w-3 h-3 mr-1" />
-                        Principal
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="relative">
-                    <button
-                      onClick={() => setOpenMenuId(openMenuId === method.id ? null : method.id)}
-                      className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-all"
-                    >
-                      <MoreHorizontal className="w-4 h-4" />
-                    </button>
-
-                    {openMenuId === method.id && (
-                      <>
-                        <div className="fixed inset-0 z-10" onClick={() => setOpenMenuId(null)} />
-                        <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-lg border border-slate-100 shadow-lg z-20 py-1">
-                          {!method.isPrimary && (
-                            <button
-                              disabled={isSettingDefault}
-                              onClick={() => handleSetDefaultMethod(method.id, method.kind)}
-                              className="w-full flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
-                            >
-                              <Star className="w-4 h-4 text-amber-400" />
-                              Establecer como principal
-                            </button>
-                          )}
-                          <button
-                            disabled={isRemovingMethod}
-                            onClick={() => handleRemoveMethod(method.id, method.kind)}
-                            className="w-full flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                            Eliminar cuenta
-                          </button>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-8 mb-4">
-              <CreditCard className="w-10 h-10 text-slate-200 mx-auto mb-3" />
-              <p className="text-sm text-slate-400">Aún no has registrado ningún método de pago</p>
-            </div>
-          )}
-
-          <div className="flex justify-center mt-4">
-            <button
-              onClick={() => setShowAddMethodModal(true)}
-              className="inline-flex items-center gap-2 px-5 py-3 rounded-lg bg-[#0f172a] text-white text-sm font-medium hover:bg-[#0f172a]/90 transition-all shadow-sm"
-            >
-              <Plus className="w-4 h-4" />
-              Añadir método de pago
+            <button onClick={() => setShowAddMethodModal(true)} className="inline-flex items-center justify-center gap-2 rounded-lg bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800">
+              <Plus className="h-4 w-4" />
+              Agregar metodo
             </button>
           </div>
-        </div>
-      </div>
+        </section>
 
-      {/* ═══════════════════════════════════════════════════════════════════
-          HISTORIAL DE FACTURACIÓN - Próximamente
-      ════════════════════════════════════════════════════════════════════ */}
-      <div className="pb-8">
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 w-full">
+        <section className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+          <MetricCard icon={Wallet} label="Creditos disponibles" value="S/ 0.00" hint="Saldo operativo" tone="blue" />
+          <MetricCard icon={Lock} label="Fondos retenidos" value="S/ 0.00" hint="0 proyectos en escrow" tone="amber" />
+          <MetricCard icon={Receipt} label="Comisiones pagadas" value="S/ 0.00" hint="Mes actual" tone="slate" />
+        </section>
 
-          <h3 className="text-base font-semibold text-slate-800 mb-2 uppercase tracking-wide">
-            HISTORIAL DE FACTURACIÓN
-          </h3>
-
-          <div className="mb-6">
-            <p className="text-sm font-medium text-slate-700">Comisiones del Agente IA</p>
-            <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-              Achanvear cobra entre 3% y 5% de comisión sobre proyectos freelance completados.
-              Las vacantes tradicionales tienen un costo fijo de S/. 150 por publicación.
-            </p>
-          </div>
-
-          <div className="text-center py-12">
-            <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
-              <FileText className="w-7 h-7 text-slate-400" />
+        <section className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(360px,0.65fr)]">
+          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <h2 className="text-lg font-bold text-slate-950">Metodos de pago</h2>
+                <p className="mt-1 text-sm text-slate-500">Tarjetas y cuentas disponibles para operaciones de empresa.</p>
+              </div>
+              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
+                {paymentMethods.length} registrados
+              </span>
             </div>
-            <p className="text-sm font-medium text-slate-500">No hay historial de facturación</p>
-            <p className="text-xs text-slate-400 mt-1">
-              Las facturas aparecerán cuando realices pagos
-            </p>
+
+            {isLoadingAllMethods ? (
+              <div className="grid gap-4 md:grid-cols-2">
+                {[0, 1].map((item) => <div key={item} className="aspect-[1.586/1] animate-pulse rounded-xl bg-slate-100" />)}
+              </div>
+            ) : paymentMethods.length > 0 ? (
+              <div className="grid gap-5 md:grid-cols-2">
+                {paymentMethods.map((method) => (
+                  <PaymentCardPreview
+                    key={method.id}
+                    method={method}
+                    open={openMenuId === method.id}
+                    onToggleMenu={() => setOpenMenuId(openMenuId === method.id ? null : method.id)}
+                    onSetDefault={() => handleSetDefaultMethod(method.id, method.kind)}
+                    onRemove={() => handleRemoveMethod(method.id, method.kind)}
+                    isSettingDefault={isSettingDefault}
+                    isRemoving={isRemovingMethod}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50 px-6 py-14 text-center">
+                <CreditCard className="mb-3 h-10 w-10 text-slate-300" />
+                <p className="text-sm font-semibold text-slate-700">Aun no hay metodos de pago</p>
+                <p className="mt-1 max-w-sm text-xs text-slate-500">Agrega una tarjeta con Culqi o un metodo local para futuras operaciones.</p>
+                <button onClick={() => setShowAddMethodModal(true)} className="mt-5 inline-flex items-center gap-2 rounded-lg bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">
+                  <Plus className="h-4 w-4" />
+                  Agregar metodo
+                </button>
+              </div>
+            )}
           </div>
-        </div>
+
+          <div className="flex flex-col gap-6">
+            <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="mb-4 flex items-start gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-amber-50 text-amber-600">
+                  <Lock className="h-5 w-5" />
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-slate-950">Escrow freelance</h2>
+                  <p className="mt-1 text-sm text-slate-500">Fondos retenidos hasta aprobar entregables.</p>
+                </div>
+              </div>
+              <div className="rounded-lg border border-blue-100 bg-blue-50 p-4">
+                <div className="flex gap-3">
+                  <Info className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
+                  <p className="text-sm leading-relaxed text-blue-700">
+                    Cuando contratas un freelancer, el presupuesto queda retenido y se libera cuando apruebas el proyecto.
+                  </p>
+                </div>
+              </div>
+              <div className="mt-5 rounded-lg bg-slate-50 p-5 text-center">
+                <p className="text-sm font-medium text-slate-600">No hay proyectos en escrow</p>
+                <p className="mt-1 text-xs text-slate-400">Apareceran cuando contrates freelancers.</p>
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="mb-4 flex items-start gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
+                  <FileText className="h-5 w-5" />
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-slate-950">Facturacion</h2>
+                  <p className="mt-1 text-sm text-slate-500">Historial de comisiones y comprobantes.</p>
+                </div>
+              </div>
+              <div className="rounded-lg border border-slate-100 bg-slate-50 p-4">
+                <p className="text-sm font-medium text-slate-700">Comisiones del Agente IA</p>
+                <p className="mt-1 text-xs leading-relaxed text-slate-500">
+                  Achanvear cobra entre 3% y 5% sobre proyectos freelance completados. Las vacantes tradicionales tienen un costo fijo.
+                </p>
+              </div>
+              <div className="mt-5 flex items-center gap-3 rounded-lg border border-dashed border-slate-200 p-4">
+                <Building2 className="h-5 w-5 text-slate-300" />
+                <div>
+                  <p className="text-sm font-medium text-slate-600">Sin facturas registradas</p>
+                  <p className="text-xs text-slate-400">Las facturas apareceran cuando realices pagos.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
       </div>
 
-      {/* ── Modal Añadir Método de Pago ── */}
       <AddPaymentMethodModal
         open={showAddMethodModal}
         onClose={() => setShowAddMethodModal(false)}
         onSuccess={() => {
-          refetchMethods();
+          refetchAllMethods();
+          setShowAddMethodModal(false);
         }}
       />
     </div>

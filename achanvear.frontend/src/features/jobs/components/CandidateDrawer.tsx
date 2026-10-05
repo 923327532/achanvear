@@ -350,6 +350,14 @@ export function CandidateDrawer({ jobId, applicationId, onClose }: CandidateDraw
   const hasReport = detail?.report.available === true;
   const hasInterview = detail?.interview.exists === true;
   const hasRecording = detail?.interview.recordingUrl !== null;
+  const interviewAlreadyStarted = detail != null && [
+    "THEORY_INTERVIEW",
+    "TECHNICAL_INTERVIEW",
+    "UNDER_REVIEW",
+    "APPROVED",
+    "HIRED",
+    "REJECTED",
+  ].includes(detail.generalInfo.currentStage);
 
   const handleAdvance = () => {
     if (!detail) return;
@@ -648,14 +656,14 @@ export function CandidateDrawer({ jobId, applicationId, onClose }: CandidateDraw
                 <button
                   className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-3 rounded-xl bg-emerald-600 text-white text-sm font-bold hover:bg-emerald-700 transition disabled:opacity-50"
                   onClick={handleAdvance}
-                  disabled={advanceMutation.isLoading}
+                  disabled={advanceMutation.isLoading || interviewAlreadyStarted}
                 >
                   {advanceMutation.isLoading ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
                     <CheckCircle2 className="w-4 h-4" />
                   )}
-                  Avanzar a Siguiente Etapa
+                  {interviewAlreadyStarted ? "Entrevista en proceso" : "Aprobar para entrevista teórica"}
                 </button>
                 <button
                   className="inline-flex items-center justify-center gap-1.5 px-4 py-3 rounded-xl border border-red-200 text-red-600 text-sm font-bold hover:bg-red-50 transition disabled:opacity-50"

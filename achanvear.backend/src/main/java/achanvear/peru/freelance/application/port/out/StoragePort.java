@@ -10,6 +10,10 @@ public interface StoragePort {
 
     PresignedDownloadResponse generatePresignedDownloadUrl(String fileKey);
 
+    byte[] downloadFile(String fileKey);
+
+    String extractPdfText(String publicFileUrl);
+
     UploadResponse uploadFile(
             String folder,
             String fileName,

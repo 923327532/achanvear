@@ -167,6 +167,7 @@ public class CompanyApplicationService implements
                 command.specialty(),
                 companySize,
                 command.logoUrl(),
+                command.bannerUrl(),
                 command.biography(),
                 command.achievements(),
                 command.address(),

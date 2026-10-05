@@ -12,6 +12,7 @@ import { useAuth } from "@/features/auth/hooks/useAuth";
 import { useProtectedRoute } from "@/shared/hooks/useProtectedRoute";
 import { useNotifications } from "@/features/notifications/hooks/useNotifications";
 import { ConfirmModal } from "@/shared/components/ui/ConfirmModal";
+import { BrandLogo } from "@/shared/components/ui/BrandLogo";
 import { homeRouteForRole } from "@/lib/constants";
 import { useState, useEffect } from "react";
 
@@ -191,9 +192,7 @@ export default function FreelancerLayout({ children }: { children: React.ReactNo
 
         <div className={`px-4 pt-6 pb-4 border-b border-slate-100 ${isCollapsed ? "flex justify-center" : ""}`}>
           <div className={`flex items-center ${isCollapsed ? "" : "gap-3"}`}>
-            <div className="flex items-center justify-center h-10 w-10 rounded-lg bg-[#1B3A6B] text-white font-bold text-lg shrink-0">
-              A
-            </div>
+            <BrandLogo href={null} size="md" showText={false} />
             {!isCollapsed && (
               <div className="min-w-0">
                 <p className="text-base font-bold text-[#1B3A6B] truncate">Achanvear</p>
@@ -252,9 +251,7 @@ export default function FreelancerLayout({ children }: { children: React.ReactNo
       >
         <div className="px-6 pt-6 pb-4 border-b border-slate-100">
           <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center h-10 w-10 rounded-lg bg-[#1B3A6B] text-white font-bold text-lg shrink-0">
-              A
-            </div>
+            <BrandLogo href={null} size="md" showText={false} />
             <div className="min-w-0">
               <p className="text-base font-bold text-[#1B3A6B] truncate">Achanvear</p>
               <div className="flex items-center gap-1.5 mt-0.5">

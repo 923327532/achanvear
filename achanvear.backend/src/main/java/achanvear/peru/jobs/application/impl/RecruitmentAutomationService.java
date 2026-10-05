@@ -10,6 +10,9 @@ import achanvear.peru.jobs.domain.model.RecruitmentAutomationConfig;
 import achanvear.peru.jobs.domain.model.RecruitmentAutomationLevel;
 import achanvear.peru.jobs.domain.repository.JobPostRepository;
 import achanvear.peru.jobs.domain.repository.RecruitmentAutomationConfigRepository;
+import achanvear.peru.payments.domain.model.ProjectPublishingPolicy;
+import achanvear.peru.payments.domain.repository.SubscriptionRepository;
+import achanvear.peru.shared.application.port.CompanyLookupPort;
 import achanvear.peru.shared.domain.exception.ResourceNotFoundException;
 import achanvear.peru.shared.exception.BusinessRuleViolationException;
 import achanvear.peru.shared.exception.ForbiddenOperationException;
@@ -31,13 +34,19 @@ public class RecruitmentAutomationService implements ManageRecruitmentAutomation
 
     private final RecruitmentAutomationConfigRepository configRepository;
     private final JobPostRepository jobPostRepository;
+    private final CompanyLookupPort companyLookupPort;
+    private final SubscriptionRepository subscriptionRepository;
 
     public RecruitmentAutomationService(
             RecruitmentAutomationConfigRepository configRepository,
-            JobPostRepository jobPostRepository
+            JobPostRepository jobPostRepository,
+            CompanyLookupPort companyLookupPort,
+            SubscriptionRepository subscriptionRepository
     ) {
         this.configRepository = configRepository;
         this.jobPostRepository = jobPostRepository;
+        this.companyLookupPort = companyLookupPort;
+        this.subscriptionRepository = subscriptionRepository;
     }
 
     @Override
@@ -67,6 +76,7 @@ public class RecruitmentAutomationService implements ManageRecruitmentAutomation
         RecruitmentAutomationLevel level = RecruitmentAutomationLevel.valueOf(
                 command.automationLevel().trim().toUpperCase()
         );
+        validateRecruitmentAutomationAllowance(jobPost, level, command);
 
         RecruitmentAutomationConfig config = configRepository.findByJobPostId(
                 UUID.fromString(command.jobPostId())
@@ -100,6 +110,27 @@ public class RecruitmentAutomationService implements ManageRecruitmentAutomation
         configRepository.save(config);
 
         return toResponse(config);
+    }
+
+    private void validateRecruitmentAutomationAllowance(
+            JobPost jobPost,
+            RecruitmentAutomationLevel level,
+            ConfigureAutomationCommand command
+    ) {
+        if (command.superAdmin() || level == RecruitmentAutomationLevel.MANUAL) {
+            return;
+        }
+
+        CompanyLookupPort.CompanySummary company = companyLookupPort.findById(jobPost.getCompanyId())
+                .orElseThrow(() -> new ResourceNotFoundException("Company not found"));
+
+        boolean hasActiveSubscription = subscriptionRepository.findByCompanyUserId(company.ownerUserId())
+                .filter(sub -> sub.isActive())
+                .isPresent();
+
+        if (!ProjectPublishingPolicy.canUseRecruitmentAutomation(hasActiveSubscription)) {
+            throw new BusinessRuleViolationException(ProjectPublishingPolicy.getRecruitmentAutomationUpgradeMessage());
+        }
     }
 
     private void authorizeCompanyOwnership(JobPost jobPost, String requesterCompanyId, boolean superAdmin) {

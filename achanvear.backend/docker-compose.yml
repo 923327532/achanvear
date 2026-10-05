@@ -120,6 +120,9 @@ services:
       AWS_S3_BUCKET_NAME: ${AWS_S3_BUCKET_NAME:-}
       MP_PUBLIC_KEY: ${MP_PUBLIC_KEY:-TEST-7c056e9c-ee8b-4711-b803-8f057abc5bb1}
       MP_ACCESS_TOKEN: ${MP_ACCESS_TOKEN:-TEST-140685990943776-082500-4484eedb437f589364a5b1cdf3538dcf-3157090819}
+      MP_SUCCESS_URL: ${MP_SUCCESS_URL:-http://localhost:3000/payments/success}
+      MP_FAILURE_URL: ${MP_FAILURE_URL:-http://localhost:3000/payments/failure}
+      MP_PENDING_URL: ${MP_PENDING_URL:-http://localhost:3000/payments/pending}
       BREVO_API_KEY: ${BREVO_API_KEY:-}
       BREVO_SENDER_EMAIL: ${BREVO_SENDER_EMAIL:-cevillaboni@gmail.com}
       BREVO_SENDER_NAME: ${BREVO_SENDER_NAME:-Achanvear}

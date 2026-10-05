@@ -1,6 +1,7 @@
 package achanvear.peru.services.web;
 
 import achanvear.peru.jobs.application.JobAiSuggestionService;
+import achanvear.peru.freelance.application.port.out.StoragePort;
 import achanvear.peru.services.infrastructure.persistence.ServiceJpaEntity;
 import achanvear.peru.services.infrastructure.persistence.ServiceJpaRepository;
 import achanvear.peru.services.infrastructure.persistence.ServicePlanJpaEntity;
@@ -25,6 +26,9 @@ import java.util.*;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import java.net.URI;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 
 @RestController
 @RequestMapping("/services")
@@ -35,11 +39,18 @@ public class ServiceController {
     private final ServiceJpaRepository serviceRepository;
     private final ServicePlanJpaRepository planRepository;
     private final JobAiSuggestionService jobAiSuggestionService;
+    private final StoragePort storagePort;
 
-    public ServiceController(ServiceJpaRepository serviceRepository, ServicePlanJpaRepository planRepository, JobAiSuggestionService jobAiSuggestionService) {
+    public ServiceController(
+            ServiceJpaRepository serviceRepository,
+            ServicePlanJpaRepository planRepository,
+            JobAiSuggestionService jobAiSuggestionService,
+            StoragePort storagePort
+    ) {
         this.serviceRepository = serviceRepository;
         this.planRepository = planRepository;
         this.jobAiSuggestionService = jobAiSuggestionService;
+        this.storagePort = storagePort;
     }
 
     // ─── GET /services/my ──────────────────────────────────────────────────────
@@ -92,12 +103,14 @@ public class ServiceController {
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String category,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size
+            @RequestParam(defaultValue = "10") int size,
+            @AuthenticationPrincipal AuthenticatedUser user
     ) {
         String normalizedSearch = search != null && !search.isBlank() ? search.trim() : null;
         String pattern = normalizedSearch != null ? "%" + normalizedSearch.toLowerCase() + "%" : null;
         PageRequest pageRequest = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
-        Page<ServiceJpaEntity> result = serviceRepository.findActiveServices(pattern, category, pageRequest);
+        UUID excludedUserId = user != null ? user.getUserId() : null;
+        Page<ServiceJpaEntity> result = serviceRepository.findActiveServices(pattern, category, excludedUserId, pageRequest);
 
         List<ExploreServiceResponse> items = result.getContent().stream()
                 .map(this::toExploreResponse)
@@ -468,7 +481,7 @@ public class ServiceController {
                 entity.getDescription(),
                 entity.getCategory(),
                 entity.getSubcategory(),
-                entity.getTags() != null ? Arrays.asList(entity.getTags().split(",")) : List.of(),
+                splitCsv(entity.getTags()),
                 entity.getStatus(),
                 entity.getBasePrice(),
                 entity.getDeliveryDays(),
@@ -476,10 +489,10 @@ public class ServiceController {
                 entity.getSales(),
                 entity.getRating(),
                 entity.getReviewCount(),
-                entity.getImageUrls() != null ? Arrays.asList(entity.getImageUrls().split(",")) : List.of(),
-                entity.getVideoUrls() != null ? Arrays.asList(entity.getVideoUrls().split(",")) : List.of(),
-                entity.getPdfUrls() != null ? Arrays.asList(entity.getPdfUrls().split(",")) : List.of(),
-                entity.getCertificateUrls() != null ? Arrays.asList(entity.getCertificateUrls().split(",")) : List.of(),
+                toDisplayImageUrls(entity.getImageUrls()),
+                splitCsv(entity.getVideoUrls()),
+                splitCsv(entity.getPdfUrls()),
+                splitCsv(entity.getCertificateUrls()),
                 entity.getModality(),
                 entity.getCoverageType(),
                 entity.getCoverageDetails(),
@@ -511,7 +524,7 @@ public class ServiceController {
                 entity.getDescription(),
                 entity.getCategory(),
                 entity.getSubcategory(),
-                entity.getTags() != null ? Arrays.asList(entity.getTags().split(",")) : List.of(),
+                splitCsv(entity.getTags()),
                 entity.getStatus(),
                 entity.getBasePrice(),
                 entity.getDeliveryDays(),
@@ -519,7 +532,7 @@ public class ServiceController {
                 entity.getSales(),
                 entity.getRating(),
                 entity.getReviewCount(),
-                entity.getImageUrls() != null ? Arrays.asList(entity.getImageUrls().split(",")) : List.of(),
+                toDisplayImageUrls(entity.getImageUrls()),
                 entity.getModality(),
                 entity.getCoverageType(),
                 entity.getBillingType(),
@@ -560,7 +573,7 @@ public class ServiceController {
                 entity.getDescription(),
                 entity.getCategory(),
                 entity.getSubcategory(),
-                entity.getTags() != null ? Arrays.asList(entity.getTags().split(",")) : List.of(),
+                splitCsv(entity.getTags()),
                 entity.getStatus(),
                 entity.getBasePrice(),
                 entity.getDeliveryDays(),
@@ -568,10 +581,10 @@ public class ServiceController {
                 entity.getSales(),
                 entity.getRating(),
                 entity.getReviewCount(),
-                entity.getImageUrls() != null ? Arrays.asList(entity.getImageUrls().split(",")) : List.of(),
-                entity.getVideoUrls() != null ? Arrays.asList(entity.getVideoUrls().split(",")) : List.of(),
-                entity.getPdfUrls() != null ? Arrays.asList(entity.getPdfUrls().split(",")) : List.of(),
-                entity.getCertificateUrls() != null ? Arrays.asList(entity.getCertificateUrls().split(",")) : List.of(),
+                toDisplayImageUrls(entity.getImageUrls()),
+                splitCsv(entity.getVideoUrls()),
+                splitCsv(entity.getPdfUrls()),
+                splitCsv(entity.getCertificateUrls()),
                 entity.getModality(),
                 entity.getCoverageType(),
                 entity.getCoverageDetails(),
@@ -594,6 +607,51 @@ public class ServiceController {
                 entity.getCreatedAt(),
                 entity.getUpdatedAt()
         );
+    }
+
+    private List<String> splitCsv(String value) {
+        if (value == null || value.isBlank()) {
+            return List.of();
+        }
+        return Arrays.stream(value.split(","))
+                .map(String::trim)
+                .filter(item -> !item.isBlank())
+                .toList();
+    }
+
+    private List<String> toDisplayImageUrls(String value) {
+        return splitCsv(value).stream()
+                .map(this::toPresignedImageUrlIfNeeded)
+                .toList();
+    }
+
+    private String toPresignedImageUrlIfNeeded(String url) {
+        String fileKey = extractS3FileKey(url);
+        if (fileKey == null) {
+            return url;
+        }
+        try {
+            return storagePort.generatePresignedDownloadUrl(fileKey).downloadUrl();
+        } catch (RuntimeException exception) {
+            LOGGER.warn("Could not generate presigned service image URL for key {}: {}", fileKey, exception.getMessage());
+            return url;
+        }
+    }
+
+    private String extractS3FileKey(String url) {
+        if (url == null || url.isBlank()) {
+            return null;
+        }
+        try {
+            URI uri = URI.create(url.trim());
+            String host = uri.getHost();
+            if (host == null || !host.contains(".s3.") || uri.getRawPath() == null || uri.getRawPath().length() <= 1) {
+                return null;
+            }
+            return URLDecoder.decode(uri.getRawPath().substring(1), StandardCharsets.UTF_8);
+        } catch (IllegalArgumentException exception) {
+            return null;
+        }
     }
 }
 

@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { ReactNode, useEffect } from "react";
 import { LayoutDashboard, Users, ClipboardList, FileText, ShieldCheck, History, LogOut } from "lucide-react";
 import { useAuth } from "@/features/auth/hooks/useAuth";
+import { BrandLogo } from "@/shared/components/ui/BrandLogo";
 import { homeRouteForRole } from "@/lib/constants";
 
 const ADMIN_ROLES = ["SUPERADMIN", "SUBADMIN", "ADMIN", "SUPPORT"];
@@ -69,9 +70,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
       {/* Sidebar */}
       <aside className="hidden w-64 shrink-0 flex-col border-r border-slate-200 bg-white md:flex">
         <div className="flex items-center gap-2 border-b border-slate-100 px-5 py-4">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#1B3A6B] text-sm font-bold text-white">
-            A
-          </div>
+          <BrandLogo href={null} size="sm" showText={false} />
           <div>
             <p className="text-sm font-bold text-[#1B3A6B]">Admin</p>
             <p className="text-[10px] uppercase tracking-wider text-slate-400">Achanvear</p>

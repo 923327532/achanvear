@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@/features/auth/hooks/useAuth";
+import { BrandLogo } from "@/shared/components/ui/BrandLogo";
 import { PersonalizeExperienceStep } from "./steps/PersonalizeExperienceStep";
 import { CustomizeProfileStep } from "./steps/CustomizeProfileStep";
 import { WalletStep } from "./steps/WalletStep";
@@ -95,10 +96,7 @@ export function FreelancerOnboardingWizard() {
         <div className="mx-auto max-w-5xl px-6 py-4">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2.5">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#1B3A6B] text-sm font-bold text-white">
-                A
-              </div>
-              <span className="text-base font-bold text-[#1B3A6B]">Achanvear</span>
+              <BrandLogo href={null} size="sm" textClassName="text-base font-bold text-[#1B3A6B]" />
             </div>
             <span className="text-sm text-slate-500">
               Paso {currentStep} de {TOTAL_STEPS}

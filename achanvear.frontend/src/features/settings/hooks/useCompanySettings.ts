@@ -103,8 +103,8 @@ export function useSubscribeToPlan() {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
-    mutationFn: ({ plan, companyEmail }: { plan: string; companyEmail: string }) =>
-      companySettingsApi.subscribeToPlan(plan, companyEmail),
+    mutationFn: ({ plan, companyEmail, token }: { plan: string; companyEmail: string; token: string }) =>
+      companySettingsApi.subscribeToPlan(plan, companyEmail, token),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["company-settings", "current-plan"] });
       queryClient.invalidateQueries({ queryKey: ["company-settings", "plans"] });

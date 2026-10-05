@@ -4,6 +4,7 @@
 import { Star, Clock, Eye, Phone, CheckCircle2, User } from "lucide-react";
 import { CATEGORY_LABELS, CATEGORY_COLORS } from "../types/service.types";
 import type { ExploreService } from "../types/service.types";
+import { toServiceMediaUrl } from "@/lib/mediaUrls";
 
 interface Props {
   service: ExploreService;
@@ -14,12 +15,13 @@ interface Props {
 export function ExploreServiceCard({ service, onViewDetail, onHire }: Props) {
   const { freelancer } = service;
   const contactNumber = (freelancer.whatsapp || freelancer.phone || "").replace(/[^0-9]/g, "");
+  const coverImageUrl = toServiceMediaUrl(service.imageUrls?.find((url) => url && url.trim().length > 0));
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden">
       <div className="h-[150px] w-full overflow-hidden">
-        {service.imageUrls && service.imageUrls.length > 0 ? (
-          <img src={service.imageUrls[0]} alt={service.title} className="w-full h-full object-cover" />
+        {coverImageUrl ? (
+          <img src={coverImageUrl} alt={service.title} className="w-full h-full object-cover" />
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-[#1B3A6B]/10 to-[#0EA5A0]/10" />
         )}

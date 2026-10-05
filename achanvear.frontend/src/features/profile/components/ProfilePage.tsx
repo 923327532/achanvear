@@ -10,6 +10,7 @@ import { CertificationsSection } from "./CertificationsSection";
 import { PortfolioSection } from "./PortfolioSection";
 import { AIEvaluationsSection } from "./AIEvaluationsSection";
 import { CvManagerSection } from "./CvManagerSection";
+import { toProfileImageUrl } from "@/lib/mediaUrls";
 
 import {
   Star, BadgeCheck, Briefcase, ShieldCheck,
@@ -35,6 +36,8 @@ function VirtualProfileView({ profile }: { profile: any }) {
   const name     = profile?.name || "Freelancer";
   const dni      = profile?.dni  || "";
   const initials = getInitials(name);
+  const bannerUrl = toProfileImageUrl(profile?.bannerUrl);
+  const profilePhotoUrl = toProfileImageUrl(profile?.profilePhotoUrl);
 
   return (
     <div className="min-h-screen bg-[#f5f7fb]">
@@ -43,8 +46,8 @@ function VirtualProfileView({ profile }: { profile: any }) {
 
           {/* Banner */}
           <div className="relative h-40 sm:h-48 lg:h-56 bg-gradient-to-r from-[#0a1628] via-[#1e3a8a] to-[#0d9488] overflow-hidden rounded-t-2xl sm:rounded-t-3xl">
-            {profile?.bannerUrl && !bannerError && (
-              <img src={profile.bannerUrl} alt="Banner"
+            {bannerUrl && !bannerError && (
+              <img src={bannerUrl} alt="Banner"
                 className="absolute inset-0 w-full h-full object-cover"
                 onError={() => setBannerError(true)} />
             )}
@@ -67,8 +70,8 @@ function VirtualProfileView({ profile }: { profile: any }) {
             <div className="flex flex-col sm:flex-row items-start gap-4 sm:gap-6 lg:gap-8 -mt-10 sm:-mt-12 lg:-mt-14 relative z-10">
               <div className="relative shrink-0 mx-auto sm:mx-0">
                 <div className="w-20 h-20 sm:w-24 sm:h-24 lg:w-28 lg:h-28 rounded-2xl border-4 border-white shadow-xl bg-white overflow-hidden">
-                  {profile?.profilePhotoUrl && !photoError ? (
-                    <img src={profile.profilePhotoUrl} alt={name}
+                  {profilePhotoUrl && !photoError ? (
+                    <img src={profilePhotoUrl} alt={name}
                       className="w-full h-full object-cover"
                       onError={() => setPhotoError(true)} />
                   ) : (

@@ -11,6 +11,8 @@ public record CulqiCustomerRequest(
         @JsonProperty("last_name") String lastName,
         String email,
         String address,
+        @JsonProperty("address_city") String addressCity,
+        @JsonProperty("country_code") String countryCode,
         @JsonProperty("phone_number") String phoneNumber
 ) {
 }

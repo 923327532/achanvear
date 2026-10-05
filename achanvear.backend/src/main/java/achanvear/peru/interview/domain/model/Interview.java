@@ -19,6 +19,7 @@ public class Interview {
 
     private InterviewStatus status;
     private Integer assignedSlot;
+    private java.time.LocalDateTime assignedSlotDateTime;
     private String abortReason;
     private String pythonSessionId;
     private InterviewerProfile interviewerProfile;
@@ -69,6 +70,34 @@ public class Interview {
         interview.questions.addAll(questions != null ? questions : List.of());
         interview.answers.addAll(answers != null ? answers : List.of());
         interview.violations.addAll(violations != null ? violations : List.of());
+        return interview;
+    }
+
+    /**
+     * Factory method para restaurar desde persistencia incluyendo la fecha/hora
+     * del horario elegido por el candidato.
+     */
+    public static Interview restore(
+            InterviewId id,
+            String candidateId,
+            String jobId,
+            InterviewType type,
+            InterviewStatus status,
+            Integer assignedSlot,
+            java.time.LocalDateTime assignedSlotDateTime,
+            String abortReason,
+            InterviewerProfile interviewerProfile,
+            InterviewScore score,
+            RecordingSession recordingSession,
+            List<Question> questions,
+            List<Answer> answers,
+            List<ScreenViolation> violations
+    ) {
+        Interview interview = restore(
+                id, candidateId, jobId, type, status, assignedSlot, abortReason,
+                interviewerProfile, score, recordingSession, questions, answers, violations
+        );
+        interview.assignedSlotDateTime = assignedSlotDateTime;
         return interview;
     }
 
@@ -264,6 +293,11 @@ public class Interview {
 
     public Integer getAssignedSlot() {
         return assignedSlot;
+    }
+
+    /** Fecha y hora exactas del horario elegido por el candidato. */
+    public java.time.LocalDateTime getAssignedSlotDateTime() {
+        return assignedSlotDateTime;
     }
 
     public void setAssignedSlot(Integer assignedSlot) {

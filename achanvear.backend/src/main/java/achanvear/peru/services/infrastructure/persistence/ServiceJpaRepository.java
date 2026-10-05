@@ -20,10 +20,12 @@ public interface ServiceJpaRepository extends JpaRepository<ServiceJpaEntity, UU
     @Query("SELECT s FROM ServiceJpaEntity s WHERE s.status = 'ACTIVE' " +
            "AND (:pattern IS NULL OR LOWER(s.title) LIKE :pattern OR LOWER(s.description) LIKE :pattern) " +
            "AND (:category IS NULL OR s.category = :category) " +
+           "AND (:excludedUserId IS NULL OR s.freelancerUserId <> :excludedUserId) " +
            "ORDER BY s.createdAt DESC")
     Page<ServiceJpaEntity> findActiveServices(
             @Param("pattern") String pattern,
             @Param("category") String category,
+            @Param("excludedUserId") UUID excludedUserId,
             Pageable pageable
     );
 

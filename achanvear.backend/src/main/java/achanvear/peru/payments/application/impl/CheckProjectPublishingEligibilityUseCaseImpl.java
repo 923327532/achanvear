@@ -2,10 +2,12 @@ package achanvear.peru.payments.application.impl;
 
 import achanvear.peru.payments.application.dto.ProjectPublishingEligibilityResponse;
 import achanvear.peru.payments.application.port.in.CheckProjectPublishingEligibilityUseCase;
+import achanvear.peru.jobs.domain.repository.JobPostRepository;
 import achanvear.peru.payments.domain.model.PlanType;
 import achanvear.peru.payments.domain.model.ProjectPublishingPolicy;
-import achanvear.peru.payments.domain.repository.CompanyProjectStatsRepository;
 import achanvear.peru.payments.domain.repository.SubscriptionRepository;
+import achanvear.peru.shared.application.port.CompanyLookupPort;
+import achanvear.peru.shared.domain.exception.ResourceNotFoundException;
 import org.springframework.stereotype.Service;
 
 import java.util.UUID;
@@ -13,33 +15,39 @@ import java.util.UUID;
 @Service
 public class CheckProjectPublishingEligibilityUseCaseImpl implements CheckProjectPublishingEligibilityUseCase {
 
-    private final CompanyProjectStatsRepository statsRepository;
     private final SubscriptionRepository subscriptionRepository;
+    private final CompanyLookupPort companyLookupPort;
+    private final JobPostRepository jobPostRepository;
 
     public CheckProjectPublishingEligibilityUseCaseImpl(
-            CompanyProjectStatsRepository statsRepository,
-            SubscriptionRepository subscriptionRepository
+            SubscriptionRepository subscriptionRepository,
+            CompanyLookupPort companyLookupPort,
+            JobPostRepository jobPostRepository
     ) {
-        this.statsRepository = statsRepository;
         this.subscriptionRepository = subscriptionRepository;
+        this.companyLookupPort = companyLookupPort;
+        this.jobPostRepository = jobPostRepository;
     }
 
     @Override
     public ProjectPublishingEligibilityResponse execute(UUID companyUserId) {
-        int currentProjects = statsRepository.countPublishedProjectsByCompany(companyUserId);
-        boolean hasActiveSubscription = statsRepository.hasActiveSubscription(companyUserId);
+        CompanyLookupPort.CompanySummary company = companyLookupPort.findByOwnerUserId(companyUserId)
+                .orElseThrow(() -> new ResourceNotFoundException("Company not found"));
 
-        PlanType currentPlan = subscriptionRepository.findByCompanyUserId(companyUserId)
+        var subscription = subscriptionRepository.findByCompanyUserId(companyUserId)
                 .filter(sub -> sub.isActive())
-                .map(sub -> sub.getPlan())
-                .orElse(PlanType.FREE);
+                .stream()
+                .findFirst();
+        boolean hasActiveSubscription = subscription.isPresent();
+        PlanType currentPlan = subscription.map(sub -> sub.getPlan()).orElse(PlanType.FREE);
+        int currentProjects = (int) jobPostRepository.countByCompanyIdSince(company.id(), company.createdAt());
 
-        boolean canPublish = ProjectPublishingPolicy.canPublishProject(
-                currentPlan, currentProjects, hasActiveSubscription
+        boolean canPublish = ProjectPublishingPolicy.canPublishJob(
+                currentPlan, currentProjects, hasActiveSubscription, company.createdAt()
         );
 
-        int remainingFree = ProjectPublishingPolicy.remainingFreeProjects(currentProjects);
-        String message = ProjectPublishingPolicy.getUpgradeMessage(currentProjects);
+        int remainingFree = ProjectPublishingPolicy.remainingFreeJobs(currentProjects);
+        String message = ProjectPublishingPolicy.getJobUpgradeMessage(currentProjects, company.createdAt());
         boolean requiresUpgrade = !canPublish;
 
         return new ProjectPublishingEligibilityResponse(

@@ -146,6 +146,7 @@ public class CompanyController {
                 request.specialty(),
                 request.companySize(),
                 request.logoUrl(),
+                request.bannerUrl(),
                 request.biography(),
                 request.achievements(),
                 request.address(),
@@ -313,6 +314,26 @@ public class CompanyController {
         return ResponseEntity.ok(ApiResponse.success(toAgentSettingsResponse(company), "Agent settings updated successfully"));
     }
 
+    @PatchMapping("/profile-media")
+    @PreAuthorize("hasAnyAuthority('COMPANY', 'COMPANY_COLLABORATOR', 'SUPERADMIN')")
+    public ResponseEntity<ApiResponse<CompanyMediaResponse>> updateProfileMedia(
+            @RequestBody CompanyMediaRequest request,
+            Authentication authentication
+    ) {
+        CompanyJpaEntity company = resolveCompanyFor(authentication);
+        if (request.logoUrl() != null) {
+            company.setLogoUrl(request.logoUrl().isBlank() ? null : request.logoUrl().trim());
+        }
+        if (request.bannerUrl() != null) {
+            company.setBannerUrl(request.bannerUrl().isBlank() ? null : request.bannerUrl().trim());
+        }
+        companyJpaRepository.save(company);
+        return ResponseEntity.ok(ApiResponse.success(
+                new CompanyMediaResponse(company.getLogoUrl(), company.getBannerUrl()),
+                "Company profile media updated successfully"
+        ));
+    }
+
     private CompanyJpaEntity resolveCompanyFor(Authentication authentication) {
         AuthenticatedUser authenticatedUser = authenticatedUserResolver.resolve(authentication);
 
@@ -324,6 +345,15 @@ public class CompanyController {
         }
 
         return companyJpaRepository.findByOwnerUserId(ownerUserId)
+                .or(() -> {
+                    try {
+                        return authenticatedUser.companyId() == null
+                                ? java.util.Optional.empty()
+                                : companyJpaRepository.findById(authenticatedUser.companyId());
+                    } catch (IllegalArgumentException e) {
+                        return java.util.Optional.empty();
+                    }
+                })
                 .orElseThrow(() -> new ResourceNotFoundException("Company for user " + authenticatedUser.userId()));
     }
 
@@ -361,4 +391,10 @@ record PreferencesRequest(String language, String timezone) {
 }
 
 record PreferencesResponse(String language, String timezone) {
+}
+
+record CompanyMediaRequest(String logoUrl, String bannerUrl) {
+}
+
+record CompanyMediaResponse(String logoUrl, String bannerUrl) {
 }
