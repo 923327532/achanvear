@@ -10,6 +10,7 @@ import achanvear.peru.hiring.application.AdvanceCandidateToTheoryInterviewUseCas
 import achanvear.peru.jobs.application.GetJobApplicantsUseCase;
 import achanvear.peru.jobs.application.GetJobByIdUseCase;
 import achanvear.peru.jobs.application.GetCompanyHiringStatsUseCase;
+import achanvear.peru.jobs.application.GetMyJobApplicationsUseCase;
 import achanvear.peru.jobs.application.GetMyJobPostsUseCase;
 import achanvear.peru.jobs.application.JobAiSuggestionService;
 import achanvear.peru.jobs.application.ManageRecruitmentAutomationUseCase;
@@ -27,6 +28,7 @@ import achanvear.peru.jobs.application.dto.JobAiSuggestionResponse;
 import achanvear.peru.jobs.application.dto.JobApplicationResponse;
 import achanvear.peru.jobs.application.dto.JobPostPageResponse;
 import achanvear.peru.jobs.application.dto.JobPostResponse;
+import achanvear.peru.jobs.application.dto.MyJobApplicationResponse;
 import achanvear.peru.jobs.application.dto.CompanyHiringStatsResponse;
 import achanvear.peru.jobs.application.dto.RecruitmentAutomationConfigResponse;
 import achanvear.peru.jobs.application.query.JobSearchQuery;
@@ -72,6 +74,7 @@ public class JobController {
     private final GetCandidateDrawerDetailUseCase getCandidateDrawerDetailUseCase;
     private final AdvanceCandidateToTheoryInterviewUseCase advanceCandidateToTheoryInterviewUseCase;
     private final GetAppliedJobIdsUseCase getAppliedJobIdsUseCase;
+    private final GetMyJobApplicationsUseCase getMyJobApplicationsUseCase;
     private final JobAiSuggestionService jobAiSuggestionService;
 
     public JobController(
@@ -89,10 +92,12 @@ public class JobController {
             DeleteJobUseCase deleteJobUseCase,
             GetCandidateDrawerDetailUseCase getCandidateDrawerDetailUseCase,
             GetAppliedJobIdsUseCase getAppliedJobIdsUseCase,
+            GetMyJobApplicationsUseCase getMyJobApplicationsUseCase,
             JobAiSuggestionService jobAiSuggestionService,
             AdvanceCandidateToTheoryInterviewUseCase advanceCandidateToTheoryInterviewUseCase
     ) {
         this.getAppliedJobIdsUseCase = getAppliedJobIdsUseCase;
+        this.getMyJobApplicationsUseCase = getMyJobApplicationsUseCase;
         this.jobAiSuggestionService = jobAiSuggestionService;
 
         this.createJobUseCase = createJobUseCase;
@@ -413,6 +418,22 @@ public class JobController {
     ) {
         java.util.List<String> ids = getAppliedJobIdsUseCase.execute(principal.getUserId());
         return ResponseEntity.ok(ApiResponse.success(ids, "Applied job IDs retrieved successfully"));
+    }
+
+    @GetMapping("/my-applications")
+    @PreAuthorize("hasAnyAuthority('FREELANCER')")
+    public ResponseEntity<ApiResponse<Page<MyJobApplicationResponse>>> getMyApplications(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @AuthenticationPrincipal AuthenticatedUser principal
+    ) {
+        Pageable pageable = PageRequest.of(
+                page,
+                size,
+                Sort.by(Sort.Direction.DESC, "appliedAt")
+        );
+        Page<MyJobApplicationResponse> response = getMyJobApplicationsUseCase.execute(principal.getUserId(), pageable);
+        return ResponseEntity.ok(ApiResponse.success(response, "My applications retrieved successfully"));
     }
 
     @GetMapping("/{id}/automation")

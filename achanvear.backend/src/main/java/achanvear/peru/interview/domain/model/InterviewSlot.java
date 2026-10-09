@@ -28,6 +28,10 @@ public class InterviewSlot {
         return new InterviewSlot(this.dateTime, newStatus);
     }
 
+    public InterviewSlot withDateTimeAndStatus(LocalDateTime newDateTime, SlotStatus newStatus) {
+        return new InterviewSlot(newDateTime, newStatus);
+    }
+
     public enum SlotStatus {
         AVAILABLE,
         RESERVED

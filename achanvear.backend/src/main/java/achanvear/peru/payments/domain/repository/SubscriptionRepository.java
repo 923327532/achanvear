@@ -10,5 +10,6 @@ public interface SubscriptionRepository {
     void save(Subscription subscription);
     Optional<Subscription> findById(SubscriptionId id);
     Optional<Subscription> findByCompanyUserId(UUID companyUserId);
+    Optional<Subscription> findActiveByCompanyUserId(UUID companyUserId);
     Optional<Subscription> findByMpSubscriptionId(String mpSubscriptionId);
 }

@@ -31,6 +31,7 @@ public class FreelanceApplicationMapper {
         String industry = profile.getIndustry();
         String specialty = profile.getSpecialty();
         String profilePhotoUrl = profile.getProfilePhotoUrl();
+        String bannerUrl = profile.getBannerUrl();
         String biography = profile.getBiography();
         String achievements = profile.getAchievements();
         String address = profile.getAddress();
@@ -94,7 +95,7 @@ public class FreelanceApplicationMapper {
         }
 
         return new FreelancerProfileResponse(
-                id, userId, name, industry, specialty, profilePhotoUrl,
+                id, userId, name, industry, specialty, profilePhotoUrl, bannerUrl,
                 biography, achievements, address, paymentMethodType, dni,
                 curriculumUrl, cvData, status, certifications,
                 headline, location, reputationScore, skills, portfolioItems, ratings,

@@ -124,8 +124,7 @@ public class RecruitmentAutomationService implements ManageRecruitmentAutomation
         CompanyLookupPort.CompanySummary company = companyLookupPort.findById(jobPost.getCompanyId())
                 .orElseThrow(() -> new ResourceNotFoundException("Company not found"));
 
-        boolean hasActiveSubscription = subscriptionRepository.findByCompanyUserId(company.ownerUserId())
-                .filter(sub -> sub.isActive())
+        boolean hasActiveSubscription = subscriptionRepository.findActiveByCompanyUserId(company.ownerUserId())
                 .isPresent();
 
         if (!ProjectPublishingPolicy.canUseRecruitmentAutomation(hasActiveSubscription)) {

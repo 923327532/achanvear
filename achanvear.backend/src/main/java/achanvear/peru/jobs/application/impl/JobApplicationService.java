@@ -184,8 +184,7 @@ public class JobApplicationService implements
     }
 
     private void validateJobPublishingAllowance(CompanyLookupPort.CompanySummary company) {
-        var subscription = subscriptionRepository.findByCompanyUserId(company.ownerUserId())
-                .filter(sub -> sub.isActive());
+        var subscription = subscriptionRepository.findActiveByCompanyUserId(company.ownerUserId());
         boolean hasActiveSubscription = subscription.isPresent();
         PlanType plan = subscription.map(sub -> sub.getPlan()).orElse(PlanType.FREE);
         int currentJobs = (int) jobPostRepository.countByCompanyIdSince(company.id(), company.createdAt());
@@ -214,8 +213,7 @@ public class JobApplicationService implements
             return;
         }
 
-        boolean hasActiveSubscription = subscriptionRepository.findByCompanyUserId(company.ownerUserId())
-                .filter(sub -> sub.isActive())
+        boolean hasActiveSubscription = subscriptionRepository.findActiveByCompanyUserId(company.ownerUserId())
                 .isPresent();
 
         if (!ProjectPublishingPolicy.canUseRecruitmentAutomation(hasActiveSubscription)) {

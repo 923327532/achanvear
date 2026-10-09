@@ -15,6 +15,7 @@ public class FreelancerProfile extends AggregateRoot<FreelancerId> {
     private String industry;
     private String specialty;
     private String profilePhotoUrl;
+    private String bannerUrl;
     private String biography;
     private String achievements;
     private String address;
@@ -42,6 +43,7 @@ public class FreelancerProfile extends AggregateRoot<FreelancerId> {
             String industry,
             String specialty,
             String profilePhotoUrl,
+            String bannerUrl,
             String biography,
             String achievements,
             String address,
@@ -65,6 +67,7 @@ public class FreelancerProfile extends AggregateRoot<FreelancerId> {
         this.industry = validateRequiredText(industry, "Industry", 3, 120);
         this.specialty = validateRequiredText(specialty, "Specialty", 3, 120);
         this.profilePhotoUrl = normalizeOptionalText(profilePhotoUrl);
+        this.bannerUrl = normalizeOptionalText(bannerUrl);
         this.biography = validateRequiredText(biography, "Biography", 20, 2000);
         this.achievements = normalizeOptionalText(achievements);
         this.address = normalizeOptionalText(address);
@@ -90,6 +93,7 @@ public class FreelancerProfile extends AggregateRoot<FreelancerId> {
             String industry,
             String specialty,
             String profilePhotoUrl,
+            String bannerUrl,
             String biography,
             String achievements,
             String address,
@@ -105,6 +109,7 @@ public class FreelancerProfile extends AggregateRoot<FreelancerId> {
                 industry,
                 specialty,
                 profilePhotoUrl,
+                bannerUrl,
                 biography,
                 achievements,
                 address,
@@ -131,6 +136,7 @@ public class FreelancerProfile extends AggregateRoot<FreelancerId> {
             String industry,
             String specialty,
             String profilePhotoUrl,
+            String bannerUrl,
             String biography,
             String achievements,
             String address,
@@ -155,6 +161,7 @@ public class FreelancerProfile extends AggregateRoot<FreelancerId> {
                 industry,
                 specialty,
                 profilePhotoUrl,
+                bannerUrl,
                 biography,
                 achievements,
                 address,
@@ -196,6 +203,7 @@ public class FreelancerProfile extends AggregateRoot<FreelancerId> {
             String industry,
             String specialty,
             String profilePhotoUrl,
+            String bannerUrl,
             String biography,
             String achievements,
             String address,
@@ -205,7 +213,7 @@ public class FreelancerProfile extends AggregateRoot<FreelancerId> {
             String cvData,
             List<FreelancerCertification> certifications
     ) {
-        updateProfile(name, industry, specialty, profilePhotoUrl, biography, achievements, address,
+        updateProfile(name, industry, specialty, profilePhotoUrl, bannerUrl, biography, achievements, address,
                 paymentMethodType, dni, curriculumUrl, cvData, certifications,
                 this.availabilityStatus, this.cvVisibility, this.preferredCurrency,
                 this.preferredPaymentMethod, this.language, this.timezone,
@@ -217,6 +225,7 @@ public class FreelancerProfile extends AggregateRoot<FreelancerId> {
             String industry,
             String specialty,
             String profilePhotoUrl,
+            String bannerUrl,
             String biography,
             String achievements,
             String address,
@@ -237,6 +246,7 @@ public class FreelancerProfile extends AggregateRoot<FreelancerId> {
         this.industry = validateRequiredText(industry, "Industry", 3, 120);
         this.specialty = validateRequiredText(specialty, "Specialty", 3, 120);
         this.profilePhotoUrl = normalizeOptionalText(profilePhotoUrl);
+        this.bannerUrl = normalizeOptionalText(bannerUrl);
         this.biography = validateRequiredText(biography, "Biography", 20, 2000);
         this.achievements = normalizeOptionalText(achievements);
         this.address = normalizeOptionalText(address);
@@ -278,6 +288,10 @@ public class FreelancerProfile extends AggregateRoot<FreelancerId> {
 
     public String getProfilePhotoUrl() {
         return profilePhotoUrl;
+    }
+
+    public String getBannerUrl() {
+        return bannerUrl;
     }
 
     public String getBiography() {

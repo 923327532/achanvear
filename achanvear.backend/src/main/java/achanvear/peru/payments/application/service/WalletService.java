@@ -245,6 +245,26 @@ public class WalletService {
      * Tiyuy solo almacena datos enmascarados y el token del proveedor (nunca el número completo ni CVV).
      */
     @Transactional
+    public void depositReleasedEscrowFunds(UUID freelancerUserId, BigDecimal amount, String escrowId, String milestoneId) {
+        Wallet wallet = getOrCreateWallet(freelancerUserId);
+        BigDecimal balanceBefore = wallet.getBalance();
+        wallet.deposit(amount);
+        walletRepository.save(wallet);
+
+        WalletTransaction transaction = WalletTransaction.createDeposit(
+                wallet.getId().value(),
+                freelancerUserId,
+                amount,
+                balanceBefore,
+                wallet.getBalance(),
+                "ESCROW_RELEASE",
+                escrowId,
+                "Pago liberado por conformidad del proyecto. Milestone: " + milestoneId
+        );
+        walletTransactionRepository.save(transaction);
+    }
+
+    @Transactional
     public PayoutMethod registerPayoutMethod(
             UUID userId,
             String cardToken,

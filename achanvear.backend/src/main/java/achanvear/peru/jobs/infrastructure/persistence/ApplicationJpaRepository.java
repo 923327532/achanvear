@@ -18,6 +18,8 @@ public interface ApplicationJpaRepository extends JpaRepository<JobApplicationJp
 
     Page<JobApplicationJpaEntity> findByJobPostId(UUID jobPostId, Pageable pageable);
 
+    long countByJobPostIdAndStatus(UUID jobPostId, String status);
+
     @Query("""
             SELECT COUNT(application)
             FROM JobApplicationJpaEntity application

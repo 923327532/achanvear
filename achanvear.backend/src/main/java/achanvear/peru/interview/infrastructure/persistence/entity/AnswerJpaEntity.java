@@ -21,6 +21,9 @@ public class AnswerJpaEntity {
     
     @Column(name = "content", nullable = false, columnDefinition = "TEXT")
     private String content;
+
+    @Column(name = "score")
+    private Integer score;
     
     @Column(name = "answered_at", nullable = false)
     private Instant answeredAt;
@@ -32,11 +35,12 @@ public class AnswerJpaEntity {
     public AnswerJpaEntity() {}
     
     // Constructor with required fields
-    public AnswerJpaEntity(String id, InterviewJpaEntity interview, String questionId, String content, Instant answeredAt) {
+    public AnswerJpaEntity(String id, InterviewJpaEntity interview, String questionId, String content, Integer score, Instant answeredAt) {
         this.id = id;
         this.interview = interview;
         this.questionId = questionId;
         this.content = content;
+        this.score = score;
         this.answeredAt = answeredAt;
         this.createdAt = Instant.now();
     }
@@ -53,6 +57,9 @@ public class AnswerJpaEntity {
     
     public String getContent() { return content; }
     public void setContent(String content) { this.content = content; }
+
+    public Integer getScore() { return score; }
+    public void setScore(Integer score) { this.score = score; }
     
     public Instant getAnsweredAt() { return answeredAt; }
     public void setAnsweredAt(Instant answeredAt) { this.answeredAt = answeredAt; }

@@ -46,6 +46,29 @@ public class Milestone extends AggregateRoot<MilestoneId> {
         this.updatedAt = this.createdAt;
     }
 
+    public static Milestone restore(
+            MilestoneId id,
+            UUID projectId,
+            UUID clientUserId,
+            UUID freelancerUserId,
+            String title,
+            String description,
+            BigDecimal amount,
+            MilestoneStatus status,
+            String mpPreferenceId,
+            String mpPaymentId,
+            Instant fundedAt,
+            Instant releasedAt
+    ) {
+        Milestone milestone = new Milestone(id, projectId, clientUserId, freelancerUserId, title, description, amount);
+        milestone.status = status;
+        milestone.mpPreferenceId = mpPreferenceId;
+        milestone.mpPaymentId = mpPaymentId;
+        milestone.fundedAt = fundedAt;
+        milestone.releasedAt = releasedAt;
+        return milestone;
+    }
+
     public static Milestone create(
             UUID projectId,
             UUID clientUserId,

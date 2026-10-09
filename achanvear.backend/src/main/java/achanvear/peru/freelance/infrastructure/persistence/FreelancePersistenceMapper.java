@@ -17,6 +17,7 @@ public class FreelancePersistenceMapper {
         entity.setIndustry(profile.getIndustry());
         entity.setSpecialty(profile.getSpecialty());
         entity.setProfilePhotoUrl(profile.getProfilePhotoUrl());
+        entity.setBannerUrl(profile.getBannerUrl());
         entity.setBiography(profile.getBiography());
         entity.setAchievements(profile.getAchievements());
         entity.setAddress(profile.getAddress());
@@ -46,6 +47,7 @@ public class FreelancePersistenceMapper {
                 entity.getIndustry(),
                 entity.getSpecialty(),
                 entity.getProfilePhotoUrl(),
+                entity.getBannerUrl(),
                 entity.getBiography(),
                 entity.getAchievements(),
                 entity.getAddress(),

@@ -9,6 +9,7 @@ public record UpdateFreelancerProfileCommand(
         String industry,
         String specialty,
         String profilePhotoUrl,
+        String bannerUrl,
         String biography,
         String achievements,
         String address,

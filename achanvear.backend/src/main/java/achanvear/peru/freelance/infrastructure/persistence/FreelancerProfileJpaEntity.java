@@ -31,6 +31,9 @@ public class FreelancerProfileJpaEntity extends BaseJpaEntity {
     @Column(name = "profile_photo_url")
     private String profilePhotoUrl;
 
+    @Column(name = "banner_url")
+    private String bannerUrl;
+
     @Column(name = "biography", nullable = false, length = 2000)
     private String biography;
 
@@ -137,6 +140,14 @@ public class FreelancerProfileJpaEntity extends BaseJpaEntity {
 
     public void setProfilePhotoUrl(String profilePhotoUrl) {
         this.profilePhotoUrl = profilePhotoUrl;
+    }
+
+    public String getBannerUrl() {
+        return bannerUrl;
+    }
+
+    public void setBannerUrl(String bannerUrl) {
+        this.bannerUrl = bannerUrl;
     }
 
     public String getBiography() {

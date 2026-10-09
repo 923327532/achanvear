@@ -33,6 +33,7 @@ public class FreelancerProfileRepositoryImpl implements FreelancerProfileReposit
                             existingEntity.setIndustry(freelancerProfile.getIndustry());
                             existingEntity.setSpecialty(freelancerProfile.getSpecialty());
                             existingEntity.setProfilePhotoUrl(freelancerProfile.getProfilePhotoUrl());
+                            existingEntity.setBannerUrl(freelancerProfile.getBannerUrl());
                             existingEntity.setBiography(freelancerProfile.getBiography());
                             existingEntity.setAchievements(freelancerProfile.getAchievements());
                             existingEntity.setAddress(freelancerProfile.getAddress());

@@ -19,15 +19,18 @@ public class EscrowService {
     private final EscrowRepository escrowRepository;
     private final MilestoneRepository milestoneRepository;
     private final AuditService auditService;
+    private final WalletService walletService;
 
     public EscrowService(
             EscrowRepository escrowRepository,
             MilestoneRepository milestoneRepository,
-            AuditService auditService
+            AuditService auditService,
+            WalletService walletService
     ) {
         this.escrowRepository = escrowRepository;
         this.milestoneRepository = milestoneRepository;
         this.auditService = auditService;
+        this.walletService = walletService;
     }
 
     /**
@@ -76,6 +79,13 @@ public class EscrowService {
                 .orElseThrow(() -> new IllegalArgumentException("Milestone not found: " + milestoneId));
         milestone.markAsReleased();
         milestoneRepository.save(milestone);
+
+        walletService.depositReleasedEscrowFunds(
+                escrow.getFreelancerUserId(),
+                escrow.getFreelancerAmount(),
+                escrow.getId().value().toString(),
+                milestoneId.toString()
+        );
 
         auditService.logPaymentReleased(clientUserId, milestoneId.toString(),
                 escrow.getFreelancerAmount().toString(), null);
@@ -143,6 +153,12 @@ public class EscrowService {
                 .orElseThrow(() -> new IllegalArgumentException("Milestone not found: " + milestoneId));
         if (releaseToFreelancer) {
             milestone.markAsReleased();
+            walletService.depositReleasedEscrowFunds(
+                    escrow.getFreelancerUserId(),
+                    escrow.getFreelancerAmount(),
+                    escrow.getId().value().toString(),
+                    milestoneId.toString()
+            );
         } else {
             milestone.markAsRefunded();
         }

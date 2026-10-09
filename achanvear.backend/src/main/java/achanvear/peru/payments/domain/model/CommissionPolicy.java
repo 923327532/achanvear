@@ -12,7 +12,7 @@ public final class CommissionPolicy {
     private CommissionPolicy() {}
 
     // Comisión de la plataforma: 10% del monto total
-    private static final BigDecimal PLATFORM_COMMISSION_PERCENTAGE = new BigDecimal("10.00");
+    private static final BigDecimal PLATFORM_COMMISSION_PERCENTAGE = new BigDecimal("5.00");
 
     // Comisión de Mercado Pago: 3.99% + tarifa fija
     private static final BigDecimal MP_COMMISSION_PERCENTAGE = new BigDecimal("3.99");

@@ -23,6 +23,7 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 
@@ -31,6 +32,13 @@ import java.util.List;
 public class ProfileController {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ProfileController.class);
+    private static final byte[] FALLBACK_PROFILE_IMAGE = """
+            <svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96">
+              <rect width="96" height="96" rx="18" fill="#e2e8f0"/>
+              <circle cx="48" cy="36" r="16" fill="#94a3b8"/>
+              <path d="M22 82c3.5-17 14-26 26-26s22.5 9 26 26" fill="#94a3b8"/>
+            </svg>
+            """.getBytes(StandardCharsets.UTF_8);
 
     private final CreateTalentProfileUseCase createTalentProfileUseCase;
     private final UpdateTalentProfileUseCase updateTalentProfileUseCase;
@@ -295,8 +303,11 @@ public class ProfileController {
                     .header(HttpHeaders.CACHE_CONTROL, "public, max-age=86400")
                     .body(resource);
         } catch (Exception e) {
-            LOGGER.warn("Profile photo proxy failed for key {}", fileKey, e);
-            return ResponseEntity.notFound().build();
+            LOGGER.warn("Profile photo proxy fallback for missing key {}", fileKey);
+            return ResponseEntity.ok()
+                    .contentType(MediaType.parseMediaType("image/svg+xml"))
+                    .header(HttpHeaders.CACHE_CONTROL, "public, max-age=3600")
+                    .body(new ByteArrayResource(FALLBACK_PROFILE_IMAGE));
         }
     }
 

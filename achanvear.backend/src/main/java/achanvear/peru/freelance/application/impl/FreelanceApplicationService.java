@@ -16,6 +16,7 @@ import achanvear.peru.freelance.domain.repository.FreelancerProfileRepository;
 import achanvear.peru.profile.*;
 import achanvear.peru.payments.domain.model.PlanType;
 import achanvear.peru.payments.domain.model.ProjectPublishingPolicy;
+import achanvear.peru.payments.domain.repository.MilestoneRepository;
 import achanvear.peru.payments.domain.repository.SubscriptionRepository;
 import achanvear.peru.shared.application.port.CompanyLookupPort;
 import achanvear.peru.shared.application.port.IdentityFreelancerLookupPort;
@@ -31,6 +32,8 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
 import java.util.UUID;
 
@@ -61,6 +64,7 @@ public class FreelanceApplicationService implements
     private final FreelanceApplicationMapper freelanceApplicationMapper;
     private final CompanyLookupPort companyLookupPort;
     private final SubscriptionRepository subscriptionRepository;
+    private final MilestoneRepository paymentMilestoneRepository;
 
     public FreelanceApplicationService(
             FreelancerProfileRepository freelancerProfileRepository,
@@ -73,7 +77,8 @@ public class FreelanceApplicationService implements
             EventPublisher eventPublisher,
             FreelanceApplicationMapper freelanceApplicationMapper,
             CompanyLookupPort companyLookupPort,
-            SubscriptionRepository subscriptionRepository
+            SubscriptionRepository subscriptionRepository,
+            MilestoneRepository paymentMilestoneRepository
     ) {
         this.freelancerProfileRepository = freelancerProfileRepository;
         this.freelanceProjectRepository = freelanceProjectRepository;
@@ -86,6 +91,7 @@ public class FreelanceApplicationService implements
         this.freelanceApplicationMapper = freelanceApplicationMapper;
         this.companyLookupPort = companyLookupPort;
         this.subscriptionRepository = subscriptionRepository;
+        this.paymentMilestoneRepository = paymentMilestoneRepository;
     }
 
 
@@ -124,6 +130,7 @@ public class FreelanceApplicationService implements
                 command.industry(),
                 command.specialty(),
                 command.profilePhotoUrl(),
+                command.bannerUrl(),
                 command.biography(),
                 command.achievements(),
                 command.address(),
@@ -188,6 +195,7 @@ public class FreelanceApplicationService implements
                 command.industry(),
                 command.specialty(),
                 command.profilePhotoUrl(),
+                command.bannerUrl(),
                 command.biography(),
                 command.achievements(),
                 command.address(),
@@ -276,8 +284,7 @@ public class FreelanceApplicationService implements
         CompanyLookupPort.CompanySummary company = companyLookupPort.findByOwnerUserId(clientUserId)
                 .orElseThrow(() -> new BusinessRuleViolationException("Debes completar el perfil de empresa para publicar proyectos."));
 
-        var subscription = subscriptionRepository.findByCompanyUserId(clientUserId)
-                .filter(sub -> sub.isActive());
+        var subscription = subscriptionRepository.findActiveByCompanyUserId(clientUserId);
         boolean hasActiveSubscription = subscription.isPresent();
         PlanType plan = subscription.map(sub -> sub.getPlan()).orElse(PlanType.FREE);
         int currentProjects = (int) freelanceProjectRepository.countByClientIdSince(clientUserId, company.createdAt());
@@ -369,11 +376,59 @@ public class FreelanceApplicationService implements
             throw new ForbiddenOperationException("You do not have permission to manage this freelance project");
         }
 
+        Proposal acceptedProposal = project.getProposals().stream()
+                .filter(proposal -> proposal.getId().value().equals(UUID.fromString(command.proposalId())))
+                .findFirst()
+                .orElseThrow(() -> new ResourceNotFoundException("Proposal not found"));
+
         project.acceptProposal(new ProposalId(UUID.fromString(command.proposalId())));
 
         freelanceProjectRepository.save(project);
+        createEscrowPaymentPlanIfMissing(project, acceptedProposal);
 
         return freelanceApplicationMapper.toProjectResponse(project);
+    }
+
+    private void createEscrowPaymentPlanIfMissing(FreelanceProject project, Proposal acceptedProposal) {
+        if (!paymentMilestoneRepository.findByProjectId(project.getId().value()).isEmpty()) {
+            return;
+        }
+
+        BigDecimal total = acceptedProposal.getProposedBudget();
+        BigDecimal initial20 = percentage(total, "20");
+        BigDecimal next50 = percentage(total, "50");
+        BigDecimal final30 = total.subtract(initial20).subtract(next50).setScale(2, RoundingMode.HALF_UP);
+
+        paymentMilestoneRepository.save(achanvear.peru.payments.domain.model.Milestone.create(
+                project.getId().value(),
+                project.getClientUserId(),
+                acceptedProposal.getFreelancerUserId(),
+                "Garantia inicial 20%",
+                "Pago obligatorio para confirmar el match exitoso y retener fondos dentro de Achanvear.",
+                initial20
+        ));
+        paymentMilestoneRepository.save(achanvear.peru.payments.domain.model.Milestone.create(
+                project.getId().value(),
+                project.getClientUserId(),
+                acceptedProposal.getFreelancerUserId(),
+                "Pago de avance 50%",
+                "Debe pagarse dentro de los 7 dias posteriores al inicio del proyecto.",
+                next50
+        ));
+        paymentMilestoneRepository.save(achanvear.peru.payments.domain.model.Milestone.create(
+                project.getId().value(),
+                project.getClientUserId(),
+                acceptedProposal.getFreelancerUserId(),
+                "Pago final 30%",
+                "Debe pagarse cuando el profesional declare 70% de avance antes de continuar al cierre.",
+                final30
+        ));
+    }
+
+    private BigDecimal percentage(BigDecimal amount, String percentage) {
+        return amount
+                .multiply(new BigDecimal(percentage))
+                .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
     }
 
     @Override
@@ -451,6 +506,7 @@ public class FreelanceApplicationService implements
                             null,                    // industry
                             null,                    // specialty
                             null,                    // profilePhotoUrl
+                            null,                    // bannerUrl
                             null,                    // biography
                             null,                    // achievements
                             null,                    // address
@@ -504,6 +560,7 @@ public class FreelanceApplicationService implements
                 null,
                 talentProfile != null ? talentProfile.getHeadline() : null,
                 talentProfile != null ? talentProfile.getProfilePhotoUrl() : null,
+                null,
                 talentProfile != null ? talentProfile.getBiography() : null,
                 null,
                 talentProfile != null ? talentProfile.getLocation() : null,

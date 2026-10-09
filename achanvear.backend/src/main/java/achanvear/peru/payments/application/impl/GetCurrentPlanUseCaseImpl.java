@@ -26,9 +26,9 @@ public class GetCurrentPlanUseCaseImpl implements GetCurrentPlanUseCase {
 
     @Override
     public CurrentPlanResponse execute(UUID companyUserId) {
-        var subscriptionOpt = subscriptionRepository.findByCompanyUserId(companyUserId);
+        var subscriptionOpt = subscriptionRepository.findActiveByCompanyUserId(companyUserId);
 
-        if (subscriptionOpt.isEmpty() || !subscriptionOpt.get().isActive()) {
+        if (subscriptionOpt.isEmpty()) {
             // Plan FREE
             int projectsUsed = statsRepository.countPublishedProjectsByCompany(companyUserId);
             return new CurrentPlanResponse(

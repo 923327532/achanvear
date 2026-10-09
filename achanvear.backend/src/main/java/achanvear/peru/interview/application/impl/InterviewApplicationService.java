@@ -1,6 +1,7 @@
 package achanvear.peru.interview.application.impl;
 
 import achanvear.peru.compliance.application.ValidateInterviewConsentUseCase;
+import achanvear.peru.hiring.domain.event.TheoryInterviewPassedEvent;
 import achanvear.peru.interview.application.*;
 import achanvear.peru.interview.application.command.*;
 import achanvear.peru.interview.application.dto.*;
@@ -243,8 +244,10 @@ public class InterviewApplicationService implements
         }
 
         if (evaluation.interviewCompleted()) {
-            interview.complete();
+            InterviewScore finalScore = scoreCalculator.calculate(interview);
+            interview.complete(finalScore);
             interviewSlotManager.releaseSlot(command.interviewId());
+            publishInterviewCompleted(interview, finalScore);
         }
 
         interviewRepository.save(interview);
@@ -277,19 +280,19 @@ public class InterviewApplicationService implements
     public InterviewReportResponse execute(CompleteInterviewCommand command) {
         Interview interview = getInterview(command.interviewId());
 
-        InterviewScore finalScore = scoreCalculator.calculate(interview);
+        boolean alreadyCompleted = interview.getStatus() == InterviewStatus.COMPLETED;
+        InterviewScore finalScore = interview.getScore() != null
+                ? interview.getScore()
+                : scoreCalculator.calculate(interview);
         boolean passed = finalScore.getValue() >= 75;
 
-        interview.complete();
+        interview.complete(finalScore);
         interviewRepository.save(interview);
         interviewSlotManager.releaseSlot(command.interviewId());
 
-        eventPublisher.publish(new InterviewCompletedEvent(
-                interview.getId(),
-                interview.getType().name(),
-                finalScore.getValue(),
-                passed
-        ));
+        if (!alreadyCompleted) {
+            publishInterviewCompleted(interview, finalScore);
+        }
 
         return new InterviewReportResponse(
                 interview.getId().toString(),
@@ -468,19 +471,8 @@ public class InterviewApplicationService implements
             String date = resolveDateFromSchedule(interview);
             String time = resolveTimeFromSchedule(interview);
 
-            // Auto-cancel expired interviews
             String status = interview.getStatus().name();
             String abortReason = interview.getAbortReason();
-            if ("SCHEDULED".equals(status) && date != null && !date.isEmpty()) {
-                try {
-                    String dateTimeStr = date + (time != null && !time.isEmpty() ? "T" + time : "T00:00");
-                    java.time.LocalDateTime interviewDt = java.time.LocalDateTime.parse(dateTimeStr, java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm"));
-                    if (interviewDt.isBefore(java.time.LocalDateTime.now())) {
-                        status = "ABORTED";
-                        abortReason = "Vencida por inasistencia";
-                    }
-                } catch (Exception ignored) {}
-            }
 
             // Para entrevistas completadas que no pasaron, generar un motivo basado en los resultados
             String reason = abortReason;
@@ -611,6 +603,37 @@ public class InterviewApplicationService implements
             default -> new InterviewerProfile("PROFILE_4", "Sofia Vargas", "Estrategico y orientado a impacto", InterviewerVoice.FEMALE2);
         };
     }
+
+    private void publishInterviewCompleted(Interview interview, InterviewScore finalScore) {
+        boolean passed = finalScore.getValue() >= 75;
+        eventPublisher.publish(new InterviewCompletedEvent(
+                interview.getId(),
+                interview.getType().name(),
+                finalScore.getValue(),
+                passed
+        ));
+
+        if (interview.getType() == InterviewType.THEORY && passed) {
+            HiringContext hiringContext = resolveHiringContext(interview);
+            eventPublisher.publish(new TheoryInterviewPassedEvent(
+                    hiringContext.hiringProcessId(),
+                    hiringContext.jobId(),
+                    interview.getCandidateId(),
+                    finalScore.getValue(),
+                    Instant.now()
+            ));
+        }
+    }
+
+    private HiringContext resolveHiringContext(Interview interview) {
+        return findChosenSchedules(interview).stream()
+                .filter(s -> s.getInterviewType() == interview.getType())
+                .findFirst()
+                .map(s -> new HiringContext(s.getHiringProcessId(), s.getJobId()))
+                .orElse(new HiringContext(interview.getHiringProcessId(), interview.getJobId()));
+    }
+
+    private record HiringContext(String hiringProcessId, String jobId) {}
 
     private InterviewReportResponse.QuestionItem toQuestionItem(Question question) {
         return new InterviewReportResponse.QuestionItem(question.getId(), question.getContent(), null);

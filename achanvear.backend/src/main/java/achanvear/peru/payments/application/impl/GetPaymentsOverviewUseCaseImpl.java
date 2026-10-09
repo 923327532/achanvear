@@ -35,11 +35,8 @@ public class GetPaymentsOverviewUseCaseImpl implements GetPaymentsOverviewUseCas
     public PaymentsOverviewResponse execute(UUID userId) {
         // Obtener estadísticas de suscripción
         int publishedProjects = statsRepository.countPublishedProjectsByCompany(userId);
-        boolean hasActiveSubscription = statsRepository.hasActiveSubscription(userId);
-
-        var subscriptionOpt = subscriptionRepository.findByCompanyUserId(userId);
+        var subscriptionOpt = subscriptionRepository.findActiveByCompanyUserId(userId);
         PlanType currentPlan = subscriptionOpt
-                .filter(sub -> sub.isActive())
                 .map(sub -> sub.getPlan())
                 .orElse(PlanType.FREE);
 
@@ -64,7 +61,6 @@ public class GetPaymentsOverviewUseCaseImpl implements GetPaymentsOverviewUseCas
 
         // Fecha de expiración del plan
         String planExpirationDate = subscriptionOpt
-                .filter(sub -> sub.isActive())
                 .map(sub -> DateTimeFormatter.ISO_INSTANT.format(sub.getEndDate()))
                 .orElse(null);
 

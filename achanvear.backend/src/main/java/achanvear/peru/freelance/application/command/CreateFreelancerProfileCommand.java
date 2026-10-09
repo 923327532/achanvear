@@ -8,6 +8,7 @@ public record CreateFreelancerProfileCommand(
         String industry,
         String specialty,
         String profilePhotoUrl,
+        String bannerUrl,
         String biography,
         String achievements,
         String address,

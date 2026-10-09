@@ -3,7 +3,6 @@ package achanvear.peru.payments.application.impl;
 import achanvear.peru.payments.application.dto.WalletSummaryResponse;
 import achanvear.peru.payments.application.port.in.GetWalletSummaryUseCase;
 import achanvear.peru.payments.domain.model.Subscription;
-import achanvear.peru.payments.domain.model.SubscriptionStatus;
 import achanvear.peru.payments.domain.repository.PaymentRepository;
 import achanvear.peru.payments.domain.repository.SubscriptionRepository;
 import org.springframework.stereotype.Service;
@@ -34,8 +33,7 @@ public class GetWalletSummaryUseCaseImpl implements GetWalletSummaryUseCase {
         BigDecimal totalCommissionsPaid = paymentRepository.getTotalCommissionsByUserId(userId);
 
         // Suscripcion activa para empresas
-        var activeSubscription = subscriptionRepository.findByCompanyUserId(userId)
-                .filter(sub -> sub.getStatus() == SubscriptionStatus.ACTIVE);
+        var activeSubscription = subscriptionRepository.findActiveByCompanyUserId(userId);
 
         return new WalletSummaryResponse(
                 totalEarned != null ? totalEarned : BigDecimal.ZERO,

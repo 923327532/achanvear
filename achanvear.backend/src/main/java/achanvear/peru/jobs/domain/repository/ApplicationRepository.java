@@ -17,6 +17,8 @@ public interface ApplicationRepository {
 
     Page<JobApplication> findByJobPostId(UUID jobPostId, Pageable pageable);
 
+    long countByJobPostIdAndStatus(UUID jobPostId, String status);
+
     Optional<JobApplication> findById(UUID applicationId);
 
     void save(JobApplication application);

@@ -215,6 +215,56 @@ public class PaymentsController {
         return ResponseEntity.ok(ApiResponse.success(detail, "Milestone detail retrieved"));
     }
 
+    @GetMapping("/projects/{projectId}/milestones")
+    @PreAuthorize("hasAnyAuthority('COMPANY', 'COMPANY_COLLABORATOR', 'FREELANCER')")
+    public ResponseEntity<ApiResponse<List<ProjectMilestoneResponse>>> getProjectMilestones(
+            @AuthenticationPrincipal AuthenticatedUser user,
+            @PathVariable UUID projectId
+    ) {
+        List<ProjectMilestoneResponse> response = milestoneRepository.findByProjectId(projectId).stream()
+                .filter(m -> m.getClientUserId().equals(user.getUserId()) || m.getFreelancerUserId().equals(user.getUserId()))
+                .map(this::toProjectMilestoneResponse)
+                .toList();
+
+        return ResponseEntity.ok(ApiResponse.success(response, "Project payment plan retrieved"));
+    }
+
+    @PostMapping("/milestones/{milestoneId}/start")
+    @PreAuthorize("hasAuthority('FREELANCER')")
+    public ResponseEntity<ApiResponse<ProjectMilestoneResponse>> startMilestoneWork(
+            @AuthenticationPrincipal AuthenticatedUser user,
+            @PathVariable UUID milestoneId
+    ) {
+        Milestone milestone = milestoneRepository.findById(new MilestoneId(milestoneId))
+                .orElseThrow(() -> new IllegalStateException("Milestone not found: " + milestoneId));
+
+        if (!milestone.getFreelancerUserId().equals(user.getUserId())) {
+            return ResponseEntity.status(403).body(ApiResponse.error("You cannot start this milestone"));
+        }
+
+        milestone.startWork();
+        milestoneRepository.save(milestone);
+        return ResponseEntity.ok(ApiResponse.success(toProjectMilestoneResponse(milestone), "Milestone work started"));
+    }
+
+    @PostMapping("/milestones/{milestoneId}/submit-review")
+    @PreAuthorize("hasAuthority('FREELANCER')")
+    public ResponseEntity<ApiResponse<ProjectMilestoneResponse>> submitMilestoneForReview(
+            @AuthenticationPrincipal AuthenticatedUser user,
+            @PathVariable UUID milestoneId
+    ) {
+        Milestone milestone = milestoneRepository.findById(new MilestoneId(milestoneId))
+                .orElseThrow(() -> new IllegalStateException("Milestone not found: " + milestoneId));
+
+        if (!milestone.getFreelancerUserId().equals(user.getUserId())) {
+            return ResponseEntity.status(403).body(ApiResponse.error("You cannot submit this milestone"));
+        }
+
+        milestone.submitForReview();
+        milestoneRepository.save(milestone);
+        return ResponseEntity.ok(ApiResponse.success(toProjectMilestoneResponse(milestone), "Milestone submitted for review"));
+    }
+
     // === 8. Release Milestone Payment ===
     @PostMapping("/milestones/{milestoneId}/release")
     @PreAuthorize("hasAnyAuthority('COMPANY', 'COMPANY_COLLABORATOR')")
@@ -227,6 +277,21 @@ public class PaymentsController {
                 new ReleaseMilestonePaymentCommand(milestoneId, user.getUserId(), request.comments())
         );
         return ResponseEntity.ok(ApiResponse.success(response, "Payment released successfully"));
+    }
+
+    private ProjectMilestoneResponse toProjectMilestoneResponse(Milestone milestone) {
+        return new ProjectMilestoneResponse(
+                milestone.getId().value().toString(),
+                milestone.getProjectId().toString(),
+                milestone.getClientUserId().toString(),
+                milestone.getFreelancerUserId().toString(),
+                milestone.getTitle(),
+                milestone.getDescription(),
+                milestone.getAmount(),
+                milestone.getStatus().name(),
+                milestone.getFundedAt() == null ? null : milestone.getFundedAt().toString(),
+                milestone.getReleasedAt() == null ? null : milestone.getReleasedAt().toString()
+        );
     }
 
     // === 9. Get Payment Transactions ===
@@ -249,4 +314,17 @@ public class PaymentsController {
         FreelancerWalletSummaryResponse summary = getFreelancerWalletSummaryUseCase.execute(user.getUserId());
         return ResponseEntity.ok(ApiResponse.success(summary, "Freelancer wallet summary retrieved"));
     }
+
+    public record ProjectMilestoneResponse(
+            String id,
+            String projectId,
+            String clientUserId,
+            String freelancerUserId,
+            String title,
+            String description,
+            java.math.BigDecimal amount,
+            String status,
+            String fundedAt,
+            String releasedAt
+    ) {}
 }

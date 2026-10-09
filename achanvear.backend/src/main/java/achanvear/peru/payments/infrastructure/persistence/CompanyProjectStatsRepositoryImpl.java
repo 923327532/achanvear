@@ -40,8 +40,6 @@ public class CompanyProjectStatsRepositoryImpl implements CompanyProjectStatsRep
 
     @Override
     public boolean hasActiveSubscription(UUID companyUserId) {
-        return subscriptionRepository.findByCompanyUserId(companyUserId)
-                .map(sub -> sub.isActive())
-                .orElse(false);
+        return subscriptionRepository.findActiveByCompanyUserId(companyUserId).isPresent();
     }
 }

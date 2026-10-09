@@ -25,14 +25,19 @@ public class MilestoneMapper {
     }
 
     public Milestone toDomain(MilestoneJpaEntity entity) {
-        return new Milestone(
+        return Milestone.restore(
                 new MilestoneId(entity.getId()),
                 entity.getProjectId(),
                 entity.getClientUserId(),
                 entity.getFreelancerUserId(),
                 entity.getTitle(),
                 entity.getDescription(),
-                entity.getAmount()
+                entity.getAmount(),
+                entity.getStatus(),
+                entity.getMpPreferenceId(),
+                entity.getMpPaymentId(),
+                entity.getFundedAt(),
+                entity.getReleasedAt()
         );
     }
 }

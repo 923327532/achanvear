@@ -67,6 +67,7 @@ public class Interview {
         interview.abortReason = abortReason;
         interview.interviewerProfile = interviewerProfile;
         interview.recordingSession = recordingSession;
+        interview.score = score;
         interview.questions.addAll(questions != null ? questions : List.of());
         interview.answers.addAll(answers != null ? answers : List.of());
         interview.violations.addAll(violations != null ? violations : List.of());
@@ -183,8 +184,11 @@ public class Interview {
     }
 
     public void complete(InterviewScore score) {
-        ensureStatus(InterviewStatus.IN_PROGRESS);
         this.score = Objects.requireNonNull(score, "Interview score cannot be null");
+        if (this.status == InterviewStatus.COMPLETED) {
+            return;
+        }
+        ensureStatus(InterviewStatus.IN_PROGRESS);
         this.status = InterviewStatus.COMPLETED;
         this.domainEvents.add(new InterviewCompletedEvent(
                 this.id,

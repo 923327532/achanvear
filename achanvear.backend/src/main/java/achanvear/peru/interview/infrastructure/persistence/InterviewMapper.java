@@ -3,6 +3,7 @@ package achanvear.peru.interview.infrastructure.persistence;
 import achanvear.peru.interview.domain.model.Answer;
 import achanvear.peru.interview.domain.model.Interview;
 import achanvear.peru.interview.domain.model.InterviewId;
+import achanvear.peru.interview.domain.model.InterviewScore;
 import achanvear.peru.interview.domain.model.InterviewStatus;
 import achanvear.peru.interview.domain.model.InterviewType;
 import achanvear.peru.interview.domain.model.InterviewerProfile;
@@ -30,6 +31,10 @@ public class InterviewMapper {
         entity.setCandidateId(interview.getCandidateId());
         entity.setInterviewType(interview.getType().name());
         entity.setStatus(interview.getStatus().name());
+        if (interview.getScore() != null) {
+            entity.setScore(interview.getScore().getValue());
+        }
+        entity.setPythonSessionId(interview.getPythonSessionId());
 
         if (interview.getAssignedSlotDateTime() != null) {
             entity.setSlotDateTime(interview.getAssignedSlotDateTime().toString());
@@ -65,6 +70,7 @@ public class InterviewMapper {
             answerEntity.setInterview(entity);
             answerEntity.setQuestionId(answer.getQuestionId());
             answerEntity.setContent(answer.getContent());
+            answerEntity.setScore(answer.getScore());
             answerEntity.setAnsweredAt(answer.getAnsweredAt() != null ? answer.getAnsweredAt() : java.time.Instant.now());
             answerEntities.add(answerEntity);
         }
@@ -115,7 +121,7 @@ public class InterviewMapper {
                         a.getId(),
                         a.getQuestionId(),
                         a.getContent(),
-                        null, // score - not in entity
+                        a.getScore(),
                         a.getAnsweredAt()
                 ))
                 .toList();
@@ -138,7 +144,7 @@ public class InterviewMapper {
             }
         }
 
-        return Interview.restore(
+        Interview interview = Interview.restore(
                 InterviewId.of(entity.getId()),
                 entity.getCandidateId(),
                 entity.getHiringProcessId(), // hiringProcessId maps to jobId in domain
@@ -148,10 +154,13 @@ public class InterviewMapper {
                 assignedSlotDateTime,
                 null, // abortReason - not in entity
                 interviewerProfile,
-                null, recordingSession,
+                entity.getScore() != null ? new InterviewScore(entity.getScore()) : null,
+                recordingSession,
                 questions,
                 answers,
                 violations
         );
+        interview.setPythonSessionId(entity.getPythonSessionId());
+        return interview;
     }
 }

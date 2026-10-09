@@ -8,9 +8,9 @@ import achanvear.peru.hiring.application.command.StartScreeningCommand;
 import achanvear.peru.hiring.application.dto.ScreeningResultResponse;
 import achanvear.peru.jobs.domain.event.ApplicationSubmittedEvent;
 import achanvear.peru.jobs.domain.model.JobApplication;
+import achanvear.peru.jobs.domain.model.ApplicationStatus;
 import achanvear.peru.jobs.domain.model.JobPost;
 import achanvear.peru.jobs.domain.model.RecruitmentAutomationConfig;
-import achanvear.peru.jobs.domain.model.RecruitmentAutomationLevel;
 import achanvear.peru.jobs.domain.repository.ApplicationRepository;
 import achanvear.peru.jobs.domain.repository.JobPostRepository;
 import achanvear.peru.jobs.domain.repository.RecruitmentAutomationConfigRepository;
@@ -69,6 +69,7 @@ public class ApplicationSubmittedHandler {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void handleApplicationSubmitted(ApplicationSubmittedEvent event) {
+        JobApplication application = null;
         try {
             UUID jobPostUuid = event.jobPostId().value();
             log.info("=== INICIO SCREENING AUTO para candidato {} en job {}", 
@@ -86,13 +87,13 @@ public class ApplicationSubmittedHandler {
                 return;
             }
 
-            JobApplication application = applicationRepository.findById(event.applicationId().value()).orElse(null);
+            application = applicationRepository.findById(event.applicationId().value()).orElse(null);
             FreelancerProfile profile = freelancerProfileRepository.findByUserId(event.candidateUserId()).orElse(null);
             RecruitmentAutomationConfig automationConfig = automationConfigRepository
                     .findByJobPostId(jobPostUuid)
                     .orElse(null);
-            boolean autoAdvance = automationConfig != null
-                    && automationConfig.getLevel() == RecruitmentAutomationLevel.FULLY_AUTOMATED;
+            boolean hasTheoryInterviewCapacity = hasTheoryInterviewCapacity(jobPostUuid, automationConfig);
+            boolean autoAdvance = hasTheoryInterviewCapacity;
 
             log.info("Candidato: {} <{}> - Postula a: {}", 
                      candidate.fullName(), candidate.email(), jobPost.getTitle());
@@ -123,7 +124,11 @@ public class ApplicationSubmittedHandler {
                             event.candidateUserId(), e.getMessage());
                 }
             }
-            Double scoreThreshold = resolveScoreThreshold(jobPost.getRequiredScoreThreshold(), automationConfig);
+            Double scoreThreshold = resolveScoreThreshold(
+                    jobPost.getRequiredScoreThreshold(),
+                    automationConfig,
+                    hasTheoryInterviewCapacity
+            );
 
             // Iniciar screening - la IA evalua y si pasa, genera schedule de entrevista
             StartScreeningCommand command = new StartScreeningCommand(
@@ -153,6 +158,7 @@ public class ApplicationSubmittedHandler {
 
         } catch (Exception e) {
             log.error("Error en screening automatico: {}", e.getMessage(), e);
+            persistScreeningReviewFallback(application);
         }
     }
 
@@ -185,10 +191,11 @@ public class ApplicationSubmittedHandler {
 
     /**
      * Deriva la carrera o area profesional solicitada por el puesto.
-     * Usa el titulo del puesto como referencia principal.
+     * No usa el titulo como carrera obligatoria porque generaba falsos negativos:
+     * un cargo como "Asistente Administrativo Junior" no significa una carrera exacta.
      */
     private String deriveCareer(JobPost jobPost) {
-        return text(jobPost.getTitle());
+        return "No especificada";
     }
 
     /**
@@ -250,10 +257,28 @@ public class ApplicationSubmittedHandler {
         applicationRepository.save(application);
     }
 
+    private void persistScreeningReviewFallback(JobApplication application) {
+        if (application == null) {
+            return;
+        }
+
+        try {
+            application.markScreeningInReview(
+                    "No se pudo completar la evaluacion automatica con IA. Tu postulacion quedo en revision para que la empresa la revise."
+            );
+            applicationRepository.save(application);
+        } catch (Exception saveError) {
+            log.error("No se pudo guardar el estado de revision de la postulacion {}: {}",
+                    application.getId().value(), saveError.getMessage(), saveError);
+        }
+    }
+
     private Double resolveScoreThreshold(
             Double jobThreshold,
-            RecruitmentAutomationConfig automationConfig
+            RecruitmentAutomationConfig automationConfig,
+            boolean hasTheoryInterviewCapacity
     ) {
+        double configuredThreshold = jobThreshold != null ? jobThreshold : 60.0;
         if (automationConfig != null) {
             String configuredMinimum = automationConfig.getScreeningCriteria().get("minimumScore");
             if (configuredMinimum != null && !configuredMinimum.isBlank()) {
@@ -262,13 +287,51 @@ public class ApplicationSubmittedHandler {
                     if (threshold < 0 || threshold > 100) {
                         throw new IllegalArgumentException("minimumScore must be between 0 and 100");
                     }
-                    return threshold;
+                    configuredThreshold = threshold;
                 } catch (NumberFormatException e) {
                     throw new IllegalArgumentException("Configured minimumScore is not numeric", e);
                 }
             }
         }
-        return jobThreshold != null ? jobThreshold : 60.0;
+
+        if (hasTheoryInterviewCapacity) {
+            return Math.min(configuredThreshold, 80.0);
+        }
+
+        return configuredThreshold;
+    }
+
+    private boolean hasTheoryInterviewCapacity(
+            UUID jobPostUuid,
+            RecruitmentAutomationConfig automationConfig
+    ) {
+        int configuredLimit = resolveTheoryInterviewLimit(automationConfig);
+        if (configuredLimit <= 0) {
+            return true;
+        }
+
+        long alreadyShortlisted = applicationRepository.countByJobPostIdAndStatus(
+                jobPostUuid,
+                ApplicationStatus.SHORTLISTED.name()
+        );
+        return alreadyShortlisted < configuredLimit;
+    }
+
+    private int resolveTheoryInterviewLimit(RecruitmentAutomationConfig automationConfig) {
+        if (automationConfig == null) {
+            return 0;
+        }
+
+        String configuredLimit = automationConfig.getScreeningCriteria().get("candidatesForTheoryInterview");
+        if (configuredLimit == null || configuredLimit.isBlank()) {
+            return 0;
+        }
+
+        try {
+            return Math.max(0, Integer.parseInt(configuredLimit));
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("Configured candidatesForTheoryInterview is not numeric", e);
+        }
     }
 
     private void addIfPresent(List<String> values, String value) {

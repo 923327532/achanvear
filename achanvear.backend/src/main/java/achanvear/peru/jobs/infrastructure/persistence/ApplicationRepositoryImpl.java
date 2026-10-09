@@ -48,6 +48,11 @@ public class ApplicationRepositoryImpl implements ApplicationRepository {
     }
 
     @Override
+    public long countByJobPostIdAndStatus(UUID jobPostId, String status) {
+        return applicationJpaRepository.countByJobPostIdAndStatus(jobPostId, status);
+    }
+
+    @Override
     public Optional<JobApplication> findById(UUID applicationId) {
         return applicationJpaRepository.findById(applicationId)
                 .map(applicationMapper::toDomain);

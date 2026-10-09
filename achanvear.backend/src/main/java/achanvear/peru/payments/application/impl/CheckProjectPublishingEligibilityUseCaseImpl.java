@@ -34,10 +34,7 @@ public class CheckProjectPublishingEligibilityUseCaseImpl implements CheckProjec
         CompanyLookupPort.CompanySummary company = companyLookupPort.findByOwnerUserId(companyUserId)
                 .orElseThrow(() -> new ResourceNotFoundException("Company not found"));
 
-        var subscription = subscriptionRepository.findByCompanyUserId(companyUserId)
-                .filter(sub -> sub.isActive())
-                .stream()
-                .findFirst();
+        var subscription = subscriptionRepository.findActiveByCompanyUserId(companyUserId);
         boolean hasActiveSubscription = subscription.isPresent();
         PlanType currentPlan = subscription.map(sub -> sub.getPlan()).orElse(PlanType.FREE);
         int currentProjects = (int) jobPostRepository.countByCompanyIdSince(company.id(), company.createdAt());

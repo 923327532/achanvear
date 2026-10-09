@@ -21,6 +21,8 @@ public record UpdateFreelancerProfileRequest(
 
         String profilePhotoUrl,
 
+        String bannerUrl,
+
         @NotBlank
         @Size(min = 20, max = 2000)
         String biography,

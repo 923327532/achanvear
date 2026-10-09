@@ -2,9 +2,11 @@ package achanvear.peru.payments.infrastructure.persistence;
 
 import achanvear.peru.payments.domain.model.Subscription;
 import achanvear.peru.payments.domain.model.SubscriptionId;
+import achanvear.peru.payments.domain.model.SubscriptionStatus;
 import achanvear.peru.payments.domain.repository.SubscriptionRepository;
 import org.springframework.stereotype.Repository;
 
+import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -32,6 +34,17 @@ public class SubscriptionRepositoryImpl implements SubscriptionRepository {
     @Override
     public Optional<Subscription> findByCompanyUserId(UUID companyUserId) {
         return jpaRepository.findByCompanyUserId(companyUserId).map(mapper::toDomain);
+    }
+
+    @Override
+    public Optional<Subscription> findActiveByCompanyUserId(UUID companyUserId) {
+        return jpaRepository
+                .findFirstByCompanyUserIdAndStatusAndEndDateAfterOrderByStartDateDesc(
+                        companyUserId,
+                        SubscriptionStatus.ACTIVE,
+                        Instant.now()
+                )
+                .map(mapper::toDomain);
     }
 
     @Override

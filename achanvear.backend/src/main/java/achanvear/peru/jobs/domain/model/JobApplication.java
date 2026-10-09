@@ -175,6 +175,11 @@ public class JobApplication {
                 : ApplicationStatus.IN_REVIEW;
     }
 
+    public void markScreeningInReview(String summary) {
+        this.screeningSummary = normalizeOptionalText(summary);
+        this.status = ApplicationStatus.IN_REVIEW;
+    }
+
     /**
      * Registra el score de la entrevista teorica.
      */

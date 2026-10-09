@@ -100,6 +100,21 @@ public class InterviewSchedule {
         this.status = InterviewScheduleStatus.RESERVED;
     }
 
+    public void chooseNow() {
+        if (status != InterviewScheduleStatus.PENDING_SELECTION) {
+            throw new IllegalStateException("Slot already chosen for schedule " + id);
+        }
+
+        InterviewSlot nowSlot = proposedSlots.get(0)
+                .withDateTimeAndStatus(LocalDateTime.now(), InterviewSlot.SlotStatus.RESERVED);
+        this.chosenSlot = nowSlot;
+        this.proposedSlots.set(0, nowSlot);
+
+        this.interviewToken = UUID.randomUUID().toString();
+        this.tokenStatus = InterviewTokenStatus.ACTIVE;
+        this.status = InterviewScheduleStatus.RESERVED;
+    }
+
     /**
      * Valida que el token sea valido y que el candidato pueda entrar a la entrevista.
      * @param now momento actual para validar ventana de tiempo
