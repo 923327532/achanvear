@@ -508,6 +508,56 @@ export function useProcessCulqiPayment() {
   };
 }
 
+export function useProjectMilestones(projectId: string) {
+  const query = useQuery({
+    queryKey: ["payments", "project-milestones", projectId],
+    queryFn: () => escrowApi.getProjectMilestones(projectId),
+    enabled: !!projectId,
+    staleTime: 1000 * 60,
+    retry: 1,
+  });
+
+  return {
+    milestones: query.data ?? [],
+    isLoading: query.isLoading,
+    refetch: query.refetch,
+  };
+}
+
+export function useStartMilestone() {
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation({
+    mutationFn: (milestoneId: string) => escrowApi.startMilestone(milestoneId),
+    onSuccess: (milestone) => {
+      queryClient.invalidateQueries({ queryKey: ["payments", "project-milestones", milestone.projectId] });
+      queryClient.invalidateQueries({ queryKey: ["payments", "escrow"] });
+    },
+  });
+
+  return {
+    startAsync: mutation.mutateAsync,
+    isLoading: mutation.isPending,
+  };
+}
+
+export function useSubmitMilestoneReview() {
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation({
+    mutationFn: (milestoneId: string) => escrowApi.submitMilestoneReview(milestoneId),
+    onSuccess: (milestone) => {
+      queryClient.invalidateQueries({ queryKey: ["payments", "project-milestones", milestone.projectId] });
+      queryClient.invalidateQueries({ queryKey: ["payments", "escrow"] });
+    },
+  });
+
+  return {
+    submitReviewAsync: mutation.mutateAsync,
+    isLoading: mutation.isPending,
+  };
+}
+
 export function useReleaseMilestone() {
   const queryClient = useQueryClient();
 

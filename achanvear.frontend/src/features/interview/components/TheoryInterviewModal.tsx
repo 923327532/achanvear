@@ -4,7 +4,7 @@
 import { useState, useCallback } from "react";
 import { useStartInterview, useSubmitAnswer, useCompleteInterview } from "../hooks/useFreelancerInterviews";
 import { useAntiCheat } from "../hooks/useAntiCheat";
-import type { QuestionResponse } from "../types/interview.types";
+import type { InterviewReportResponse, QuestionResponse } from "../types/interview.types";
 
 interface Props {
   interviewId: string;
@@ -19,6 +19,7 @@ export function TheoryInterviewModal({ interviewId, onClose, onComplete }: Props
   const [violationCount, setViolationCount] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [result, setResult] = useState<{ score: number; passed: boolean } | null>(null);
+  const [report, setReport] = useState<InterviewReportResponse | null>(null);
 
   const startMutation = useStartInterview();
   const submitMutation = useSubmitAnswer();
@@ -70,6 +71,8 @@ export function TheoryInterviewModal({ interviewId, onClose, onComplete }: Props
       } else {
         // No hay mas preguntas, completar
         const report = await completeMutation.mutateAsync(interviewId);
+        setReport(report);
+        handleDownloadReport(report);
         setResult({
           score: report.finalScore ?? 0,
           passed: report.passed ?? false,
@@ -87,6 +90,19 @@ export function TheoryInterviewModal({ interviewId, onClose, onComplete }: Props
   const handleAbort = async () => {
     setStep("aborted");
     onClose();
+  };
+
+  const handleDownloadReport = (reportToDownload = report) => {
+    if (!reportToDownload) return;
+
+    const payload = JSON.stringify(reportToDownload, null, 2);
+    const blob = new Blob([payload], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `reporte-entrevista-teorica-${interviewId}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -210,12 +226,21 @@ export function TheoryInterviewModal({ interviewId, onClose, onComplete }: Props
                 <p className="text-3xl font-bold text-[#1B3A6B]">{result.score}/100</p>
                 <p className="text-xs text-slate-500 mt-1">Puntaje obtenido</p>
               </div>
-              <button
-                onClick={onClose}
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-[#1B3A6B] text-white text-sm font-bold hover:bg-[#162f58] transition"
-              >
-                Cerrar
-              </button>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <button
+                  onClick={() => handleDownloadReport()}
+                  disabled={!report}
+                  className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl border border-[#1B3A6B] text-[#1B3A6B] text-sm font-bold hover:bg-blue-50 transition disabled:opacity-50"
+                >
+                  Descargar reporte
+                </button>
+                <button
+                  onClick={onClose}
+                  className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-[#1B3A6B] text-white text-sm font-bold hover:bg-[#162f58] transition"
+                >
+                  Cerrar
+                </button>
+              </div>
             </div>
           )}
 

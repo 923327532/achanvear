@@ -6,6 +6,9 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
 import { freelanceApi } from "../api/freelanceApi";
 import type { Project } from "../types/freelance.types";
+import { MercadoPagoCheckout } from "@/features/payments/components/MercadoPagoCheckout";
+import { useProjectMilestones, useReleaseMilestone } from "@/features/payments/hooks/usePayments";
+import type { ProjectMilestone } from "@/features/payments/types/payments.types";
 import {
   ArrowLeft,
   Loader2,
@@ -23,6 +26,8 @@ import {
   Check,
   X,
   Award,
+  CreditCard,
+  ShieldCheck,
 } from "lucide-react";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -70,12 +75,21 @@ function getMilestoneStatusBadge(status: string) {
   switch (status) {
     case "PENDING":
       return <span className="text-xs font-medium text-slate-400">Pendiente</span>;
+    case "FUNDED":
+      return <span className="text-xs font-medium text-amber-600">Retenido en garantia</span>;
     case "IN_PROGRESS":
       return <span className="text-xs font-medium text-blue-600">En Progreso</span>;
+    case "READY_FOR_REVIEW":
+      return <span className="text-xs font-medium text-cyan-600">Por conformidad</span>;
     case "SUBMITTED":
       return <span className="text-xs font-medium text-amber-600">En Revisión</span>;
     case "APPROVED":
+    case "RELEASED":
       return <span className="text-xs font-medium text-emerald-600">Aprobado</span>;
+    case "REFUNDED":
+      return <span className="text-xs font-medium text-red-600">Reembolsado</span>;
+    case "DISPUTED":
+      return <span className="text-xs font-medium text-purple-600">En disputa</span>;
     case "REJECTED":
       return <span className="text-xs font-medium text-red-600">Rechazado</span>;
     default:
@@ -101,6 +115,74 @@ function formatRelativeDate(dateStr?: string) {
 }
 
 // ─── Proposal Card ────────────────────────────────────────────────────────────
+
+function getPaymentStepLabel(index: number) {
+  if (index === 0) return "20% inicial";
+  if (index === 1) return "50% en una semana";
+  return "30% saldo final";
+}
+
+function PaymentMilestoneCard({
+  milestone,
+  index,
+  projectTitle,
+  onRelease,
+  isReleasing,
+  onChanged,
+}: {
+  milestone: ProjectMilestone;
+  index: number;
+  projectTitle: string;
+  onRelease: (milestoneId: string) => void;
+  isReleasing: boolean;
+  onChanged: () => void;
+}) {
+  const canPay = milestone.status === "PENDING";
+  const canRelease = milestone.status === "READY_FOR_REVIEW";
+
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0 flex-1">
+          <div className="mb-1 flex flex-wrap items-center gap-2">
+            <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
+              {getPaymentStepLabel(index)}
+            </span>
+            {getMilestoneStatusBadge(milestone.status)}
+          </div>
+          <h4 className="text-sm font-bold text-slate-900">{milestone.title}</h4>
+          <p className="mt-1 text-xs leading-relaxed text-slate-500">{milestone.description}</p>
+          <p className="mt-2 text-lg font-bold text-emerald-700">{formatBudget(milestone.amount)}</p>
+        </div>
+
+        {canRelease && (
+          <button
+            onClick={() => onRelease(milestone.id)}
+            disabled={isReleasing}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-500 disabled:opacity-50"
+          >
+            {isReleasing ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+            Dar conformidad
+          </button>
+        )}
+      </div>
+
+      {canPay && (
+        <div className="mt-4 border-t border-slate-100 pt-4">
+          <MercadoPagoCheckout
+            milestoneId={milestone.id}
+            projectId={milestone.projectId}
+            freelancerUserId={milestone.freelancerUserId}
+            amount={milestone.amount}
+            projectName={projectTitle}
+            description={milestone.title}
+            onSuccess={onChanged}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
 
 function ProposalCard({
   proposal,
@@ -263,6 +345,8 @@ export function ProjectDetailPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const projectId = params.projectId as string;
+  const paymentMilestonesQuery = useProjectMilestones(projectId);
+  const releaseMilestoneMutation = useReleaseMilestone();
 
   const projectQuery = useQuery({
     queryKey: ["company-project", projectId],
@@ -276,12 +360,20 @@ export function ProjectDetailPage() {
       freelanceApi.acceptProposal(projectId, proposalId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["company-project", projectId] });
+      queryClient.invalidateQueries({ queryKey: ["payments", "project-milestones", projectId] });
     },
   });
 
   const handleAcceptProposal = (proposalId: string) => {
     if (!confirm("¿Estás seguro de aceptar esta propuesta? Las demás propuestas serán rechazadas automáticamente.")) return;
     acceptMutation.mutate(proposalId);
+  };
+
+  const handleReleaseMilestone = async (milestoneId: string) => {
+    if (!confirm("Confirma solo si la entrega esta conforme. Se liberara el pago neto al profesional descontando la comision de la app.")) return;
+    await releaseMilestoneMutation.releaseAsync(milestoneId);
+    queryClient.invalidateQueries({ queryKey: ["payments", "project-milestones", projectId] });
+    queryClient.invalidateQueries({ queryKey: ["company-project", projectId] });
   };
 
   const project = projectQuery.data;
@@ -314,6 +406,11 @@ export function ProjectDetailPage() {
   const milestonesApproved = project.milestones?.filter((m) => m.status === "APPROVED").length ?? 0;
   const progress = milestonesTotal > 0 ? Math.round((milestonesApproved / milestonesTotal) * 100) : 0;
   const totalPaid = project.milestones?.filter((m) => m.status === "APPROVED").reduce((sum, m) => sum + m.amount, 0) ?? 0;
+  const paymentMilestones = paymentMilestonesQuery.milestones;
+  const escrowTotal = paymentMilestones.reduce((sum, milestone) => sum + milestone.amount, 0);
+  const escrowReleased = paymentMilestones
+    .filter((milestone) => milestone.status === "RELEASED")
+    .reduce((sum, milestone) => sum + milestone.amount, 0);
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -423,6 +520,56 @@ export function ProjectDetailPage() {
                   />
                 ))}
               </div>
+            </div>
+          )}
+
+          {project.status === "IN_PROGRESS" && (
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <h2 className="flex items-center gap-2 text-lg font-bold text-slate-900">
+                    <CreditCard className="h-5 w-5 text-emerald-600" />
+                    Plan de pagos protegido
+                  </h2>
+                  <p className="mt-1 text-sm text-slate-500">
+                    El proyecto se cobra en 20%, 50% y saldo final. Cada pago queda retenido hasta tu conformidad.
+                  </p>
+                </div>
+                <div className="rounded-xl bg-emerald-50 px-4 py-3 text-right">
+                  <p className="text-xs font-medium text-emerald-700">Liberado al profesional</p>
+                  <p className="text-lg font-bold text-emerald-900">
+                    {formatBudget(escrowReleased)} / {formatBudget(escrowTotal)}
+                  </p>
+                </div>
+              </div>
+
+              {paymentMilestonesQuery.isLoading ? (
+                <div className="flex items-center gap-2 rounded-xl bg-slate-50 p-4 text-sm text-slate-500">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Cargando plan de pagos...
+                </div>
+              ) : paymentMilestones.length === 0 ? (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700">
+                  Acepta una propuesta para generar el plan de pagos 20/50/30.
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {paymentMilestones.map((milestone, index) => (
+                    <PaymentMilestoneCard
+                      key={milestone.id}
+                      milestone={milestone}
+                      index={index}
+                      projectTitle={project.title}
+                      onRelease={handleReleaseMilestone}
+                      isReleasing={releaseMilestoneMutation.isLoading}
+                      onChanged={() => {
+                        paymentMilestonesQuery.refetch();
+                        queryClient.invalidateQueries({ queryKey: ["company-project", projectId] });
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>

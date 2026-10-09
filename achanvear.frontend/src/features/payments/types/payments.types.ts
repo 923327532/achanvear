@@ -108,7 +108,27 @@ export const PAYOUT_STATUS_CONFIG: Record<PayoutStatus, { label: string; color: 
 
 // ─── Escrow / Milestones ──────────────────────────────────────────────────────
 
-export type MilestoneStatus = "PENDING" | "HELD" | "RELEASED" | "REFUNDED" | "DISPUTED";
+export type MilestoneStatus =
+  | "PENDING"
+  | "FUNDED"
+  | "IN_PROGRESS"
+  | "READY_FOR_REVIEW"
+  | "RELEASED"
+  | "REFUNDED"
+  | "DISPUTED";
+
+export interface ProjectMilestone {
+  id: string;
+  projectId: string;
+  clientUserId: string;
+  freelancerUserId: string;
+  title: string;
+  description: string;
+  amount: number;
+  status: MilestoneStatus;
+  fundedAt: string | null;
+  releasedAt: string | null;
+}
 
 export interface EscrowProject {
   id: string;
@@ -230,7 +250,9 @@ export const TRANSACTION_TYPE_COLORS: Record<string, string> = {
 
 export const MILESTONE_STATUS_CONFIG: Record<MilestoneStatus, { label: string; color: string }> = {
   PENDING: { label: "Pendiente", color: "bg-gray-100 text-gray-600" },
-  HELD: { label: "Retenido", color: "bg-amber-100 text-amber-700" },
+  FUNDED: { label: "Retenido", color: "bg-amber-100 text-amber-700" },
+  IN_PROGRESS: { label: "En progreso", color: "bg-blue-100 text-blue-700" },
+  READY_FOR_REVIEW: { label: "Por conformidad", color: "bg-cyan-100 text-cyan-700" },
   RELEASED: { label: "Liberado", color: "bg-emerald-100 text-emerald-700" },
   REFUNDED: { label: "Reembolsado", color: "bg-red-100 text-red-600" },
   DISPUTED: { label: "En Disputa", color: "bg-purple-100 text-purple-700" },

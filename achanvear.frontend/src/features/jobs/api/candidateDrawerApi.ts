@@ -45,6 +45,24 @@ interface BackendCandidateDrawerDetail {
   }>;
 }
 
+interface PresignedDownloadResponse {
+  fileKey: string;
+  downloadUrl: string;
+}
+
+function extractS3FileKey(urlOrKey: string): string {
+  const value = urlOrKey.trim();
+  if (!value) return "";
+  if (!/^https?:\/\//i.test(value)) return value.replace(/^\/+/, "");
+
+  try {
+    const url = new URL(value);
+    return decodeURIComponent(url.pathname.replace(/^\/+/, ""));
+  } catch {
+    return value;
+  }
+}
+
 // ─── Mapper: Backend → Frontend ─────────────────────────────────────────────────
 
 function mapBackendToFrontend(
@@ -148,5 +166,16 @@ export const candidateDrawerApi = {
     );
     const backendData = parseResponse(response);
     return mapBackendToFrontend(backendData);
+  },
+
+  getCvDownloadUrl: async (cvUrlOrKey: string): Promise<string> => {
+    const fileKey = extractS3FileKey(cvUrlOrKey);
+    if (!fileKey) throw new Error("CV no disponible");
+
+    const response = await api.get<ApiResponse<PresignedDownloadResponse>>(
+      "/freelance/storage/presigned-download",
+      { params: { fileKey } }
+    );
+    return parseResponse(response).downloadUrl;
   },
 };

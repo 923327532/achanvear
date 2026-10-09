@@ -1,6 +1,7 @@
 // features/jobs/components/JobCard.tsx
 "use client";
 
+import { useState } from "react";
 import { MapPin, Clock, Building2, CheckCircle2 } from "lucide-react";
 import type { Job } from "../types/job.types";
 import { useAppliedJobIds } from "../hooks/useAppliedJobIds";
@@ -28,6 +29,7 @@ const JOB_TYPE_COLORS: Record<string, string> = {
 };
 
 export function JobCard({ job, onApply, onViewDetail }: JobCardProps) {
+  const [logoFailed, setLogoFailed] = useState(false);
   const { appliedJobIds } = useAppliedJobIds();
   const hasApplied = appliedJobIds.includes(job.id);
 
@@ -50,10 +52,11 @@ export function JobCard({ job, onApply, onViewDetail }: JobCardProps) {
     <div className="flex flex-col rounded-xl border border-slate-200 bg-white p-5 transition-shadow hover:shadow-sm">
       {/* Header — empresa */}
       <div className="mb-3 flex items-start gap-3">
-        {companyLogoUrl ? (
+        {companyLogoUrl && !logoFailed ? (
           <img
             src={companyLogoUrl}
             alt={companyName}
+            onError={() => setLogoFailed(true)}
             className="h-10 w-10 flex-shrink-0 rounded-lg object-cover border border-slate-100"
           />
         ) : (

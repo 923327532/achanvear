@@ -38,4 +38,9 @@ export const scheduleApi = {
     const response = await api.post<ApiResponse<ChooseSlotResponse>>(`/interviews/schedule/${scheduleId}/choose`, { slotIndex });
     return parseResponse(response);
   },
+
+  chooseNow: async (scheduleId: string): Promise<ChooseSlotResponse> => {
+    const response = await api.post<ApiResponse<ChooseSlotResponse>>(`/interviews/schedule/${scheduleId}/choose-now`);
+    return parseResponse(response);
+  },
 };

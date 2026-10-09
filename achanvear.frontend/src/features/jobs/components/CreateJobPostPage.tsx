@@ -15,6 +15,7 @@ import {
   Crown,
   Lock,
   X,
+  CreditCard,
 } from "lucide-react";
 import { useCreateJobPost } from "../hooks/useCreateJobPost";
 import { useCurrentPlan } from "@/features/settings/hooks/useCompanySettings";
@@ -824,6 +825,24 @@ export default function CreateJobPostPage() {
                   Puedes guardar el borrador y volver cuando tengas un plan activo
                   o publicaciones disponibles.
                 </p>
+                <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    onClick={() => router.push("/company/settings")}
+                    className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#1B3A6B] px-4 text-sm font-semibold text-white transition hover:bg-[#162f58]"
+                  >
+                    <Crown className="h-4 w-4" />
+                    Actualizar ahora
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => router.push("/company/settings")}
+                    className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-amber-300 bg-white px-4 text-sm font-semibold text-amber-900 transition hover:bg-amber-100"
+                  >
+                    <CreditCard className="h-4 w-4" />
+                    Comprar paquete
+                  </button>
+                </div>
               </div>
             )}
 

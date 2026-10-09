@@ -15,6 +15,7 @@ import type {
   PayoutMethod,
   Payout,
   SavedCard,
+  ProjectMilestone,
 } from "../types/payments.types";
 
 // ─── Wallet API ───────────────────────────────────────────────────────────────
@@ -286,6 +287,21 @@ export const escrowApi = {
   // GET /payments/escrow
   getEscrowList: async (): Promise<EscrowDetail[]> => {
     const res = await api.get<ApiResponse<EscrowDetail[]>>("/payments/escrow");
+    return parseResponse(res);
+  },
+
+  getProjectMilestones: async (projectId: string): Promise<ProjectMilestone[]> => {
+    const res = await api.get<ApiResponse<ProjectMilestone[]>>(`/payments/projects/${projectId}/milestones`);
+    return parseResponse(res);
+  },
+
+  startMilestone: async (milestoneId: string): Promise<ProjectMilestone> => {
+    const res = await api.post<ApiResponse<ProjectMilestone>>(`/payments/milestones/${milestoneId}/start`);
+    return parseResponse(res);
+  },
+
+  submitMilestoneReview: async (milestoneId: string): Promise<ProjectMilestone> => {
+    const res = await api.post<ApiResponse<ProjectMilestone>>(`/payments/milestones/${milestoneId}/submit-review`);
     return parseResponse(res);
   },
 };

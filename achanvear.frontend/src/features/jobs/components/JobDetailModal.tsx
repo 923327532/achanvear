@@ -1,6 +1,7 @@
 // features/jobs/components/JobDetailModal.tsx
 "use client";
 
+import { useState } from "react";
 import { X, MapPin, Clock, CheckCircle2, DollarSign } from "lucide-react";
 import { useJobDetail } from "../hooks/useJobDetail";
 import { useAppliedJobIds } from "../hooks/useAppliedJobIds";
@@ -28,6 +29,7 @@ const JOB_TYPE_COLORS: Record<string, string> = {
 };
 
 export function JobDetailModal({ job, onClose, onApply }: JobDetailModalProps) {
+  const [logoFailed, setLogoFailed] = useState(false);
   const { job: jobDetail } = useJobDetail(job.id);
   const { appliedJobIds } = useAppliedJobIds();
   const detail = jobDetail ?? job;
@@ -59,8 +61,9 @@ export function JobDetailModal({ job, onClose, onApply }: JobDetailModalProps) {
 
           {/* Job header */}
           <div className="flex items-start gap-3">
-            {companyLogoUrl ? (
+            {companyLogoUrl && !logoFailed ? (
               <img src={companyLogoUrl} alt={companyName}
+                onError={() => setLogoFailed(true)}
                 className="h-12 w-12 flex-shrink-0 rounded-xl object-cover border border-slate-100" />
             ) : (
               <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-slate-100 text-sm font-bold text-slate-600">

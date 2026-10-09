@@ -40,6 +40,7 @@ export interface FreelancerProfile {
   industry: string;
   specialty: string;
   profilePhotoUrl: string | null;
+  bannerUrl: string | null;
   biography: string;
   achievements: string;
   address: string;

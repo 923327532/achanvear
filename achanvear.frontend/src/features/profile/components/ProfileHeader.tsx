@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { Camera, Pencil, Check, X, Loader2, BadgeCheck } from "lucide-react";
+import { Camera, Pencil, Check, X, Loader2, BadgeCheck, ImageUp } from "lucide-react";
 import { useUpdateProfile, useUploadFile } from "../hooks/useProfile";
 import type { Profile } from "../types/profile.types";
 import { toProfileImageUrl } from "@/lib/mediaUrls";
@@ -18,6 +18,9 @@ export function ProfileHeader({ profile }: Props) {
   const [isEditing, setIsEditing] = useState(false);
   const [biography, setBiography] = useState(profile.biography ?? "");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const bannerInputRef = useRef<HTMLInputElement>(null);
+  const [photoError, setPhotoError] = useState(false);
+  const [bannerError, setBannerError] = useState(false);
 
   const { updateAsync, isLoading: isSaving }   = useUpdateProfile();
   const { uploadAsync, isLoading: isUploading } = useUploadFile();
@@ -26,6 +29,7 @@ export function ProfileHeader({ profile }: Props) {
   const displayName = profile.name || "Freelancer";
   const initials    = getInitials(displayName);
   const profilePhotoUrl = toProfileImageUrl(profile.profilePhotoUrl);
+  const bannerUrl = toProfileImageUrl(profile.bannerUrl);
 
   const handleSave = async () => {
     if (!profileId) return;
@@ -43,7 +47,17 @@ export function ProfileHeader({ profile }: Props) {
     const file = e.target.files?.[0];
     if (!file) return;
     const publicUrl = await uploadAsync({ file, folder: "PROFILE_PHOTO" });
+    setPhotoError(false);
     await updateAsync({ profileId, payload: { profilePhotoUrl: publicUrl } });
+  };
+
+  const handleBannerChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!profileId) return;
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const publicUrl = await uploadAsync({ file, folder: "PROFILE_PHOTO" });
+    setBannerError(false);
+    await updateAsync({ profileId, payload: { bannerUrl: publicUrl } });
   };
 
   const averageStars  = profile.reputationScore?.averageStars ?? 0;
@@ -53,14 +67,45 @@ export function ProfileHeader({ profile }: Props) {
 
   return (
     <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 mb-5">
-      <div className="h-40 bg-gradient-to-r from-[#1B3A6B] to-[#0EA5A0]" />
+      <div className="relative h-40 bg-gradient-to-r from-[#1B3A6B] to-[#0EA5A0] overflow-hidden">
+        {bannerUrl && !bannerError && (
+          <img
+            src={bannerUrl}
+            alt="Banner del perfil"
+            className="absolute inset-0 h-full w-full object-cover"
+            onError={() => setBannerError(true)}
+          />
+        )}
+        <div className="absolute inset-0 bg-black/10" />
+        <button
+          type="button"
+          onClick={() => bannerInputRef.current?.click()}
+          disabled={isUploading || !profileId}
+          className="absolute right-4 top-4 inline-flex items-center gap-2 rounded-xl bg-white/90 px-3 py-2 text-xs font-semibold text-[#1B3A6B] shadow-sm hover:bg-white disabled:opacity-50"
+        >
+          {isUploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImageUp className="h-3.5 w-3.5" />}
+          Cambiar banner
+        </button>
+        <input
+          ref={bannerInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleBannerChange}
+        />
+      </div>
 
       <div className="px-6 pb-6">
         <div className="flex items-end justify-between -mt-12 mb-4">
           <div className="relative">
             <div className="w-24 h-24 rounded-full border-4 border-white shadow-md overflow-hidden bg-[#1B3A6B] flex items-center justify-center">
-              {profilePhotoUrl ? (
-                <img src={profilePhotoUrl} alt="avatar" className="w-full h-full object-cover" />
+              {profilePhotoUrl && !photoError ? (
+                <img
+                  src={profilePhotoUrl}
+                  alt="avatar"
+                  className="w-full h-full object-cover"
+                  onError={() => setPhotoError(true)}
+                />
               ) : (
                 <span className="text-2xl font-bold text-white">{initials}</span>
               )}

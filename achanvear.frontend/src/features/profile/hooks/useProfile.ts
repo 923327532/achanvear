@@ -71,6 +71,7 @@ export function useUpdateProfile() {
         ...(current?.paymentMethodType ? { paymentMethodType: current.paymentMethodType } : {}),
         ...(current?.dni               ? { dni: current.dni }                : {}),
         ...(current?.profilePhotoUrl   ? { profilePhotoUrl: current.profilePhotoUrl } : {}),
+        ...(current?.bannerUrl         ? { bannerUrl: current.bannerUrl } : {}),
         ...(current?.curriculumUrl     ? { curriculumUrl: current.curriculumUrl } : {}),
         ...(current?.certifications    ? { certifications: current.certifications } : {}),
         ...(current?.skills            ? { skills: current.skills }          : {}),

@@ -11,12 +11,15 @@ import { PortfolioSection } from "./PortfolioSection";
 import { AIEvaluationsSection } from "./AIEvaluationsSection";
 import { CvManagerSection } from "./CvManagerSection";
 import { toProfileImageUrl } from "@/lib/mediaUrls";
+import { profileApi } from "../api/profileApi";
+import { useUploadFile } from "../hooks/useProfile";
+import { useQueryClient } from "@tanstack/react-query";
 
 import {
   Star, BadgeCheck, Briefcase, ShieldCheck,
-  GraduationCap, Award, Code2, Plus, Save,
+  GraduationCap, Award, Code2, Plus, Save, Camera, ImageUp, Loader2,
 } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { FreelancerProfile } from "../types/profile.types";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -32,12 +35,54 @@ function getInitials(name: string): string {
 function VirtualProfileView({ profile }: { profile: any }) {
   const [bannerError, setBannerError] = useState(false);
   const [photoError, setPhotoError] = useState(false);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const bannerInputRef = useRef<HTMLInputElement>(null);
+  const queryClient = useQueryClient();
+  const { uploadAsync, isLoading: isUploading } = useUploadFile();
 
   const name     = profile?.name || "Freelancer";
   const dni      = profile?.dni  || "";
   const initials = getInitials(name);
   const bannerUrl = toProfileImageUrl(profile?.bannerUrl);
   const profilePhotoUrl = toProfileImageUrl(profile?.profilePhotoUrl);
+
+  const createProfileWithMedia = async (field: "profilePhotoUrl" | "bannerUrl", publicUrl: string) => {
+    if (!dni) return;
+    const updatedProfile = await profileApi.createProfile({
+      name,
+      dni,
+      industry: profile?.industry || "Servicios profesionales",
+      specialty: profile?.specialty || "Profesional independiente",
+      biography: profile?.biography || `${name} es un profesional independiente en Achanvear.`,
+      achievements: profile?.achievements || "",
+      address: profile?.address || "",
+      paymentMethodType: profile?.paymentMethodType || "BANK_TRANSFER",
+      profilePhotoUrl: field === "profilePhotoUrl" ? publicUrl : profile?.profilePhotoUrl || null,
+      bannerUrl: field === "bannerUrl" ? publicUrl : profile?.bannerUrl || null,
+      curriculumUrl: profile?.curriculumUrl || null,
+      certifications: profile?.certifications || [],
+      skills: profile?.skills || [],
+      portfolioItems: profile?.portfolioItems || [],
+    });
+    queryClient.setQueryData(["profile", "me"], updatedProfile);
+    await queryClient.invalidateQueries({ queryKey: ["profile", "me"] });
+  };
+
+  const handleVirtualPhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const publicUrl = await uploadAsync({ file, folder: "PROFILE_PHOTO" });
+    setPhotoError(false);
+    await createProfileWithMedia("profilePhotoUrl", publicUrl);
+  };
+
+  const handleVirtualBannerChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const publicUrl = await uploadAsync({ file, folder: "PROFILE_PHOTO" });
+    setBannerError(false);
+    await createProfileWithMedia("bannerUrl", publicUrl);
+  };
 
   return (
     <div className="min-h-screen bg-[#f5f7fb]">
@@ -51,6 +96,16 @@ function VirtualProfileView({ profile }: { profile: any }) {
                 className="absolute inset-0 w-full h-full object-cover"
                 onError={() => setBannerError(true)} />
             )}
+            <button
+              type="button"
+              onClick={() => bannerInputRef.current?.click()}
+              disabled={isUploading || !dni}
+              className="absolute right-4 top-4 z-20 inline-flex items-center gap-2 rounded-xl bg-white/90 px-3 py-2 text-xs font-semibold text-[#1e3a8a] shadow-sm hover:bg-white disabled:opacity-50"
+            >
+              {isUploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImageUp className="h-3.5 w-3.5" />}
+              Cambiar banner
+            </button>
+            <input ref={bannerInputRef} type="file" accept="image/*" className="hidden" onChange={handleVirtualBannerChange} />
             <div className="absolute inset-0 opacity-10">
               <div className="absolute top-10 left-10 w-72 h-72 rounded-full bg-white blur-3xl" />
               <div className="absolute -bottom-20 right-20 w-96 h-96 rounded-full bg-cyan-300 blur-3xl" />
@@ -80,6 +135,16 @@ function VirtualProfileView({ profile }: { profile: any }) {
                     </div>
                   )}
                 </div>
+                <button
+                  type="button"
+                  onClick={() => photoInputRef.current?.click()}
+                  disabled={isUploading || !dni}
+                  className="absolute -bottom-2 -right-2 flex h-9 w-9 items-center justify-center rounded-full border-2 border-white bg-[#0d9488] text-white shadow-md hover:bg-teal-700 disabled:opacity-50"
+                  title="Cambiar foto"
+                >
+                  {isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
+                </button>
+                <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={handleVirtualPhotoChange} />
               </div>
 
               <div className="flex-1 min-w-0 pt-2 sm:pt-8 lg:pt-14 w-full">
@@ -318,6 +383,7 @@ export function ProfilePage() {
     industry: profile?.industry || "",
     specialty: profile?.specialty || "",
     profilePhotoUrl: profile?.profilePhotoUrl || null,
+    bannerUrl: profile?.bannerUrl || null,
     biography: profile?.biography || "",
     achievements: profile?.achievements || "",
     address: profile?.address || "",

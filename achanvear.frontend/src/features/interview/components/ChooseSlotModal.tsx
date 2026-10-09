@@ -64,6 +64,18 @@ export function ChooseSlotModal({ schedule, onClose, onComplete }: ChooseSlotMod
     }
   };
 
+  const handleChooseNow = async () => {
+    setStep("confirming");
+    try {
+      const response = await scheduleApi.chooseNow(schedule.scheduleId);
+      setResult(response);
+      setStep("done");
+    } catch (err: any) {
+      setErrorMsg(err?.message || "Error al activar la entrevista ahora");
+      setStep("error");
+    }
+  };
+
   const handleDone = () => {
     onComplete();
     onClose();
@@ -98,6 +110,24 @@ export function ChooseSlotModal({ schedule, onClose, onComplete }: ChooseSlotMod
 
           {/* Slots */}
           <div className="p-6 space-y-3">
+            <button
+              type="button"
+              onClick={handleChooseNow}
+              className="w-full rounded-xl border-2 border-emerald-500 bg-emerald-50 p-4 text-left transition hover:bg-emerald-100"
+            >
+              <div className="flex items-center gap-4">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-600 text-white">
+                  <CheckCircle2 className="h-5 w-5" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-bold text-emerald-900">Dar ahora</p>
+                  <p className="mt-0.5 text-xs text-emerald-700">
+                    Activa la entrevista para probarla sin esperar al horario.
+                  </p>
+                </div>
+              </div>
+            </button>
+
             {schedule.proposedSlots
               .filter((s) => s.status === "AVAILABLE" || s.status === "PENDING")
               .map((slot) => {

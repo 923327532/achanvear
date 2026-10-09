@@ -17,7 +17,15 @@ export function JobList() {
   const [detailJob, setDetailJob] = useState<Job | null>(null);
   const { filters, setFilter } = useJobFiltersStore();
 
-  const { jobs: backendJobs, isLoading, isError } = useJobList();
+  const {
+    jobs: backendJobs,
+    isLoading,
+    isError,
+    totalPages,
+    currentPage,
+    isFirst,
+    isLast,
+  } = useJobList();
   const jobs = backendJobs;
 
   return (
@@ -91,15 +99,57 @@ export function JobList() {
               <p className="mt-1 text-xs text-slate-500">Intenta cambiar los filtros de búsqueda</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-              {jobs.map((job) => (
-                <JobCard
-                  key={job.id}
-                  job={job}
-                  onApply={(j) => setSelectedJob(j)}
-                  onViewDetail={(j) => setDetailJob(j)}
-                />
-              ))}
+            <div className="space-y-5">
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                {jobs.map((job) => (
+                  <JobCard
+                    key={job.id}
+                    job={job}
+                    onApply={(j) => setSelectedJob(j)}
+                    onViewDetail={(j) => setDetailJob(j)}
+                  />
+                ))}
+              </div>
+
+              {totalPages > 1 && (
+                <div className="flex flex-col gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-xs font-medium text-slate-500">
+                    Pagina {currentPage + 1} de {totalPages}
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setFilter("page", Math.max(0, currentPage - 1))}
+                      disabled={isFirst}
+                      className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      Anterior
+                    </button>
+                    {Array.from({ length: totalPages }, (_, index) => (
+                      <button
+                        key={index}
+                        type="button"
+                        onClick={() => setFilter("page", index)}
+                        className={`h-8 min-w-8 rounded-lg px-2 text-xs font-semibold transition ${
+                          currentPage === index
+                            ? "bg-[#1B3A6B] text-white"
+                            : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                        }`}
+                      >
+                        {index + 1}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => setFilter("page", Math.min(totalPages - 1, currentPage + 1))}
+                      disabled={isLast}
+                      className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      Siguiente
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

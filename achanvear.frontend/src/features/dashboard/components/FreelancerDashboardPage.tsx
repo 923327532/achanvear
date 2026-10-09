@@ -22,6 +22,8 @@ import type { Job } from "@/features/jobs/types/job.types";
 import type { Project } from "@/features/freelance/types/freelance.types";
 import { useRecommendedJobs } from "@/features/jobs/hooks/useRecommendedJobs";
 
+const DASHBOARD_PREVIEW_LIMIT = 8;
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 // Específicos de esta pantalla — no se reutilizan en otro lado, por eso viven
 // aquí mismo en vez de en un archivo separado.
@@ -97,7 +99,8 @@ export function FreelancerDashboardPage() {
   const { projects, isLoading: projectsLoading } = useProjects();
   const { appliedJobIds } = useAppliedJobIds();
 
-  const { jobs, industry, isLoading: jobsLoading, isFiltered } = useRecommendedJobs(4);
+  const { jobs, industry, isLoading: jobsLoading, isFiltered } = useRecommendedJobs(DASHBOARD_PREVIEW_LIMIT);
+  const previewProjects = projects.slice(0, DASHBOARD_PREVIEW_LIMIT);
 
   // Perfil propio: usado para "Perfil completado" y "Reputación" en las stats
   const profileQuery = useQuery({
@@ -169,7 +172,7 @@ export function FreelancerDashboardPage() {
         <div className="grid grid-cols-2 gap-2.5 sm:gap-3 md:grid-cols-4">
           {[
             { icon: Send,     label: "Empleos disponibles", value: jobs.length },
-            { icon: Calendar, label: "Proyectos freelance",  value: projects?.length ?? 0 },
+            { icon: Calendar, label: "Proyectos freelance",  value: previewProjects.length },
             {
               icon: User,
               label: "Perfil completado",
@@ -220,7 +223,7 @@ export function FreelancerDashboardPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-2">
-              {jobs.slice(0, 4).map((job) => (
+              {jobs.map((job) => (
                 <div key={job.id} className="flex flex-col rounded-xl border border-slate-200 bg-white p-4 md:p-5">
                   <div className="mb-3 flex items-center gap-3">
                     <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-slate-100 text-sm font-bold text-slate-600">
@@ -308,7 +311,7 @@ export function FreelancerDashboardPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-2">
-              {projects.slice(0, 4).map((project) => {
+              {previewProjects.map((project) => {
                 const companyName   = project.companyName ?? null;
                 const companyRating = project.companyRating ?? 0;
                 const hasRating     = companyRating > 0;

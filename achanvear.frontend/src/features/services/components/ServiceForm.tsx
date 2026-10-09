@@ -198,13 +198,25 @@ export function ServiceForm({ service, onSubmit, isSubmitting, freelancerProfile
   const stepIndex = STEPS.findIndex(s => s.id === currentStep);
   const isFirstStep = stepIndex === 0;
   const isLastStep = stepIndex === STEPS.length - 1;
+  const whatsappDigits = form.whatsapp.replace(/\D/g, "");
+  const phoneDigits = form.phone.replace(/\D/g, "");
+  const hasValidWhatsapp = whatsappDigits.length === 9;
+  const hasValidPhone = phoneDigits.length === 9;
+  const hasValidEmail = form.emailContact.trim().includes("@");
+  const isContactStepValid = hasValidWhatsapp && hasValidPhone && hasValidEmail;
+  const canGoNext = currentStep !== "contact" || isContactStepValid;
+
+  const handleNineDigitContactChange = (field: "whatsapp" | "phone", value: string) => {
+    setForm({ ...form, [field]: value.replace(/\D/g, "").slice(0, 9) });
+  };
 
   const isValid =
     form.title.trim().length > 0 &&
     form.category !== "" &&
     form.description.trim().length >= 10 &&
     Number(form.basePrice) > 0 &&
-    Number(form.deliveryDays) > 0;
+    Number(form.deliveryDays) > 0 &&
+    isContactStepValid;
 
   const handleSubmit = async (publish: boolean) => {
     if (!isValid) return;
@@ -730,12 +742,21 @@ export function ServiceForm({ service, onSubmit, isSubmitting, freelancerProfile
               <Phone className="w-4 h-4 text-green-500" />
               <input
                 type="text"
-                placeholder="+51 999 888 777"
+                inputMode="numeric"
+                maxLength={9}
+                placeholder="999888777"
                 value={form.whatsapp}
-                onChange={(e) => setForm({ ...form, whatsapp: e.target.value })}
-                className="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0EA5A0]/30 focus:border-[#0EA5A0] transition-colors"
+                onChange={(e) => handleNineDigitContactChange("whatsapp", e.target.value)}
+                className={`flex-1 border rounded-xl px-4 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 transition-colors ${
+                  form.whatsapp && !hasValidWhatsapp
+                    ? "border-red-300 focus:border-red-400 focus:ring-red-100"
+                    : "border-gray-200 focus:border-[#0EA5A0] focus:ring-[#0EA5A0]/30"
+                }`}
               />
             </div>
+            {form.whatsapp && !hasValidWhatsapp && (
+              <p className="mt-1 text-xs text-red-500">El WhatsApp debe tener exactamente 9 digitos.</p>
+            )}
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">Teléfono</label>
@@ -743,12 +764,21 @@ export function ServiceForm({ service, onSubmit, isSubmitting, freelancerProfile
               <Phone className="w-4 h-4 text-blue-500" />
               <input
                 type="text"
-                placeholder="+51 999 888 777"
+                inputMode="numeric"
+                maxLength={9}
+                placeholder="999888777"
                 value={form.phone}
-                onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                className="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0EA5A0]/30 focus:border-[#0EA5A0] transition-colors"
+                onChange={(e) => handleNineDigitContactChange("phone", e.target.value)}
+                className={`flex-1 border rounded-xl px-4 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 transition-colors ${
+                  form.phone && !hasValidPhone
+                    ? "border-red-300 focus:border-red-400 focus:ring-red-100"
+                    : "border-gray-200 focus:border-[#0EA5A0] focus:ring-[#0EA5A0]/30"
+                }`}
               />
             </div>
+            {form.phone && !hasValidPhone && (
+              <p className="mt-1 text-xs text-red-500">El telefono debe tener exactamente 9 digitos.</p>
+            )}
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">Correo Electrónico</label>
@@ -759,9 +789,16 @@ export function ServiceForm({ service, onSubmit, isSubmitting, freelancerProfile
                 placeholder="correo@ejemplo.com"
                 value={form.emailContact}
                 onChange={(e) => setForm({ ...form, emailContact: e.target.value })}
-                className="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0EA5A0]/30 focus:border-[#0EA5A0] transition-colors"
+                className={`flex-1 border rounded-xl px-4 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 transition-colors ${
+                  form.emailContact && !hasValidEmail
+                    ? "border-red-300 focus:border-red-400 focus:ring-red-100"
+                    : "border-gray-200 focus:border-[#0EA5A0] focus:ring-[#0EA5A0]/30"
+                }`}
               />
             </div>
+            {form.emailContact && !hasValidEmail && (
+              <p className="mt-1 text-xs text-red-500">El correo debe incluir @.</p>
+            )}
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">Tiempo de Respuesta Promedio</label>
@@ -1010,7 +1047,7 @@ export function ServiceForm({ service, onSubmit, isSubmitting, freelancerProfile
 
   return (
     <div className="min-h-full bg-gray-50/50">
-      <div className="px-4 sm:px-6 py-4 sm:py-6 max-w-4xl mx-auto">
+      <div className="mx-auto w-full max-w-7xl px-4 py-4 sm:px-6 sm:py-6 xl:px-8">
 
         {/* Header */}
         <div className="flex items-center gap-3 mb-4">
@@ -1094,7 +1131,8 @@ export function ServiceForm({ service, onSubmit, isSubmitting, freelancerProfile
             ) : (
               <button
                 onClick={() => setCurrentStep(STEPS[stepIndex + 1].id)}
-                className="flex items-center gap-1.5 text-sm font-semibold text-white bg-[#1B3A6B] rounded-xl px-5 py-3 hover:bg-[#0EA5A0] transition-colors"
+                disabled={!canGoNext}
+                className="flex items-center gap-1.5 text-sm font-semibold text-white bg-[#1B3A6B] rounded-xl px-5 py-3 hover:bg-[#0EA5A0] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Siguiente
                 <ChevronRight className="w-4 h-4" />

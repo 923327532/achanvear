@@ -73,6 +73,19 @@ export interface CompanyHiringStats {
   finalists: number;
 }
 
+export interface MyJobApplicationResponse {
+  id: string;
+  jobPostId: string;
+  jobTitle: string;
+  companyName: string;
+  appliedAt: string;
+  status: string;
+  currentStage: string;
+  screeningScore: number | null;
+  screeningResult: boolean | null;
+  screeningSummary: string | null;
+}
+
 export const jobApi = {
   // GET /jobs — listado con filtros y paginación
   getAll: async (filters: Partial<JobFilters>): Promise<PaginatedJobs> => {
@@ -107,6 +120,20 @@ export const jobApi = {
   getAppliedJobIds: async (): Promise<string[]> => {
     const response = await api.get<ApiResponse<string[]>>("/jobs/applied-ids");
     return parseResponse(response);
+  },
+
+  // GET /jobs/my-applications — historial de postulaciones del profesional
+  getMyApplications: async (filters?: { page?: number; size?: number }): Promise<MyJobApplicationResponse[]> => {
+    const params = {
+      page: filters?.page ?? 0,
+      size: filters?.size ?? 50,
+    };
+    const response = await api.get<ApiResponse<{ content: MyJobApplicationResponse[] }>>(
+      "/jobs/my-applications",
+      { params }
+    );
+    const data = parseResponse(response);
+    return data.content ?? [];
   },
 
   // POST /jobs/{id}/apply — postular a un empleo

@@ -1,6 +1,7 @@
 // features/jobs/components/CandidateDrawer.tsx
 "use client";
 
+import { useState } from "react";
 import {
   X,
   MessageSquare,
@@ -27,6 +28,7 @@ import {
 } from "lucide-react";
 import html2pdf from "html2pdf.js";
 import { useCandidateDrawerDetail, useAdvanceCandidate } from "../hooks/useCandidateDrawerDetail";
+import { candidateDrawerApi } from "../api/candidateDrawerApi";
 import type { CandidateDrawerDetail, ProcessContextType } from "../types/candidate-drawer.types";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -335,6 +337,7 @@ interface CandidateDrawerProps {
 export function CandidateDrawer({ jobId, applicationId, onClose }: CandidateDrawerProps) {
   const { detail, isLoading, isError, refetch } = useCandidateDrawerDetail(jobId, applicationId);
   const advanceMutation = useAdvanceCandidate(jobId);
+  const [isDownloadingCv, setIsDownloadingCv] = useState(false);
 
   const isJob = detail?.contextType === "JOB";
 
@@ -373,6 +376,19 @@ export function CandidateDrawer({ jobId, applicationId, onClose }: CandidateDraw
       applicationId: detail.id,
       payload: { processId: detail.processId, action: "DISCARD" },
     });
+  };
+
+  const handleDownloadCv = async () => {
+    if (!detail?.cvUrl || isDownloadingCv) return;
+    setIsDownloadingCv(true);
+    try {
+      const downloadUrl = await candidateDrawerApi.getCvDownloadUrl(detail.cvUrl);
+      window.open(downloadUrl, "_blank", "noopener,noreferrer");
+    } catch (error: any) {
+      alert(error?.message || "No se pudo generar el enlace seguro del CV.");
+    } finally {
+      setIsDownloadingCv(false);
+    }
   };
 
   return (
@@ -427,13 +443,11 @@ export function CandidateDrawer({ jobId, applicationId, onClose }: CandidateDraw
             </button>
             <button
               className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 text-sm font-semibold hover:bg-slate-50 transition"
-              onClick={() => {
-                if (detail?.cvUrl) window.open(detail.cvUrl, "_blank");
-              }}
-              disabled={!detail?.cvUrl}
+              onClick={handleDownloadCv}
+              disabled={!detail?.cvUrl || isDownloadingCv}
             >
-              <Download className="w-4 h-4" />
-              Descargar CV
+              {isDownloadingCv ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+              {isDownloadingCv ? "Generando enlace..." : "Descargar CV"}
             </button>
           </div>
         </div>

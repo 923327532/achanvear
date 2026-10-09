@@ -15,7 +15,7 @@ export const useJobFiltersStore = create<JobFiltersStore>((set) => ({
 
   setFilter: (key, value) =>
     set((state) => ({
-      filters: { ...state.filters, [key]: value, page: 0 }, // reset page on filter change
+      filters: { ...state.filters, [key]: value, page: key === "page" ? Number(value) : 0 },
     })),
 
   setFilters: (newFilters) =>

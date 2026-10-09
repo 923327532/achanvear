@@ -86,7 +86,7 @@ export const DEFAULT_JOB_FILTERS: JobFilters = {
   type: "",
   status: "PUBLISHED",
   page: 0,
-  size: 10,
+  size: 12,
   sortBy: "createdAt",
   sortDirection: "DESC",
 };

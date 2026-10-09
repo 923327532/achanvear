@@ -28,6 +28,11 @@ export const profileApi = {
   },
 
   // PUT /freelance/profiles/{id}  ← corregido
+  createProfile: async (data: Partial<FreelancerProfile>): Promise<FreelancerProfile> => {
+    const response = await api.post<ApiResponse<FreelancerProfile>>("/freelance/profiles", data);
+    return parseResponse(response);
+  },
+
   updateProfile: async (id: string, data: Partial<FreelancerProfile>): Promise<FreelancerProfile> => {
     const response = await api.put<ApiResponse<FreelancerProfile>>(`/freelance/profiles/${id}`, data);
     return parseResponse(response);
@@ -102,9 +107,9 @@ export const profileApi = {
   // ── Company profile ────────────────────────────────────────────────────────
 
   // GET /companies/profile
-  getCompanyProfile: async (): Promise<CompanyProfile> => {
+  getCompanyProfile: async (): Promise<CompanyProfile | null> => {
     const response = await api.get<ApiResponse<CompanyProfile>>("/companies/profile");
-    return parseResponse(response);
+    return parseResponse(response) ?? null;
   },
 
   // POST /companies

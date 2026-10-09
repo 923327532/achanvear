@@ -15,7 +15,7 @@ export const useProjectFiltersStore = create<ProjectFiltersStore>((set) => ({
 
   setFilter: (key, value) =>
     set((state) => ({
-      filters: { ...state.filters, [key]: value, page: 0 },
+      filters: { ...state.filters, [key]: value, page: key === "page" ? Number(value) : 0 },
     })),
 
   setFilters: (newFilters) =>

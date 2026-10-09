@@ -1,6 +1,7 @@
 // features/freelance/components/ProjectDetailModal.tsx
 "use client";
 
+import { useQueryClient } from "@tanstack/react-query";
 import {
   X,
   Clock,
@@ -10,7 +11,10 @@ import {
   CheckCircle2,
   ShieldCheck,
   Tag,
+  Loader2,
+  Send,
 } from "lucide-react";
+import { useProjectMilestones, useStartMilestone, useSubmitMilestoneReview } from "@/features/payments/hooks/usePayments";
 import type { Project } from "../types/freelance.types";
 
 interface ProjectDetailModalProps {
@@ -53,6 +57,11 @@ export function ProjectDetailModal({
   onClose,
   onPropose,
 }: ProjectDetailModalProps) {
+  const queryClient = useQueryClient();
+  const paymentMilestonesQuery = useProjectMilestones(project.id);
+  const startMilestoneMutation = useStartMilestone();
+  const submitReviewMutation = useSubmitMilestoneReview();
+
   // Datos del cliente (con fallbacks)
   const companyName     = project.companyName ?? null;
   const companyInitials = project.companyInitials ?? (companyName ? companyName.slice(0, 2).toUpperCase() : "CL");
@@ -67,6 +76,23 @@ export function ProjectDetailModal({
   const deliverables = (project as any).deliverables as string[] | undefined ?? [];
 
   const proposalCount = project.proposalCount ?? project.proposals?.length ?? 0;
+  const paymentMilestones = paymentMilestonesQuery.milestones;
+  const showPaymentPlan = project.status === "IN_PROGRESS" && paymentMilestones.length > 0;
+
+  const refreshPaymentPlan = () => {
+    paymentMilestonesQuery.refetch();
+    queryClient.invalidateQueries({ queryKey: ["freelance-my-proposals"] });
+  };
+
+  const handleStartMilestone = async (milestoneId: string) => {
+    await startMilestoneMutation.startAsync(milestoneId);
+    refreshPaymentPlan();
+  };
+
+  const handleSubmitReview = async (milestoneId: string) => {
+    await submitReviewMutation.submitReviewAsync(milestoneId);
+    refreshPaymentPlan();
+  };
 
   const formatBudget = (min: number, max?: number) => {
     if (max && max > min)
@@ -263,6 +289,73 @@ export function ProjectDetailModal({
           )}
 
           {/* 10 · Banner Escrow Protegido */}
+          {project.status === "IN_PROGRESS" && (
+            <div>
+              <h4 className="mb-2.5 text-sm font-semibold text-slate-900">
+                Flujo de cobro protegido
+              </h4>
+              {paymentMilestonesQuery.isLoading ? (
+                <div className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-3 text-xs text-slate-500">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Cargando pagos del proyecto...
+                </div>
+              ) : !showPaymentPlan ? (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-xs text-amber-700">
+                  Esperando que la empresa pague la garantia inicial para empezar por la app.
+                </div>
+              ) : (
+                <div className="space-y-2.5">
+                  {paymentMilestones.map((milestone, index) => {
+                    const canStart = milestone.status === "FUNDED";
+                    const canSubmit = milestone.status === "IN_PROGRESS";
+
+                    return (
+                      <div key={milestone.id} className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="text-xs font-bold text-slate-800">
+                              {index === 0 ? "20% inicial" : index === 1 ? "50% avance" : "30% saldo"} - {milestone.title}
+                            </p>
+                            <p className="mt-0.5 text-xs text-slate-500">{milestone.status}</p>
+                          </div>
+                          <span className="text-xs font-bold text-[#0EA5A0]">
+                            S/. {milestone.amount.toLocaleString("es-PE")}
+                          </span>
+                        </div>
+
+                        {(canStart || canSubmit) && (
+                          <div className="mt-3 flex justify-end">
+                            {canStart ? (
+                              <button
+                                type="button"
+                                onClick={() => handleStartMilestone(milestone.id)}
+                                disabled={startMilestoneMutation.isLoading}
+                                className="inline-flex items-center gap-2 rounded-lg bg-[#1B3A6B] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#16305a] disabled:opacity-50"
+                              >
+                                {startMilestoneMutation.isLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+                                Iniciar trabajo
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => handleSubmitReview(milestone.id)}
+                                disabled={submitReviewMutation.isLoading}
+                                className="inline-flex items-center gap-2 rounded-lg bg-[#0EA5A0] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#0b8b87] disabled:opacity-50"
+                              >
+                                {submitReviewMutation.isLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                                Enviar a conformidad
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3.5">
             <ShieldCheck
               className="mt-0.5 h-5 w-5 flex-shrink-0 text-amber-500"

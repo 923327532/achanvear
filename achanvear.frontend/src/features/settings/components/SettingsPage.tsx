@@ -12,7 +12,7 @@ import { GeneralSection } from "./GeneralSection";
 import type { SettingsSection } from "../types/settings.types";
 
 export function SettingsPage() {
-  const [activeSection, setActiveSection] = useState<SettingsSection>("work");
+  const [activeSection, setActiveSection] = useState<SettingsSection>("general");
   const { profile, isLoading } = useSettingsProfile();
 
   return (
@@ -23,7 +23,7 @@ export function SettingsPage() {
           <p className="text-sm text-gray-500 mt-1">Gestiona tus preferencias y ajustes de cuenta</p>
         </div>
 
-        <div className="flex gap-6 items-start">
+        <div className="space-y-6">
           <SettingsSidebar active={activeSection} onChange={setActiveSection} />
           <div className="flex-1 min-w-0">
             {isLoading ? (

@@ -6,7 +6,7 @@ import { X, Loader2, Upload, CheckCircle2, Info, Bot, Send } from "lucide-react"
 import { useApplyJob } from "../hooks/useApplyJob";
 import type { Job } from "../types/job.types";
 import { freelanceApi } from "@/features/freelance/api/freelanceApi";
-import { onboardingApi } from "@/features/onboarding/api/onboardingApi";
+import { onboardingService } from "@/features/onboarding/api/onboardingApi";
 
 interface ApplicationModalProps {
   job: Job;
@@ -106,7 +106,7 @@ Genera una carta de presentación personalizada basada en esta información.`;
     try {
       setIsUploadingCv(true);
       const cvUrl = cvFile
-        ? (await onboardingApi.uploadFile("CURRICULUM", cvFile)).publicFileUrl
+        ? (await onboardingService.uploadFile("CURRICULUM", cvFile)).publicFileUrl
         : "";
       await applyAsync({ cvUrl, coverLetter: coverLetter.trim() });
       setSubmitted(true);
