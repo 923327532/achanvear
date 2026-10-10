@@ -49,8 +49,14 @@ export const interviewApi = {
   },
 
   // POST /interviews/{interviewId}/complete — completar entrevista
-  complete: async (interviewId: string): Promise<InterviewReportResponse> => {
-    const response = await api.post<ApiResponse<InterviewReportResponse>>(`/interviews/${interviewId}/complete`);
+  complete: async (
+    interviewId: string,
+    payload?: { score?: number; summary?: string; evidence?: string }
+  ): Promise<InterviewReportResponse> => {
+    const response = await api.post<ApiResponse<InterviewReportResponse>>(
+      `/interviews/${interviewId}/complete`,
+      payload ?? {}
+    );
     return parseResponse(response);
   },
 

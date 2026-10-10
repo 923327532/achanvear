@@ -281,13 +281,37 @@ public class InterviewApplicationService implements
         Interview interview = getInterview(command.interviewId());
 
         boolean alreadyCompleted = interview.getStatus() == InterviewStatus.COMPLETED;
-        InterviewScore finalScore = interview.getScore() != null
+        InterviewScore finalScore = command.score() != null
+                ? new InterviewScore(command.score())
+                : interview.getScore() != null
                 ? interview.getScore()
                 : scoreCalculator.calculate(interview);
         boolean passed = finalScore.getValue() >= 75;
 
+        if (command.score() != null && interview.getStatus() == InterviewStatus.SCHEDULED) {
+            interview.start();
+        }
+
+        if (command.score() != null && interview.getAnswers().isEmpty()) {
+            String questionId = interview.getQuestions().isEmpty()
+                    ? UUID.randomUUID().toString()
+                    : interview.getQuestions().get(0).getId();
+            if (interview.getQuestions().isEmpty()) {
+                interview.addQuestion(new Question(
+                        questionId,
+                        "Evaluacion practica realizada por agente IA",
+                        1
+                ));
+            }
+            String evidence = command.evidence() != null && !command.evidence().isBlank()
+                    ? command.evidence()
+                    : command.summary() != null ? command.summary() : "Resultado practico generado por IA";
+            interview.submitAnswer(questionId, evidence, finalScore.getValue());
+        }
+
         interview.complete(finalScore);
         interviewRepository.save(interview);
+        markRelatedScheduleFinished(interview);
         interviewSlotManager.releaseSlot(command.interviewId());
 
         if (!alreadyCompleted) {
@@ -541,6 +565,7 @@ public class InterviewApplicationService implements
 
         interview.abort(command.reason());
         interviewRepository.save(interview);
+        markRelatedScheduleFinished(interview);
         interviewSlotManager.releaseSlot(command.interviewId());
         interview.pullDomainEvents().forEach(eventPublisher::publish);
     }
@@ -554,6 +579,7 @@ public class InterviewApplicationService implements
 
         interview.abort();
         interviewRepository.save(interview);
+        markRelatedScheduleFinished(interview);
 
         if (hadActiveSlot) {
             interviewSlotManager.releaseSlot(command.interviewId());
@@ -623,6 +649,16 @@ public class InterviewApplicationService implements
                     Instant.now()
             ));
         }
+    }
+
+    private void markRelatedScheduleFinished(Interview interview) {
+        findChosenSchedules(interview).stream()
+                .filter(s -> s.getInterviewType() == interview.getType())
+                .findFirst()
+                .ifPresent(schedule -> {
+                    schedule.markCompleted();
+                    interviewScheduleRepository.save(schedule);
+                });
     }
 
     private HiringContext resolveHiringContext(Interview interview) {

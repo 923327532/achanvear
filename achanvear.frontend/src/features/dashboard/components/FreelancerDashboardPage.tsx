@@ -22,7 +22,8 @@ import type { Job } from "@/features/jobs/types/job.types";
 import type { Project } from "@/features/freelance/types/freelance.types";
 import { useRecommendedJobs } from "@/features/jobs/hooks/useRecommendedJobs";
 
-const DASHBOARD_PREVIEW_LIMIT = 8;
+const JOBS_PREVIEW_LIMIT = 12;
+const PROJECTS_PREVIEW_LIMIT = 8;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 // Específicos de esta pantalla — no se reutilizan en otro lado, por eso viven
@@ -67,6 +68,11 @@ function getInitials(name: string): string {
   return name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
 }
 
+function formatPublishedDate(dateStr?: string): string {
+  if (!dateStr) return "Publicado recientemente";
+  return `Publicado ${new Date(dateStr).toLocaleDateString("es-PE")}`;
+}
+
 // ─── % de perfil completado ─────────────────────────────────────────────────
 // Antes este valor estaba hardcodeado como "—" (nunca se calculaba). Se
 // calcula aquí a partir de 6 campos básicos del perfil ya disponibles en
@@ -99,8 +105,8 @@ export function FreelancerDashboardPage() {
   const { projects, isLoading: projectsLoading } = useProjects();
   const { appliedJobIds } = useAppliedJobIds();
 
-  const { jobs, industry, isLoading: jobsLoading, isFiltered } = useRecommendedJobs(DASHBOARD_PREVIEW_LIMIT);
-  const previewProjects = projects.slice(0, DASHBOARD_PREVIEW_LIMIT);
+  const { jobs, industry, isLoading: jobsLoading, isFiltered } = useRecommendedJobs(JOBS_PREVIEW_LIMIT);
+  const previewProjects = projects.slice(0, PROJECTS_PREVIEW_LIMIT);
 
   // Perfil propio: usado para "Perfil completado" y "Reputación" en las stats
   const profileQuery = useQuery({
@@ -255,7 +261,7 @@ export function FreelancerDashboardPage() {
                       </p>
                       <div className="flex items-center gap-1 text-xs text-slate-400 mt-0.5">
                         <Clock className="h-3 w-3" />
-                        <span>{job.createdAt ? new Date(job.createdAt).toLocaleDateString("es-PE") : "Reciente"}</span>
+                        <span>{formatPublishedDate(job.createdAt)}</span>
                       </div>
                     </div>
                     <div className="flex flex-shrink-0 flex-wrap items-center gap-2">
@@ -363,6 +369,10 @@ export function FreelancerDashboardPage() {
                         <div className="flex items-center gap-1">
                           <Clock className="h-3 w-3" />
                           <span>{project.estimatedDays ?? "—"} días</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Calendar className="h-3 w-3" />
+                          <span>{formatPublishedDate(project.createdAt)}</span>
                         </div>
                         <div className="flex items-center gap-1">
                           <MessageCircle className="h-3 w-3" />

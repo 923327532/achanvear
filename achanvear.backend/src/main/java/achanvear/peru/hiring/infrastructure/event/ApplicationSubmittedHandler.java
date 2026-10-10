@@ -11,6 +11,7 @@ import achanvear.peru.jobs.domain.model.JobApplication;
 import achanvear.peru.jobs.domain.model.ApplicationStatus;
 import achanvear.peru.jobs.domain.model.JobPost;
 import achanvear.peru.jobs.domain.model.RecruitmentAutomationConfig;
+import achanvear.peru.jobs.domain.model.RecruitmentAutomationLevel;
 import achanvear.peru.jobs.domain.repository.ApplicationRepository;
 import achanvear.peru.jobs.domain.repository.JobPostRepository;
 import achanvear.peru.jobs.domain.repository.RecruitmentAutomationConfigRepository;
@@ -32,8 +33,8 @@ import java.util.stream.Collectors;
 
 /**
  * Escucha ApplicationSubmittedEvent.
- * Inicia el screening automaticamente para TODAS las postulaciones.
- * El screening evalua al candidato con IA y si pasa, genera schedule de entrevista teorica.
+ * En empleos manuales solo deja la postulacion disponible para revision de la empresa.
+ * En empleos automatizados inicia screening IA y, si corresponde, agenda entrevista teorica.
  */
 @Component
 public class ApplicationSubmittedHandler {
@@ -92,6 +93,12 @@ public class ApplicationSubmittedHandler {
             RecruitmentAutomationConfig automationConfig = automationConfigRepository
                     .findByJobPostId(jobPostUuid)
                     .orElse(null);
+            if (isManualFlow(automationConfig)) {
+                log.info("Postulacion manual recibida para candidato {} en job {}. No se ejecuta screening IA.",
+                        event.candidateUserId(), jobPostUuid);
+                return;
+            }
+
             boolean hasTheoryInterviewCapacity = hasTheoryInterviewCapacity(jobPostUuid, automationConfig);
             boolean autoAdvance = hasTheoryInterviewCapacity;
 
@@ -332,6 +339,10 @@ public class ApplicationSubmittedHandler {
         } catch (NumberFormatException e) {
             throw new IllegalArgumentException("Configured candidatesForTheoryInterview is not numeric", e);
         }
+    }
+
+    private boolean isManualFlow(RecruitmentAutomationConfig automationConfig) {
+        return automationConfig == null || automationConfig.getLevel() == RecruitmentAutomationLevel.MANUAL;
     }
 
     private void addIfPresent(List<String> values, String value) {

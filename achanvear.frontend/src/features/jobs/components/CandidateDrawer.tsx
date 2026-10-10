@@ -2,6 +2,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   X,
   MessageSquare,
@@ -335,6 +336,7 @@ interface CandidateDrawerProps {
 }
 
 export function CandidateDrawer({ jobId, applicationId, onClose }: CandidateDrawerProps) {
+  const router = useRouter();
   const { detail, isLoading, isError, refetch } = useCandidateDrawerDetail(jobId, applicationId);
   const advanceMutation = useAdvanceCandidate(jobId);
   const [isDownloadingCv, setIsDownloadingCv] = useState(false);
@@ -391,6 +393,11 @@ export function CandidateDrawer({ jobId, applicationId, onClose }: CandidateDraw
     }
   };
 
+  const handleContactCandidate = () => {
+    if (!detail?.candidateUserId) return;
+    router.push(`/company/chat?userId=${encodeURIComponent(detail.candidateUserId)}`);
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-end">
       {/* Backdrop */}
@@ -437,7 +444,12 @@ export function CandidateDrawer({ jobId, applicationId, onClose }: CandidateDraw
 
           {/* Botones de acción rápida */}
           <div className="flex gap-2">
-            <button className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#1e3a8a] text-white text-sm font-semibold hover:bg-[#1e3a8a]/90 transition">
+            <button
+              type="button"
+              onClick={handleContactCandidate}
+              disabled={!detail?.candidateUserId}
+              className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#1e3a8a] text-white text-sm font-semibold hover:bg-[#1e3a8a]/90 transition disabled:opacity-50"
+            >
               <MessageSquare className="w-4 h-4" />
               Contactar
             </button>

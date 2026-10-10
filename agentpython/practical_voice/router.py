@@ -1,6 +1,7 @@
 from typing import Any, Dict, List
 
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
+from starlette.websockets import WebSocketDisconnected
 
 from practical_voice.audio_pipeline import SpeechToText, TextToSpeech
 from practical_voice.autonomous_agent import evaluate_practical_interview, generate_interviewer_reply
@@ -11,7 +12,7 @@ from practical_voice.schemas import (
     PracticalSessionStartResponse,
     PracticalViolationRequest,
 )
-from practical_voice.workspace import build_workspace_challenge, infer_workspace_type
+from practical_voice.workspace import build_workspace_challenge, infer_workspace_type, interviewer_profile
 from shared.n8n_client import notify_email
 from shared.session_orchestrator import InterviewStage, get_session, update_session
 import os
@@ -42,6 +43,10 @@ async def start_practical_interview(req: PracticalSessionStartRequest):
         "transcript": [],
         "workspace_state": {},
         "violations": state.violations if state else 0,
+        "candidate_name": req.candidate_name or "",
+        "career": req.career,
+        "job_title": req.job_title,
+        "interviewer_profile": challenge.get("interviewer_profile") or interviewer_profile(workspace_type, req.career, req.job_title),
     }
 
     return PracticalSessionStartResponse(
@@ -103,7 +108,16 @@ async def finish_practical_interview(req: PracticalFinishRequest):
         notify_email(
             company_report_email,
             f"Reporte entrevista practica - {req.session_id}",
-            build_company_report_html(req.session_id, evaluation, transcript, violations),
+            build_company_report_html(
+                session_id=req.session_id,
+                evaluation=evaluation,
+                transcript=transcript,
+                violations=violations,
+                candidate_name=runtime.get("candidate_name", "Profesional evaluado"),
+                job_title=runtime.get("job_title", "Puesto evaluado"),
+                career=runtime.get("career", "Area profesional"),
+                interviewer=runtime.get("interviewer_profile", {}),
+            ),
         )
 
     return PracticalFinishResponse(
@@ -128,6 +142,10 @@ def build_company_report_html(
     evaluation: Dict[str, Any],
     transcript: List[Dict[str, str]],
     violations: int,
+    candidate_name: str = "Profesional evaluado",
+    job_title: str = "Puesto evaluado",
+    career: str = "Area profesional",
+    interviewer: Dict[str, Any] | None = None,
 ) -> str:
     next_action = evaluation.get("next_action", "manual_review")
     action_label = {
@@ -135,24 +153,63 @@ def build_company_report_html(
         "manual_review": "Revision manual",
         "reject": "No avanzar",
     }.get(next_action, next_action)
+    final_score = float(evaluation.get("final_score", 0) or 0)
+    ranking = (
+        "Puesto 1 entre candidatos aprobados" if final_score >= 92 else
+        "Puesto 2 entre candidatos aprobados" if final_score >= 86 else
+        "Puesto 3 entre candidatos aprobados" if final_score >= 80 else
+        "Aprobado, ranking sujeto al total de candidatos" if final_score >= 75 else
+        "No ingresa al ranking de aprobados"
+    )
+    interviewer = interviewer or {}
+    strengths = "".join(f"<li>{item}</li>" for item in evaluation.get("strengths", []))
+    risks = "".join(f"<li>{item}</li>" for item in evaluation.get("risks", []))
+    recent_turns = "".join(
+        f"<p style='margin:8px 0;padding:10px 12px;background:#f8fafc;border-radius:10px;'><strong>{'IA' if turn.get('role') == 'agent' else 'Profesional'}:</strong> {turn.get('content', '')}</p>"
+        for turn in transcript[-10:]
+    )
     return f"""
-    <h2>Reporte de entrevista practica</h2>
-    <p><strong>Sesion:</strong> {session_id}</p>
-    <p><strong>Teoria:</strong> {evaluation.get("theory_score", 0)}/100</p>
-    <p><strong>Practica:</strong> {evaluation.get("score", 0)}/100</p>
-    <p><strong>Comunicacion:</strong> {evaluation.get("communication_score", 0)}/100</p>
-    <p><strong>Score final ponderado:</strong> {evaluation.get("final_score", 0)}/100</p>
-    <p><strong>Resultado:</strong> {"Aprobado" if evaluation.get("passed") else "No aprobado"}</p>
-    <p><strong>Accion sugerida:</strong> {action_label}</p>
-    <p><strong>Alertas antifraude:</strong> {violations}</p>
-    <h3>Resumen</h3>
-    <p>{evaluation.get("summary", "")}</p>
-    <h3>Comunicacion</h3>
-    <p>{evaluation.get("communication_summary", "")}</p>
-    <h3>Recomendacion</h3>
-    <p>{evaluation.get("recommendation", "")}</p>
-    <h3>Ultimos turnos</h3>
-    <pre>{transcript[-8:]}</pre>
+    <div style="font-family:Inter,Arial,sans-serif;background:#f4f7fb;padding:28px;color:#0f172a;">
+      <div style="max-width:900px;margin:auto;background:#fff;border:1px solid #e2e8f0;border-radius:22px;overflow:hidden;">
+        <div style="background:#102a43;color:#fff;padding:26px 30px;display:flex;justify-content:space-between;gap:18px;">
+          <div>
+            <div style="font-size:13px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#67e8f9;">Achanvear</div>
+            <h1 style="margin:8px 0 4px;">Informe ejecutivo de entrevista practica</h1>
+            <p style="margin:0;color:#cbd5e1;">Sesion {session_id}</p>
+          </div>
+          <div style="text-align:right;">
+            <span style="display:inline-block;border-radius:999px;padding:8px 12px;background:{'#dcfce7' if evaluation.get('passed') else '#fee2e2'};color:{'#166534' if evaluation.get('passed') else '#991b1b'};font-weight:900;font-size:12px;">{"APROBADO" if evaluation.get("passed") else "NO APROBADO"}</span>
+            <p style="margin:10px 0 0;color:#cbd5e1;">{action_label}</p>
+          </div>
+        </div>
+        <div style="padding:28px 30px;">
+          <h2 style="margin:0 0 6px;">{candidate_name}</h2>
+          <p style="margin:0;color:#64748b;">Puesto: {job_title} · Area: {career}</p>
+          <p style="margin:6px 0 0;color:#64748b;">Entrevistador IA: {interviewer.get("name", "Agente IA")} · {interviewer.get("role", "Evaluacion practica")}</p>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:22px;">
+            <div style="border:1px solid #e2e8f0;border-radius:16px;padding:16px;"><p style="margin:0;color:#64748b;font-size:12px;font-weight:800;">FINAL</p><p style="font-size:30px;font-weight:900;margin:8px 0 0;">{evaluation.get("final_score", 0)}/100</p></div>
+            <div style="border:1px solid #e2e8f0;border-radius:16px;padding:16px;"><p style="margin:0;color:#64748b;font-size:12px;font-weight:800;">TECNICO</p><p style="font-size:30px;font-weight:900;margin:8px 0 0;">{evaluation.get("score", 0)}/100</p></div>
+            <div style="border:1px solid #e2e8f0;border-radius:16px;padding:16px;"><p style="margin:0;color:#64748b;font-size:12px;font-weight:800;">EXPERIENCIA</p><p style="font-size:30px;font-weight:900;margin:8px 0 0;">{evaluation.get("theory_score", 0)}/100</p></div>
+            <div style="border:1px solid #e2e8f0;border-radius:16px;padding:16px;"><p style="margin:0;color:#64748b;font-size:12px;font-weight:800;">PSICOLOGICO</p><p style="font-size:30px;font-weight:900;margin:8px 0 0;">{evaluation.get("communication_score", 0)}/100</p></div>
+          </div>
+          <h3 style="margin-top:28px;">Ranking</h3>
+          <p>{ranking}. El puesto final se recalcula con todos los candidatos aprobados de la vacante.</p>
+          <h3>Resumen ejecutivo</h3>
+          <p>{evaluation.get("summary", "")}</p>
+          <p>{evaluation.get("communication_summary", "")}</p>
+          <h3>Fortalezas</h3>
+          <ul>{strengths or "<li>Sin fortalezas registradas.</li>"}</ul>
+          <h3>Riesgos</h3>
+          <ul>{risks or "<li>Sin riesgos registrados.</li>"}</ul>
+          <h3>Recomendacion</h3>
+          <p>{evaluation.get("recommendation", "")}</p>
+          <h3>Alertas antifraude</h3>
+          <p>{violations}</p>
+          <h3>Evidencia reciente</h3>
+          {recent_turns or "<p>Sin turnos registrados.</p>"}
+        </div>
+      </div>
+    </div>
     """
 
 
@@ -169,20 +226,34 @@ async def practical_voice_ws(websocket: WebSocket, session_id: str):
         "session_id": session_id,
         "message": "Canal de entrevista practica listo.",
     })
+    candidate_name = runtime.get("candidate_name") or "candidato"
+    profile = runtime.get("interviewer_profile") or {}
+    interviewer_name = profile.get("name", "tu entrevistador")
+    interviewer_role = profile.get("role", "entrevistador practico")
     greeting = (
-        "Hola, soy tu entrevistador practico de Achanvear. "
-        "Te explicare el caso, escuchare tu razonamiento y hare preguntas de seguimiento. "
-        "Puedes interrumpirme cuando necesites aclarar algo. Empecemos: cuentame como abordarias el reto visible."
+        f"Hola {candidate_name}, soy {interviewer_name}, {interviewer_role} de Achanvear. "
+        "Un gusto acompañarte en esta entrevista. Antes de comenzar, estas son las reglas: "
+        "piensa en voz alta, no uses ayuda externa, no cambies de ventana sin avisar, "
+        "y puedes interrumpirme cuando necesites aclarar o corregir algo. "
+        "Primero conversaremos brevemente y luego resolveras el caso practico. "
+        "Puedes abrirlo cuando quieras con el boton Caso; ahi veras el enunciado, el lenguaje esperado y los criterios. "
+        "Cuando empecemos el reto tendras 20 minutos. "
+        "Para confirmar, dime como prefieres que te llame y cuentame en un minuto tu experiencia relacionada con este puesto."
     )
     runtime.setdefault("transcript", []).append({"role": "agent", "content": greeting})
     await websocket.send_json({"type": "agent_text", "text": greeting})
-    greeting_audio = await tts.synthesize_base64(greeting)
+    greeting_audio = await safe_tts(greeting, profile.get("voice"))
     if greeting_audio:
         await websocket.send_json({"type": "agent_audio", "format": "mp3", "audio_base64": greeting_audio})
+    else:
+        await websocket.send_json({"type": "tts_unavailable"})
 
     try:
         while True:
-            message = await websocket.receive()
+            try:
+                message = await websocket.receive()
+            except WebSocketDisconnected:
+                return
 
             if "text" in message and message["text"] is not None:
                 data = websocket_json(message["text"])
@@ -235,6 +306,20 @@ async def handle_candidate_turn(websocket: WebSocket, runtime: Dict[str, Any], c
     transcript.append({"role": "candidate", "content": candidate_text})
     await websocket.send_json({"type": "transcript", "role": "candidate", "text": candidate_text})
 
+    if is_finish_intent(candidate_text):
+        reply = (
+            "Perfecto, dame un momento. Comenzare a evaluar tus respuestas, el trabajo del workspace "
+            "y la evidencia de la entrevista. Si encuentro algo que necesite aclaracion, te lo indicare."
+        )
+        transcript.append({"role": "agent", "content": reply})
+        await websocket.send_json({"type": "agent_text", "text": reply})
+        profile = runtime.get("interviewer_profile") or {}
+        audio_base64 = await safe_tts(reply, profile.get("voice"))
+        if audio_base64:
+            await websocket.send_json({"type": "agent_audio", "format": "mp3", "audio_base64": audio_base64})
+        await websocket.send_json({"type": "finish_requested"})
+        return
+
     reply = await generate_interviewer_reply(
         transcript=transcript,
         candidate_text=candidate_text,
@@ -246,11 +331,42 @@ async def handle_candidate_turn(websocket: WebSocket, runtime: Dict[str, Any], c
     transcript.append({"role": "agent", "content": reply})
     await websocket.send_json({"type": "agent_text", "text": reply})
 
-    audio_base64 = await tts.synthesize_base64(reply)
+    profile = runtime.get("interviewer_profile") or {}
+    audio_base64 = await safe_tts(reply, profile.get("voice"))
     if audio_base64:
         await websocket.send_json({"type": "agent_audio", "format": "mp3", "audio_base64": audio_base64})
     else:
         await websocket.send_json({"type": "tts_unavailable"})
+
+
+def is_finish_intent(text: str) -> bool:
+    normalized = text.lower().strip()
+    finish_phrases = (
+        "ya termine",
+        "ya terminé",
+        "termine mi entrevista",
+        "terminé mi entrevista",
+        "termine la entrevista",
+        "terminé la entrevista",
+        "finalice",
+        "finalicé",
+        "he terminado",
+        "quiero terminar",
+        "puedes evaluar",
+        "evalua mis respuestas",
+        "evalúa mis respuestas",
+        "estoy listo para finalizar",
+        "listo para finalizar",
+    )
+    return any(phrase in normalized for phrase in finish_phrases)
+
+
+async def safe_tts(text: str, voice: str | None = None) -> str | None:
+    try:
+        return await tts.synthesize_base64(text, voice)
+    except Exception as exc:
+        print(f"TTS failed without closing websocket: {type(exc).__name__}: {exc}")
+        return None
 
 
 def websocket_json(raw: str) -> Dict[str, Any]:

@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import {
   useAvailablePlans,
-  useCheckoutCreditPackage,
+  useChargeCreditPackageWithCulqi,
   useCreditPackages,
   useCurrentPlan,
   usePaymentsOverview,
@@ -278,7 +278,7 @@ export function CompanyBillingSection() {
   const { overview, isLoading: isLoadingOverview } = usePaymentsOverview();
   const { wallet, isLoading: isLoadingWallet } = useWallet();
   const { subscribeAsync: subscribeToPlan, isLoading: isSubscribing } = useSubscribeToPlan();
-  const { checkoutAsync: checkoutCreditPackage, isLoading: isCheckingOut } = useCheckoutCreditPackage();
+  const { chargeAsync: chargeCreditPackage, isLoading: isChargingPackage } = useChargeCreditPackageWithCulqi();
   const { cards: savedCards, isLoading: isLoadingCards } = useSavedCards();
   const { methods: localMethods, isLoading: isLoadingLocalMethods } = useLocalPaymentMethods();
 
@@ -292,7 +292,7 @@ export function CompanyBillingSection() {
   const [payMethod, setPayMethod] = useState<string>("NEW");
   const [showNewMethod, setShowNewMethod] = useState(false);
   // Checkout de suscripción (Culqi): se abre al confirmar el pago de un plan con tarjeta nueva
-  const [showPlanCharge, setShowPlanCharge] = useState(false);
+  const [showChargeModal, setShowChargeModal] = useState(false);
 
   const activePlans = useMemo(() => plans.filter((plan) => plan.isActive), [plans]);
   const activePackages = useMemo(() => creditPackages.filter((pkg) => pkg.isActive), [creditPackages]);
@@ -356,43 +356,35 @@ export function CompanyBillingSection() {
     setError(null);
 
     // Suscripción a un plan: requiere tokenizar la tarjeta con Culqi
-    if (selectedPlanData) {
-      setShowPlanCharge(true);
+    if (selectedPlanData || selectedPackageData) {
+      setShowChargeModal(true);
       return;
     }
 
-    try {
-      const initPoint = selectedPackageData
-        ? await checkoutCreditPackage({ packageId: selectedPackageData.id, clientEmail: billingEmail.trim() })
-        : null;
-
-      if (!initPoint) {
-        throw new Error("No se recibio la URL de checkout. Intenta nuevamente en unos minutos.");
-      }
-
-      window.location.href = initPoint;
-      setSuccess(true);
-      setTimeout(() => setSuccess(false), 2500);
-    } catch (err: any) {
-      setError(err?.message || "No se pudo iniciar el pago.");
-    }
   };
 
   // Culqi tokeniza la tarjeta de la suscripción y aquí cobramos el plan
-  const handlePlanTokenized = async ({ token, email }: { token: string; email: string }) => {
-    if (!selectedPlanData) return;
+  const handleCulqiTokenized = async ({ token, email }: { token: string; email: string }) => {
     setError(null);
     try {
-      await subscribeToPlan({
-        plan: selectedPlanData.planType,
-        companyEmail: email || billingEmail.trim(),
-        token,
-      });
-      setShowPlanCharge(false);
+      if (selectedPlanData) {
+        await subscribeToPlan({
+          plan: selectedPlanData.planType,
+          companyEmail: email || billingEmail.trim(),
+          token,
+        });
+      } else if (selectedPackageData) {
+        await chargeCreditPackage({
+          packageId: selectedPackageData.id,
+          clientEmail: email || billingEmail.trim(),
+          token,
+        });
+      }
+      setShowChargeModal(false);
       setSuccess(true);
       setTimeout(() => setSuccess(false), 2500);
     } catch (err: any) {
-      setError(err?.message || "No se pudo procesar el pago del plan.");
+      setError(err?.message || "No se pudo procesar el pago con Culqi.");
       throw err;
     }
   };
@@ -407,11 +399,11 @@ export function CompanyBillingSection() {
 
   return (
     <div className="space-y-6">
-      {showPlanCharge && selectedPlanData && (
+      {showChargeModal && (selectedPlanData || selectedPackageData) && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-lg rounded-xl border border-slate-200 bg-white p-6 shadow-xl">
             <h3 className="text-lg font-bold text-slate-950">
-              Pago de tu plan {selectedPlanData.displayName}
+              Pago de {selectedPlanData ? `tu plan ${selectedPlanData.displayName}` : selectedPackageData?.name}
             </h3>
             <p className="mt-1 text-sm text-slate-500">
               Se cobrará {formatMoney(selectedPrice)}. El pago se procesa de forma segura con Culqi.
@@ -420,9 +412,9 @@ export function CompanyBillingSection() {
             <div className="mt-4">
               <CulqiCardForm
                 mode="charge"
-                buttonLabel="Pagar suscripción con Culqi"
+                buttonLabel={selectedPlanData ? "Pagar plan con Culqi" : "Pagar paquete con Culqi"}
                 submitLabel="Procesando pago..."
-                onTokenized={handlePlanTokenized}
+                onTokenized={handleCulqiTokenized}
                 onError={(msg) => setError(msg)}
               />
             </div>
@@ -431,7 +423,7 @@ export function CompanyBillingSection() {
 
             <button
               type="button"
-              onClick={() => { setShowPlanCharge(false); setError(null); }}
+              onClick={() => { setShowChargeModal(false); setError(null); }}
               className="mt-4 w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
             >
               Cancelar
@@ -715,16 +707,16 @@ export function CompanyBillingSection() {
                   <button
                     type="button"
                     onClick={handleCheckout}
-                    disabled={(!selectedPlanData && !selectedPackageData) || isSubscribing || isCheckingOut}
+                    disabled={(!selectedPlanData && !selectedPackageData) || isSubscribing || isChargingPackage}
                     className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-[#1B3A6B] via-[#135e7a] to-[#0EA5A0] px-4 py-2.5 text-sm font-semibold text-white transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    {isSubscribing || isCheckingOut ? (
+                    {isSubscribing || isChargingPackage ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
                       <CreditCard className="h-4 w-4" />
                     )}
-                    {isSubscribing || isCheckingOut
-                      ? "Preparando checkout..."
+                    {isSubscribing || isChargingPackage
+                      ? "Procesando pago..."
                       : !selectedPlanData && !selectedPackageData
                         ? "Selecciona una opcion"
                         : selectedPlanData
@@ -732,7 +724,7 @@ export function CompanyBillingSection() {
                           : `Pagar paquete ${formatMoney(selectedPrice)}`}
                   </button>
                   <p className="mt-3 text-xs leading-relaxed text-slate-400">
-                    Se abrira el checkout seguro. Los beneficios se activan cuando el pago queda confirmado por el proveedor.
+                    Se abrira Culqi Checkout. Los beneficios se activan apenas el pago queda aprobado.
                   </p>
                 </div>
               </div>

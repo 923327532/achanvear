@@ -51,7 +51,7 @@ class TextToSpeech:
     def __init__(self) -> None:
         self.voice = os.getenv("EDGE_TTS_VOICE", "es-PE-AlexNeural")
 
-    async def synthesize_base64(self, text: str) -> Optional[str]:
+    async def synthesize_base64(self, text: str, voice: str | None = None) -> Optional[str]:
         if not text.strip():
             return None
         try:
@@ -62,9 +62,13 @@ class TextToSpeech:
         with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as tmp:
             tmp_path = tmp.name
         try:
-            communicate = edge_tts.Communicate(text, self.voice)
-            await communicate.save(tmp_path)
-            audio = Path(tmp_path).read_bytes()
-            return base64.b64encode(audio).decode("ascii")
+            try:
+                communicate = edge_tts.Communicate(text, voice or self.voice)
+                await communicate.save(tmp_path)
+                audio = Path(tmp_path).read_bytes()
+                return base64.b64encode(audio).decode("ascii")
+            except Exception as exc:
+                print(f"TTS unavailable ({type(exc).__name__}): {exc}")
+                return None
         finally:
             Path(tmp_path).unlink(missing_ok=True)

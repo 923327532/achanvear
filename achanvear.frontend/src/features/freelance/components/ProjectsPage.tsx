@@ -1,7 +1,7 @@
 // features/freelance/components/ProjectsPage.tsx
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Filter, Search, Rocket, CheckCircle, Clock, XCircle } from "lucide-react";
 import { useProjects } from "../hooks/useProjects";
 import { useMyProposals } from "../hooks/useMyProposals";
@@ -20,7 +20,7 @@ export function ProjectsPage() {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [detailProject, setDetailProject] = useState<Project | null>(null);
 
-  const { filters, setFilter } = useProjectFiltersStore();
+  const { filters, setFilter, resetFilters } = useProjectFiltersStore();
   const {
     projects,
     isLoading,
@@ -29,6 +29,7 @@ export function ProjectsPage() {
     currentPage,
     isFirst,
     isLast,
+    totalItems,
   } = useProjects();
   const {
     projects: myProposals,
@@ -42,6 +43,10 @@ export function ProjectsPage() {
     { key: "my-projects" as Tab, label: "Mis Proyectos" },
     { key: "proposals" as Tab,   label: "Propuestas Enviadas" },
   ];
+
+  useEffect(() => {
+    resetFilters();
+  }, [resetFilters]);
 
   return (
     <div className="flex min-w-0 flex-col lg:flex-row">
@@ -61,6 +66,7 @@ export function ProjectsPage() {
         <div className="border-b border-slate-200 bg-white px-6 py-4">
           <div className="flex items-center justify-between mb-4">
             <h1 className="text-xl font-semibold text-slate-900">Proyectos Freelance</h1>
+            <p className="mt-1 text-xs text-slate-500">Mostrando proyectos activos disponibles</p>
             {activeTab === "explore" && (
               <button
                 type="button"
@@ -142,6 +148,9 @@ export function ProjectsPage() {
                 </div>
               ) : (
                 <div className="space-y-5">
+                  <p className="text-xs font-medium text-slate-500">
+                    {projects.length} de {totalItems} proyectos activos disponibles
+                  </p>
                   <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                     {projects.map((project) => (
                       <ProjectCard

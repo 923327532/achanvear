@@ -11,6 +11,7 @@ import type { Project, Proposal } from "../types/freelance.types";
 import {
   Plus,
   Search,
+  CalendarDays,
   FolderKanban,
   Users,
   Clock,
@@ -44,6 +45,11 @@ function getInitials(name: string) {
     .join("")
     .toUpperCase()
     .slice(0, 2);
+}
+
+function formatPublishedDate(dateStr?: string): string {
+  if (!dateStr) return "Publicado recientemente";
+  return `Publicado ${new Date(dateStr).toLocaleDateString("es-PE")}`;
 }
 
 // ─── Status Badge ──────────────────────────────────────────────────────────────
@@ -434,6 +440,13 @@ function ProjectCard({
           <span>Entrega en {project.estimatedDays} dias</span>
         </div>
         <div className="flex items-center gap-1.5 text-xs text-slate-500">
+          <CalendarDays className="h-3.5 w-3.5" strokeWidth={1.5} />
+          <span>{formatPublishedDate(project.createdAt)}</span>
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-1.5 text-xs text-slate-500">
           <MessageCircle className="h-3.5 w-3.5" strokeWidth={1.5} />
           <span>{proposalCount} propuestas</span>
         </div>
@@ -568,7 +581,7 @@ export function ProjectsListPage() {
     queryKey: ["company-projects", searchQuery, statusFilter, currentPage],
     queryFn: () =>
       freelanceApi.getMyProjects({
-        size: 10,
+        size: 8,
         page: currentPage,
         search: searchQuery || undefined,
         status: statusFilter || undefined,
@@ -578,6 +591,9 @@ export function ProjectsListPage() {
 
   const projectsData = projectsQuery.data;
   const allProjects = projectsData?.items ?? [];
+  const visibleProjects = statusFilter
+    ? allProjects
+    : allProjects.filter((project) => project.status !== "COMPLETED" && project.status !== "CANCELLED");
   const totalPages = projectsData?.totalPages ?? 0;
 
   const stats = useMemo(() => {
@@ -688,14 +704,14 @@ export function ProjectsListPage() {
         </select>
       </div>
 
-      {allProjects.length === 0 ? (
+      {visibleProjects.length === 0 ? (
         <EmptyState
           onCreate={() => (window.location.href = "/company/projects/create")}
         />
       ) : (
         <>
           <div className="space-y-4">
-            {allProjects.map((project) => (
+            {visibleProjects.map((project) => (
               <ProjectCard
                 key={project.id}
                 project={project}

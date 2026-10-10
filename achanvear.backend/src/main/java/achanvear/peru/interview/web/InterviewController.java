@@ -145,10 +145,16 @@ public class InterviewController {
 
     @PostMapping("/{interviewId}/complete")
     public ResponseEntity<ApiResponse<InterviewReportResponse>> completeInterview(
-            @PathVariable String interviewId
+            @PathVariable String interviewId,
+            @RequestBody(required = false) CompleteInterviewRequest request
     ) {
         InterviewReportResponse response = completeInterviewUseCase.execute(
-                new CompleteInterviewCommand(interviewId)
+                new CompleteInterviewCommand(
+                        interviewId,
+                        request != null ? request.score() : null,
+                        request != null ? request.summary() : null,
+                        request != null ? request.evidence() : null
+                )
         );
         return ResponseEntity.ok(ApiResponse.success(response, "Interview completed successfully"));
     }
@@ -234,6 +240,13 @@ public class InterviewController {
     public record SubmitAnswerRequest(
             @NotBlank String questionId,
             @NotBlank String answerContent
+    ) {
+    }
+
+    public record CompleteInterviewRequest(
+            Integer score,
+            String summary,
+            String evidence
     ) {
     }
 

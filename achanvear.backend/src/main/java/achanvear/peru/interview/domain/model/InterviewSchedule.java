@@ -7,11 +7,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
-/**
- * Entidad raiz del agregado InterviewSchedule.
- * Representa la agenda de una entrevista con 3 horarios propuestos,
- * el horario elegido por el candidato y un token de un solo uso.
- */
+
 public class InterviewSchedule {
 
     private final String id;
@@ -153,6 +149,13 @@ public class InterviewSchedule {
         this.tokenStatus = InterviewTokenStatus.USED;
         this.status = InterviewScheduleStatus.COMPLETED;
         return true;
+    }
+
+    public void markCompleted() {
+        this.status = InterviewScheduleStatus.COMPLETED;
+        if (this.tokenStatus != InterviewTokenStatus.EXPIRED) {
+            this.tokenStatus = InterviewTokenStatus.USED;
+        }
     }
 
     // Getters

@@ -56,6 +56,7 @@ public class GetMyJobApplicationsUseCase {
                 jobTitle,
                 companyName,
                 application.getAppliedAt(),
+                jobPost != null ? jobPost.getSelectionMode().name() : null,
                 application.getStatus().name(),
                 application.getStatus().name(),
                 application.getScreeningScore(),

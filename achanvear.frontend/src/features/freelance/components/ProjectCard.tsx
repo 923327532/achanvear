@@ -1,7 +1,7 @@
 // features/freelance/components/ProjectCard.tsx
 "use client";
 
-import { Clock, MessageCircle, Eye, Send, Star, CheckCircle, Clock as ClockIcon, XCircle } from "lucide-react";
+import { CalendarDays, Clock, MessageCircle, Eye, Send, Star, CheckCircle, XCircle } from "lucide-react";
 import type { Project, ProposalStatus } from "../types/freelance.types";
 
 interface ProjectCardProps {
@@ -30,6 +30,11 @@ const PROPOSAL_STATUS_CONFIG: Record<string, { label: string; className: string 
     className: "bg-red-50 text-red-700 border-red-200",
   },
 };
+
+function formatPublishedDate(dateStr?: string): string {
+  if (!dateStr) return "Publicado recientemente";
+  return `Publicado ${new Date(dateStr).toLocaleDateString("es-PE")}`;
+}
 
 export function ProjectCard({ project, onViewDetail, onPropose, showProposalStatus }: ProjectCardProps) {
   const currencySymbol = CURRENCY_SYMBOLS[project.currency ?? "PEN"] ?? "S/.";
@@ -120,6 +125,13 @@ export function ProjectCard({ project, onViewDetail, onPropose, showProposalStat
           <Clock className="h-3.5 w-3.5" strokeWidth={1.5} />
           <span>Entrega en {project.estimatedDays} dias</span>
         </div>
+        <div className="flex items-center gap-1.5 text-xs text-slate-500">
+          <CalendarDays className="h-3.5 w-3.5" strokeWidth={1.5} />
+          <span>{formatPublishedDate(project.createdAt)}</span>
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-1.5 text-xs text-slate-500">
           <MessageCircle className="h-3.5 w-3.5" strokeWidth={1.5} />
           <span>{proposalCount} propuestas</span>

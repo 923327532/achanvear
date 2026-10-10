@@ -4,6 +4,8 @@ import achanvear.peru.shared.infrastructure.BaseJpaEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 
 import java.util.UUID;
@@ -72,19 +74,19 @@ public class CompanyJpaEntity extends BaseJpaEntity {
     private String aiAgentId;
 
     @Column(name = "match_score_threshold")
-    private Integer matchScoreThreshold;
+    private Integer matchScoreThreshold = 70;
 
     @Column(name = "incognito_mode", nullable = false)
-    private Boolean incognitoMode;
+    private Boolean incognitoMode = Boolean.FALSE;
 
     @Column(name = "show_contact_info", nullable = false)
-    private Boolean showContactInfo;
+    private Boolean showContactInfo = Boolean.TRUE;
 
     @Column(name = "show_in_directory", nullable = false)
-    private Boolean showInDirectory;
+    private Boolean showInDirectory = Boolean.TRUE;
 
     @Column(name = "visibility_notifications", nullable = false)
-    private Boolean visibilityNotifications;
+    private Boolean visibilityNotifications = Boolean.FALSE;
 
     @Column(name = "language", length = 20)
     private String language;
@@ -93,6 +95,26 @@ public class CompanyJpaEntity extends BaseJpaEntity {
     private String timezone;
 
     public CompanyJpaEntity() {
+    }
+
+    @PrePersist
+    @PreUpdate
+    private void applyDefaults() {
+        if (matchScoreThreshold == null) {
+            matchScoreThreshold = 70;
+        }
+        if (incognitoMode == null) {
+            incognitoMode = Boolean.FALSE;
+        }
+        if (showContactInfo == null) {
+            showContactInfo = Boolean.TRUE;
+        }
+        if (showInDirectory == null) {
+            showInDirectory = Boolean.TRUE;
+        }
+        if (visibilityNotifications == null) {
+            visibilityNotifications = Boolean.FALSE;
+        }
     }
 
     public UUID getId() {

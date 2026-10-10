@@ -15,6 +15,7 @@ class PracticalSessionStartRequest(BaseModel):
     session_id: str
     career: str
     job_title: str = "Senior"
+    candidate_name: str | None = None
     workspace_type: PracticalWorkspaceType | None = None
     country: str = "Peru"
 
@@ -24,7 +25,7 @@ class PracticalSessionStartResponse(BaseModel):
     workspace_type: PracticalWorkspaceType
     challenge: Dict[str, Any]
     websocket_url: str
-    time_limit_minutes: int = 35
+    time_limit_minutes: int = 20
 
 
 class PracticalViolationRequest(BaseModel):

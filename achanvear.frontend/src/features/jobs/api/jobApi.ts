@@ -79,6 +79,7 @@ export interface MyJobApplicationResponse {
   jobTitle: string;
   companyName: string;
   appliedAt: string;
+  selectionMode?: "MANUAL" | "SEMI_AUTOMATED" | "FULLY_AUTOMATED" | null;
   status: string;
   currentStage: string;
   screeningScore: number | null;

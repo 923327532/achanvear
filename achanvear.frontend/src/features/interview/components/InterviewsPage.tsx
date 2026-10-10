@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Calendar, Clock, User, Play, Video, Briefcase, Loader2, Eye, ChevronRight, CheckCircle2 } from "lucide-react";
+import { Calendar, Clock, User, Play, Video, Briefcase, Loader2, Eye, ChevronRight, CheckCircle2, BookOpen, Code2, ClipboardCheck } from "lucide-react";
 import { InterviewRoom } from "./InterviewRoom";
 import { PracticalVoiceInterviewRoom } from "./PracticalVoiceInterviewRoom";
 import { InterviewReportModal } from "./InterviewReportModal";
@@ -15,9 +15,99 @@ import { jobApi } from "@/features/jobs/api/jobApi";
 import type { MyJobApplicationResponse } from "@/features/jobs/api/jobApi";
 import type { InterviewSummaryResponse, InterviewReportResponse } from "../types/interview.types";
 
-function PendingScheduleCard({ schedule, onChooseSlot }: { schedule: InterviewScheduleResponse; onChooseSlot: (s: InterviewScheduleResponse) => void }) {
+const getInterviewTypeMeta = (type: string) => {
+  const isTheory = type === "THEORY";
+  return {
+    label: isTheory ? "Teorica" : "Practica",
+    fullLabel: isTheory ? "Entrevista teorica" : "Entrevista practica",
+    Icon: isTheory ? BookOpen : Code2,
+    badge: isTheory ? "bg-sky-50 text-sky-700 border-sky-200" : "bg-violet-50 text-violet-700 border-violet-200",
+    accent: isTheory ? "border-l-sky-500" : "border-l-violet-500",
+    button: isTheory ? "bg-sky-700 hover:bg-sky-800" : "bg-violet-700 hover:bg-violet-800",
+  };
+};
+
+const inferPracticalArea = (jobTitle?: string) => {
+  const text = (jobTitle || "").toLowerCase();
+  if (/(software|programador|developer|frontend|backend|full.?stack|java|react|node|sistemas|tecnolog|devops|qa|datos|data)/.test(text)) {
+    return "software";
+  }
+  if (/(marketing|market|seo|sem|contenido|redes|social|comunicaci|brand|marca|growth|digital)/.test(text)) {
+    return "marketing";
+  }
+  if (/(ventas|comercial|business|negocio|account|cliente|crm)/.test(text)) {
+    return "sales";
+  }
+  if (/(contab|finanz|tribut|auditor|tesorer|presupuesto)/.test(text)) {
+    return "contabilidad";
+  }
+  if (/(legal|abog|derecho|compliance|contrato|normativ)/.test(text)) {
+    return "legal";
+  }
+  if (/(salud|medic|dental|odont|clinica|doctor|enfermer)/.test(text)) {
+    return "salud";
+  }
+  return "general";
+};
+
+const parseScheduleDateTime = (dateTime?: string) => {
+  if (!dateTime) return null;
+  const normalized = dateTime.includes("T") ? dateTime : dateTime.replace(" ", "T");
+  const parsed = new Date(normalized);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+const formatScheduleDateTime = (dateTime?: string) => {
+  if (!dateTime) return "Fecha por confirmar";
+  const parsed = parseScheduleDateTime(dateTime);
+  if (!parsed) return dateTime;
+  return parsed.toLocaleString("es-PE", {
+    weekday: "short",
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
+const getReservedSlot = (schedule: InterviewScheduleResponse) =>
+  schedule.proposedSlots.find(s => s.status === "RESERVED");
+
+const isScheduleExpired = (schedule: InterviewScheduleResponse) => {
+  const chosenSlot = getReservedSlot(schedule);
+  const parsed = parseScheduleDateTime(chosenSlot?.dateTime);
+  if (!parsed) return false;
+  return parsed.getTime() < Date.now();
+};
+
+const formatLongScheduleDateTime = (dateTime?: string) => {
+  if (!dateTime) return "Fecha por confirmar";
+  const parsed = parseScheduleDateTime(dateTime);
+  if (!parsed) return dateTime;
+  return parsed.toLocaleString("es-PE", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
+function PendingScheduleCard({
+  schedule,
+  onChooseSlot,
+  onChooseNow,
+  isChoosingNow,
+}: {
+  schedule: InterviewScheduleResponse;
+  onChooseSlot: (s: InterviewScheduleResponse) => void;
+  onChooseNow: (s: InterviewScheduleResponse) => void;
+  isChoosingNow: boolean;
+}) {
   const [jobTitle, setJobTitle] = useState<string>("");
-  const typeLabel = schedule.interviewType === "THEORY" ? "Teorica" : "Tecnica";
+  const typeMeta = getInterviewTypeMeta(schedule.interviewType);
+  const availableSlots = schedule.proposedSlots.filter(s => s.status === "AVAILABLE" || s.status === "PENDING");
 
   useEffect(() => {
     if (schedule.jobId) {
@@ -30,34 +120,48 @@ function PendingScheduleCard({ schedule, onChooseSlot }: { schedule: InterviewSc
   }, [schedule.jobId]);
 
   return (
-    <div className="bg-white rounded-xl border border-amber-200 shadow-sm p-6 flex flex-col">
-      <div className="flex items-start justify-between mb-4">
-        <h3 className="font-semibold text-lg text-slate-900">{jobTitle || "Cargando..."}</h3>
-        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-          Pendiente
-        </span>
-      </div>
-      <p className="text-xs text-slate-500 mb-4">Entrevista {typeLabel}</p>
-      <div className="space-y-2 mb-6 flex-1">
-        <div className="flex items-center gap-2.5 text-sm text-gray-600">
-          <Calendar className="w-4 h-4 text-gray-400 flex-shrink-0" />
-          <span>
-            {schedule.proposedSlots
-              .filter(s => s.status === "AVAILABLE" || s.status === "PENDING")
-              .length + " horarios disponibles"}
+    <div className={`bg-white rounded-xl border border-slate-200 border-l-4 ${typeMeta.accent} shadow-sm p-5 flex flex-col hover:shadow-md transition-shadow`}>
+      <div className="flex items-start justify-between gap-3 mb-4">
+        <div className="min-w-0">
+          <h3 className="font-semibold text-base text-slate-950 truncate">{jobTitle || "Cargando..."}</h3>
+          <span className={`mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${typeMeta.badge}`}>
+            <typeMeta.Icon className="w-3.5 h-3.5" /> {typeMeta.fullLabel}
           </span>
         </div>
-        <div className="flex items-center gap-2.5 text-sm text-gray-600">
-          <Clock className="w-4 h-4 text-gray-400 flex-shrink-0" />
-          <span>Elige tu horario preferido</span>
-        </div>
+        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+          Por agendar
+        </span>
       </div>
-      <button
-        onClick={() => onChooseSlot(schedule)}
-        className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-amber-600 text-white text-sm font-semibold hover:bg-amber-700 transition-colors"
-      >
-        <Calendar className="w-4 h-4" /> Elegir Horario
-      </button>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-5 flex-1">
+        {availableSlots.slice(0, 3).map((slot) => (
+          <div key={slot.index} className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
+            <p className="text-[11px] font-semibold text-slate-500">Opcion {slot.index + 1}</p>
+            <p className="mt-1 text-xs font-semibold text-slate-800 leading-tight">{formatScheduleDateTime(slot.dateTime)}</p>
+          </div>
+        ))}
+        {availableSlots.length === 0 && (
+          <div className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-3 text-sm text-slate-500">
+            Sin horarios disponibles
+          </div>
+        )}
+        </div>
+      {schedule.interviewType === "TECHNICAL" ? (
+        <button
+          onClick={() => onChooseNow(schedule)}
+          disabled={isChoosingNow}
+          className={`w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-white text-sm font-semibold transition-colors disabled:opacity-60 ${typeMeta.button}`}
+        >
+          {isChoosingNow ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+          Dar ahora
+        </button>
+      ) : (
+        <button
+          onClick={() => onChooseSlot(schedule)}
+          className={`w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-white text-sm font-semibold transition-colors ${typeMeta.button}`}
+        >
+          <Calendar className="w-4 h-4" /> Elegir Horario
+        </button>
+      )}
     </div>
   );
 }
@@ -66,9 +170,9 @@ function PendingScheduleCard({ schedule, onChooseSlot }: { schedule: InterviewSc
 // CARD: Horario ya elegido (confirmacion siempre visible)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function ConfirmedScheduleCard({ schedule }: { schedule: InterviewScheduleResponse }) {
+function ConfirmedScheduleCard({ schedule, expired = false }: { schedule: InterviewScheduleResponse; expired?: boolean }) {
   const [jobTitle, setJobTitle] = useState<string>("");
-  const typeLabel = schedule.interviewType === "THEORY" ? "Teorica" : "Tecnica";
+  const typeMeta = getInterviewTypeMeta(schedule.interviewType);
 
   useEffect(() => {
     if (schedule.jobId) {
@@ -81,41 +185,34 @@ function ConfirmedScheduleCard({ schedule }: { schedule: InterviewScheduleRespon
   }, [schedule.jobId]);
 
   // El slot elegido queda como RESERVED dentro de proposedSlots
-  const chosenSlot = schedule.proposedSlots.find(s => s.status === "RESERVED");
-
-  const formatDateTime = (dateTime?: string) => {
-    if (!dateTime) return "Fecha por confirmar";
-    try {
-      // El backend envia "yyyy-MM-dd HH:mm"
-      const [datePart, timePart] = dateTime.split(" ");
-      if (!datePart) return dateTime;
-      const d = new Date(`${datePart}T${timePart ?? "00:00"}`);
-      const dateStr = d.toLocaleDateString("es-PE", {
-        weekday: "long", day: "numeric", month: "long", year: "numeric",
-      });
-      return timePart ? `${dateStr} · ${timePart}` : dateStr;
-    } catch {
-      return dateTime;
-    }
-  };
+  const chosenSlot = getReservedSlot(schedule);
 
   return (
-    <div className="bg-white rounded-xl border-2 border-[#0EA5A0] shadow-sm p-6 flex flex-col">
+    <div className={`bg-white rounded-xl border border-l-4 shadow-sm p-5 flex flex-col ${
+      expired ? "border-slate-200 border-l-slate-400 opacity-90" : `border-slate-200 ${typeMeta.accent}`
+    }`}>
       <div className="flex items-start justify-between mb-4">
         <div className="flex-1 min-w-0">
           <h3 className="font-semibold text-lg text-slate-900 truncate">{jobTitle || "Cargando..."}</h3>
-          <p className="text-xs text-slate-500 mt-0.5">Entrevista {typeLabel}</p>
+          <span className={`mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${typeMeta.badge}`}>
+            <typeMeta.Icon className="w-3.5 h-3.5" /> {typeMeta.fullLabel}
+          </span>
         </div>
-        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
-          <CheckCircle2 className="w-3 h-3" /> Confirmado
+        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold border shrink-0 ${
+          expired ? "bg-slate-100 text-slate-600 border-slate-200" : "bg-emerald-50 text-emerald-700 border-emerald-200"
+        }`}>
+          {expired ? <Clock className="w-3 h-3" /> : <CheckCircle2 className="w-3 h-3" />}
+          {expired ? "Vencida" : "Confirmado"}
         </span>
       </div>
 
-      <div className="rounded-xl bg-emerald-50/60 border border-emerald-100 px-4 py-3 mb-4">
+      <div className={`rounded-xl border px-4 py-3 mb-4 ${
+        expired ? "bg-slate-50 border-slate-200" : "bg-emerald-50/60 border-emerald-100"
+      }`}>
         <div className="flex items-center gap-2 text-sm">
-          <Calendar className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-          <span className="font-semibold text-emerald-900 capitalize">
-            {formatDateTime(chosenSlot?.dateTime)}
+          <Calendar className={`w-4 h-4 flex-shrink-0 ${expired ? "text-slate-400" : "text-emerald-600"}`} />
+          <span className={`font-semibold capitalize ${expired ? "text-slate-700" : "text-emerald-900"}`}>
+            {formatScheduleDateTime(chosenSlot?.dateTime)}
           </span>
         </div>
       </div>
@@ -123,12 +220,18 @@ function ConfirmedScheduleCard({ schedule }: { schedule: InterviewScheduleRespon
       <div className="space-y-2 mb-4 flex-1">
         <div className="flex items-center gap-2.5 text-sm text-gray-600">
           <Clock className="w-4 h-4 text-gray-400 flex-shrink-0" />
-          <span>Tu horario quedo reservado. No se puede cambiar.</span>
+          <span>
+            {expired
+              ? "Este horario ya paso. La entrevista queda vencida y no aparece como pendiente."
+              : "Tu horario quedo reservado. No se puede cambiar."}
+          </span>
         </div>
       </div>
 
       <p className="text-xs text-slate-400 text-center">
-        El boton para iniciar aparece en "Entrevistas Programadas".
+        {expired
+          ? "Si necesitas otra oportunidad, espera que la empresa reprograme o solicita una nueva postulacion."
+          : "El boton para iniciar aparece en \"Entrevistas Programadas\"."}
       </p>
     </div>
   );
@@ -138,7 +241,7 @@ function ConfirmedScheduleCard({ schedule }: { schedule: InterviewScheduleRespon
 // CARD: Entrevista Programada (con ID visible)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function ScheduledCard({ interview, onStart }: { interview: InterviewSummaryResponse; onStart: (id: string) => void }) {
+function ScheduledCard({ interview, onStart }: { interview: InterviewSummaryResponse; onStart: (interview: InterviewSummaryResponse) => void }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -149,13 +252,13 @@ function ScheduledCard({ interview, onStart }: { interview: InterviewSummaryResp
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const typeLabel = interview.interviewType === "THEORY" ? "Teorica" : "Tecnica";
+  const typeMeta = getInterviewTypeMeta(interview.interviewType);
 
   const isAborted = interview.status === "ABORTED";
 
   return (
-    <div className={`bg-white rounded-xl border-2 shadow-sm p-6 flex flex-col relative transition-colors ${
-      isAborted ? "border-red-300 bg-red-50/30" : "border-emerald-300 bg-emerald-50/10"
+    <div className={`bg-white rounded-xl border border-l-4 shadow-sm p-5 flex flex-col relative transition-colors ${
+      isAborted ? "border-red-200 border-l-red-500 bg-red-50/30" : `border-slate-200 ${typeMeta.accent} hover:shadow-md`
     }`}>
       <div className="flex items-start justify-between mb-4">
         <div className="flex-1 min-w-0">
@@ -216,12 +319,12 @@ function ScheduledCard({ interview, onStart }: { interview: InterviewSummaryResp
           <User className="w-4 h-4 text-gray-400 flex-shrink-0" /><span>Agente: {interview.agent}</span>
         </div>
         <div className="flex items-center gap-2.5 text-sm text-gray-600">
-          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600">
-            {typeLabel}
+          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${typeMeta.badge}`}>
+            <typeMeta.Icon className="w-3.5 h-3.5" /> {typeMeta.fullLabel}
           </span>
         </div>
       </div>
-      <button onClick={() => onStart(interview.interviewId)}
+      <button onClick={() => onStart(interview)}
         disabled={isAborted}
         className={`w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
           isAborted
@@ -260,9 +363,13 @@ function EmptyState({ icon: Icon, title, description, actionLabel, onAction }: {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function ApplicationFeedbackCard({ application }: { application: MyJobApplicationResponse }) {
+  const isManualApplication = application.selectionMode === "MANUAL";
+  const appliedAtTime = new Date(application.appliedAt).getTime();
+  const evaluationTookTooLong = Number.isFinite(appliedAtTime) && Date.now() - appliedAtTime > 60_000;
   const didNotQualify = application.screeningResult === false || application.status === "REJECTED";
-  const isWaitingForAi = application.screeningResult == null && application.status === "SUBMITTED";
-  const isCompanyReview = application.screeningResult == null && application.status === "IN_REVIEW";
+  const isWaitingForAi = !isManualApplication && application.screeningResult == null && application.status === "SUBMITTED" && !evaluationTookTooLong;
+  const isCompanyReview = isManualApplication || (application.screeningResult == null && application.status === "IN_REVIEW");
+  const isEvaluationDelayed = !isManualApplication && application.screeningResult == null && application.status === "SUBMITTED" && evaluationTookTooLong;
   const isShortlisted = application.screeningResult === true || application.status === "SHORTLISTED";
   const statusLabel = didNotQualify
     ? "No clasificaste a entrevista teorica"
@@ -270,6 +377,8 @@ function ApplicationFeedbackCard({ application }: { application: MyJobApplicatio
       ? "Evaluando tu perfil con IA"
       : isCompanyReview
         ? "Postulacion en revision"
+        : isEvaluationDelayed
+          ? "Evaluacion IA demorada"
         : isShortlisted
           ? "Perfil recomendado por IA"
           : "Postulacion en revision";
@@ -280,9 +389,11 @@ function ApplicationFeedbackCard({ application }: { application: MyJobApplicatio
       : `${Math.round(application.screeningScore)}/100`;
   const reason = application.screeningSummary?.trim()
     || (isWaitingForAi
-      ? "La IA todavia esta revisando tu CV, biografia y carta de presentacion. Refresca en unos minutos para ver el resultado."
+      ? "La IA esta revisando tu CV, biografia y carta de presentacion. Esto normalmente termina en menos de un minuto."
       : isCompanyReview
-        ? "Tu postulacion quedo en revision para que la empresa la revise."
+        ? "Tu postulacion quedo en revision manual. La empresa revisara tu CV, biografia y carta, y puede contactarte directamente."
+        : isEvaluationDelayed
+          ? "La evaluacion IA esta tardando mas de lo esperado. Refresca la pagina; si sigue igual, la empresa podra revisar tu postulacion manualmente."
         : didNotQualify
           ? "La empresa o la IA aun no registro un motivo detallado para esta postulacion."
           : isShortlisted
@@ -322,6 +433,7 @@ function ApplicationFeedbackCard({ application }: { application: MyJobApplicatio
 export function InterviewsPage() {
   const [showModal, setShowModal] = useState(false);
   const [preselectedId, setPreselectedId] = useState<string | undefined>();
+  const [selectedInterviewContext, setSelectedInterviewContext] = useState<InterviewSummaryResponse | null>(null);
   const { user } = useAuthContext();
   const candidateId = user?.id ?? "";
 
@@ -336,24 +448,33 @@ export function InterviewsPage() {
   // Schedules pendientes (sin horario elegido aun)
   const [schedules, setSchedules] = useState<InterviewScheduleResponse[]>([]);
   const [confirmedSchedules, setConfirmedSchedules] = useState<InterviewScheduleResponse[]>([]);
+  const [expiredSchedules, setExpiredSchedules] = useState<InterviewScheduleResponse[]>([]);
   const [schedulesLoading, setSchedulesLoading] = useState(false);
   const [selectedSchedule, setSelectedSchedule] = useState<InterviewScheduleResponse | null>(null);
-
+  const [choosingNowScheduleId, setChoosingNowScheduleId] = useState<string | null>(null);
   const fetchSchedules = useCallback(async () => {
     if (!candidateId) return;
     setSchedulesLoading(true);
     try {
       const data = await scheduleApi.getMySchedules(candidateId);
+      const activeSchedules = data.filter(s => !interviews.some(i => {
+        const matchingApplication = applications.find(application => application.jobPostId === s.jobId);
+        return (i.status === "COMPLETED" || i.status === "ABORTED") &&
+          i.interviewType === s.interviewType &&
+          matchingApplication &&
+          i.position === matchingApplication.jobTitle;
+      }));
       // Pendientes: aun no eligio horario
-      setSchedules(data.filter(s => s.status === "PENDING_SELECTION" || s.status === "PENDING"));
-      // Confirmados: ya eligio horario (no deben desaparecer de la pantalla)
-      setConfirmedSchedules(data.filter(s => s.status === "RESERVED" || s.status === "CHOSEN"));
+      setSchedules(activeSchedules.filter(s => s.status === "PENDING_SELECTION" || s.status === "PENDING"));
+      const chosenSchedules = activeSchedules.filter(s => s.status === "RESERVED" || s.status === "CHOSEN");
+      setConfirmedSchedules(chosenSchedules.filter(s => !isScheduleExpired(s)));
+      setExpiredSchedules(chosenSchedules.filter(isScheduleExpired));
     } catch {
       // Silenciar error
     } finally {
       setSchedulesLoading(false);
     }
-  }, [candidateId]);
+  }, [candidateId, interviews, applications]);
 
   useEffect(() => {
     if (candidateId) {
@@ -372,8 +493,9 @@ export function InterviewsPage() {
     application.status === "REJECTED"
   );
 
-  const handleStartInterview = (interviewId: string) => {
-    setPreselectedId(interviewId);
+  const handleStartInterview = (interview: InterviewSummaryResponse) => {
+    setPreselectedId(interview.interviewId);
+    setSelectedInterviewContext(interview);
     setShowModal(true);
   };
 
@@ -381,6 +503,17 @@ export function InterviewsPage() {
     setSelectedSchedule(null);
     fetchSchedules(); // Refrescar schedules
     refetch(); // Refrescar entrevistas
+  };
+
+  const handleChooseNow = async (schedule: InterviewScheduleResponse) => {
+    setChoosingNowScheduleId(schedule.scheduleId);
+    try {
+      await scheduleApi.chooseNow(schedule.scheduleId);
+      await fetchSchedules();
+      await refetch();
+    } finally {
+      setChoosingNowScheduleId(null);
+    }
   };
 
   if (isLoading) {
@@ -417,7 +550,13 @@ export function InterviewsPage() {
             <h2 className="text-lg font-bold text-slate-900 mb-5">Pendientes de Agendar</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 lg:gap-6">
               {schedules.map((s) => (
-                <PendingScheduleCard key={s.scheduleId} schedule={s} onChooseSlot={setSelectedSchedule} />
+                <PendingScheduleCard
+                  key={s.scheduleId}
+                  schedule={s}
+                  onChooseSlot={setSelectedSchedule}
+                  onChooseNow={handleChooseNow}
+                  isChoosingNow={choosingNowScheduleId === s.scheduleId}
+                />
               ))}
             </div>
           </section>
@@ -435,6 +574,24 @@ export function InterviewsPage() {
           </section>
         )}
 
+        {expiredSchedules.length > 0 && (
+          <section>
+            <div className="flex items-center justify-between gap-3 mb-5">
+              <div>
+                <h2 className="text-lg font-bold text-slate-900">Horarios vencidos</h2>
+                <p className="text-sm text-slate-500 mt-1">Estos horarios ya pasaron y no se muestran como entrevistas pendientes.</p>
+              </div>
+              <span className="hidden sm:inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600">
+                <Clock className="w-3.5 h-3.5" /> {expiredSchedules.length} vencidos
+              </span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 lg:gap-6">
+              {expiredSchedules.map((s) => (
+                <ConfirmedScheduleCard key={s.scheduleId} schedule={s} expired />
+              ))}
+            </div>
+          </section>
+        )}
         {/* Sección: Entrevistas Programadas */}
         <section>
           <h2 className="text-lg font-bold text-slate-900 mb-5">Entrevistas Programadas</h2>
@@ -453,8 +610,16 @@ export function InterviewsPage() {
 
         {/* Sección: Historial de Evaluaciones */}
         <section>
-          <h2 className="text-lg font-bold text-slate-900 mb-5">Historial de Evaluaciones</h2>
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="flex items-center justify-between gap-3 mb-5">
+            <div>
+              <h2 className="text-lg font-bold text-slate-900">Historial de Evaluaciones</h2>
+              <p className="text-sm text-slate-500 mt-1">Las entrevistas finalizadas se guardan aqui y ya no aparecen como pendientes.</p>
+            </div>
+            <span className="hidden sm:inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600">
+              <ClipboardCheck className="w-3.5 h-3.5" /> {evaluations.length} registros
+            </span>
+          </div>
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
             {evaluations.length === 0 ? (
               <div className="py-16 text-center">
                 <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center mx-auto mb-3"><Video className="w-6 h-6 text-gray-400" /></div>
@@ -464,20 +629,31 @@ export function InterviewsPage() {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-gray-100 bg-gray-50/50">
+                    <tr className="border-b border-slate-100 bg-slate-50/80">
                       <th className="text-left text-xs font-semibold text-gray-500 px-5 py-3.5">Empresa</th>
                       <th className="text-left text-xs font-semibold text-gray-500 px-5 py-3.5">Posición</th>
+                      <th className="text-left text-xs font-semibold text-gray-500 px-5 py-3.5">Tipo</th>
                       <th className="text-left text-xs font-semibold text-gray-500 px-5 py-3.5">Fecha</th>
                       <th className="text-left text-xs font-semibold text-gray-500 px-5 py-3.5">Puntaje</th>
                       <th className="text-left text-xs font-semibold text-gray-500 px-5 py-3.5">Estado</th>
                       <th className="text-left text-xs font-semibold text-gray-500 px-5 py-3.5">Motivo</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-50">
+                  <tbody className="divide-y divide-slate-100">
                     {evaluations.map((ev) => (
-                      <tr key={ev.interviewId} className="hover:bg-gray-50/50 transition-colors">
+                      <tr key={ev.interviewId} className="hover:bg-slate-50/70 transition-colors">
                         <td className="px-5 py-4 text-sm font-medium text-slate-800">{ev.company}</td>
-                        <td className="px-5 py-4 text-sm text-gray-600">{ev.position}</td>
+                        <td className="px-5 py-4 text-sm text-gray-600 min-w-[220px]">{ev.position}</td>
+                        <td className="px-5 py-4">
+                          {(() => {
+                            const typeMeta = getInterviewTypeMeta(ev.interviewType);
+                            return (
+                              <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border whitespace-nowrap ${typeMeta.badge}`}>
+                                <typeMeta.Icon className="w-3.5 h-3.5" /> {typeMeta.label}
+                              </span>
+                            );
+                          })()}
+                        </td>
                         <td className="px-5 py-4 text-sm text-gray-500 whitespace-nowrap">{ev.date}</td>
                         <td className="px-5 py-4">
                           <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${ev.passed ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
@@ -517,7 +693,14 @@ export function InterviewsPage() {
         </section>
       </div>
 
-      <AccessInterviewModal open={showModal} preselectedId={preselectedId} onClose={() => setShowModal(false)} onStatusChange={() => { refetch(); }} />
+      <AccessInterviewModal
+        open={showModal}
+        preselectedId={preselectedId}
+        interviewContext={selectedInterviewContext}
+        candidateName={user?.fullName}
+        onClose={() => { setShowModal(false); setSelectedInterviewContext(null); }}
+        onStatusChange={() => { refetch(); }}
+      />
 
       {/* Modal elegir horario */}
       {selectedSchedule && (
@@ -538,11 +721,15 @@ export function InterviewsPage() {
 function AccessInterviewModal({
   open,
   preselectedId,
+  interviewContext,
+  candidateName,
   onClose,
   onStatusChange,
 }: {
   open: boolean;
   preselectedId?: string;
+  interviewContext?: InterviewSummaryResponse | null;
+  candidateName?: string;
   onClose: () => void;
   onStatusChange?: () => void;
 }) {
@@ -553,6 +740,17 @@ function AccessInterviewModal({
   const [showRoom, setShowRoom] = useState(false);
   const [showPracticalRoom, setShowPracticalRoom] = useState(false);
   const [showReport, setShowReport] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    setInterviewId(preselectedId || "");
+    if (interviewContext) {
+      const type = interviewContext.interviewType === "THEORY" ? "THEORY" : "TECHNICAL";
+      setInterviewType(type);
+      setPracticalJobTitle(interviewContext.position || "Entrevista practica");
+      setPracticalCareer(inferPracticalArea(interviewContext.position));
+    }
+  }, [open, preselectedId, interviewContext]);
 
   if (!open) return null;
 
@@ -574,6 +772,8 @@ function AccessInterviewModal({
   const handleClose = () => {
     setInterviewId(preselectedId || "");
     setInterviewType("");
+    setPracticalCareer("software");
+    setPracticalJobTitle("Technical Interview");
     onClose();
   };
 
@@ -581,7 +781,7 @@ function AccessInterviewModal({
     <>
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={handleClose} />
-        <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
+        <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-xl p-6 max-h-[90vh] overflow-y-auto">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-lg font-bold text-slate-900">Acceder a Entrevista</h2>
             <button onClick={handleClose} className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl transition-colors">
@@ -589,6 +789,15 @@ function AccessInterviewModal({
             </button>
           </div>
           <div className="space-y-4">
+            {interviewContext && (
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Contexto detectado</p>
+                <h3 className="mt-1 text-sm font-bold text-slate-950">{interviewContext.position}</h3>
+                <p className="mt-1 text-xs text-slate-500">
+                  {interviewContext.company} · El agente usara este puesto para preparar preguntas y casos especificos.
+                </p>
+              </div>
+            )}
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1.5">ID de la entrevista</label>
               <input type="text" value={interviewId} onChange={(e) => setInterviewId(e.target.value)}
@@ -598,7 +807,7 @@ function AccessInterviewModal({
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1.5">Tipo de entrevista</label>
               <select value={interviewType} onChange={(e) => setInterviewType(e.target.value as "THEORY" | "TECHNICAL" | "")}
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#1B3A6B]/20 focus:border-[#1B3A6B]">
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#1B3A6B]/20 focus:border-[#1B3A6B]">
                 <option value="">Selecciona un tipo</option>
                 <option value="THEORY">Entrevista Teórica</option>
                 <option value="TECHNICAL">Entrevista Técnica</option>
@@ -611,22 +820,29 @@ function AccessInterviewModal({
                   <select
                     value={practicalCareer}
                     onChange={(e) => setPracticalCareer(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#1B3A6B]/20 focus:border-[#1B3A6B]"
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#1B3A6B]/20 focus:border-[#1B3A6B]"
                   >
                     <option value="software">Tecnologia / Software</option>
+                    <option value="marketing">Marketing / Comunicacion</option>
+                    <option value="sales">Ventas / Comercial</option>
                     <option value="contabilidad">Contabilidad / Finanzas</option>
                     <option value="legal">Legal / Compliance</option>
+                    <option value="salud">Salud / Clinica</option>
                     <option value="general">Otra area</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">Perfil</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">Puesto / perfil</label>
                   <input
                     value={practicalJobTitle}
                     onChange={(e) => setPracticalJobTitle(e.target.value)}
+                    placeholder="Ej. Especialista en Marketing Digital"
                     className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#1B3A6B]/20 focus:border-[#1B3A6B]"
                   />
                 </div>
+                <p className="sm:col-span-2 text-xs leading-relaxed text-slate-500">
+                  Estos datos orientan al agente: no es lo mismo marketing digital, ventas B2B, Java backend o contabilidad tributaria.
+                </p>
               </div>
             )}
             <div className="flex gap-3 pt-2">
@@ -654,6 +870,7 @@ function AccessInterviewModal({
           sessionId={interviewId}
           career={practicalCareer}
           jobTitle={practicalJobTitle || "Technical Interview"}
+          candidateName={candidateName}
           onClose={() => { setShowPracticalRoom(false); onStatusChange?.(); onClose(); }}
           onComplete={() => {
             setShowPracticalRoom(false);

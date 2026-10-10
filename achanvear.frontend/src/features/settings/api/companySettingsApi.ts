@@ -105,6 +105,18 @@ export const companySettingsApi = {
     return parseResponse(res);
   },
 
+  chargeCreditPackageWithCulqi: async (
+    packageId: string,
+    clientEmail: string,
+    token: string
+  ): Promise<string> => {
+    const res = await api.post<ApiResponse<string>>(
+      `/payments/credit-packages/${packageId}/culqi-charge`,
+      { clientEmail, token }
+    );
+    return parseResponse(res);
+  },
+
   // ─── Métodos de pago ───────────────────────────────────────────────────────
 
   getPaymentMethods: async (_companyId: string): Promise<CompanyPaymentMethod[]> => {

@@ -33,6 +33,26 @@ services:
       - achanvear-network
     restart: unless-stopped
 
+  mongo:
+    image: mongo:7
+    container_name: achanvear-mongo-sandbox
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_SANDBOX_USER:-interview_runner}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_SANDBOX_PASSWORD:-Lopez2003}
+    ports:
+      - "27018:27017"
+    volumes:
+      - mongo_sandbox_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - achanvear-network
+    restart: unless-stopped
+
   ai-agent:
     build:
       context: ../agentpython
@@ -40,8 +60,12 @@ services:
     image: roberto523/achanvear-ai-agent:latest
     container_name: achanvear-ai-agent
     depends_on:
+      postgres:
+        condition: service_healthy
       redis:
         condition: service_started
+      mongo:
+        condition: service_healthy
     environment:
       LLM_PROVIDER: ${LLM_PROVIDER:-deepseek}
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
@@ -66,6 +90,10 @@ services:
       N8N_WHATSAPP_WEBHOOK: ${N8N_WHATSAPP_WEBHOOK:-}
       N8N_EMAIL_WEBHOOK: ${N8N_EMAIL_WEBHOOK:-}
       DATABASE_URL: ${DATABASE_URL:-}
+      PRACTICAL_SQL_ENABLED: ${PRACTICAL_SQL_ENABLED:-true}
+      PRACTICAL_POSTGRES_DSN: ${PRACTICAL_POSTGRES_DSN:-postgresql://postgres:Lopez2003@postgres:5432/achanvear}
+      PRACTICAL_MONGODB_ENABLED: ${PRACTICAL_MONGODB_ENABLED:-true}
+      PRACTICAL_MONGODB_URI: ${PRACTICAL_MONGODB_URI:-mongodb://interview_runner:Lopez2003@mongo:27017/admin}
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
       AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION:-us-east-1}
@@ -158,6 +186,7 @@ services:
 
 volumes:
   postgres_data:
+  mongo_sandbox_data:
 
 networks:
   achanvear-network:

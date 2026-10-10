@@ -139,6 +139,35 @@ export function useCheckoutCreditPackage() {
   };
 }
 
+export function useChargeCreditPackageWithCulqi() {
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation({
+    mutationFn: ({
+      packageId,
+      clientEmail,
+      token,
+    }: {
+      packageId: string;
+      clientEmail: string;
+      token: string;
+    }) => companySettingsApi.chargeCreditPackageWithCulqi(packageId, clientEmail, token),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["company-settings", "payments-overview"] });
+      queryClient.invalidateQueries({ queryKey: ["company-settings", "wallet"] });
+    },
+  });
+
+  return {
+    chargeAsync: mutation.mutateAsync,
+    isLoading: mutation.isPending,
+    isSuccess: mutation.isSuccess,
+    isError: mutation.isError,
+    error: mutation.error,
+    data: mutation.data,
+  };
+}
+
 // ─── Métodos de pago ──────────────────────────────────────────────────────────
 
 export function useCompanyPaymentMethods(companyId: string | undefined) {

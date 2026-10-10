@@ -1,7 +1,7 @@
 // features/jobs/components/JobList.tsx
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Filter, Search } from "lucide-react";
 import { useJobList } from "../hooks/useJobList";
 import { useJobFiltersStore } from "../store/useJobFiltersStore";
@@ -15,12 +15,17 @@ export function JobList() {
   const [showFilters, setShowFilters] = useState(false);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [detailJob, setDetailJob] = useState<Job | null>(null);
-  const { filters, setFilter } = useJobFiltersStore();
+  const { filters, setFilter, resetFilters } = useJobFiltersStore();
+
+  useEffect(() => {
+    resetFilters();
+  }, [resetFilters]);
 
   const {
     jobs: backendJobs,
     isLoading,
     isError,
+    totalItems,
     totalPages,
     currentPage,
     isFirst,
@@ -50,6 +55,7 @@ export function JobList() {
         <div className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4">
           <div>
             <h1 className="text-xl font-semibold text-slate-900">Explorar Empleos</h1>
+            <p className="mt-1 text-xs text-slate-500">Mostrando empleos activos disponibles</p>
           </div>
           <button
             type="button"
@@ -100,6 +106,9 @@ export function JobList() {
             </div>
           ) : (
             <div className="space-y-5">
+              <p className="text-xs font-medium text-slate-500">
+                {jobs.length} de {totalItems} empleos activos disponibles
+              </p>
               <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                 {jobs.map((job) => (
                   <JobCard

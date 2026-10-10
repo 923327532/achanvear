@@ -93,6 +93,39 @@ public class PublicationCreditService {
         return true;
     }
 
+    @Transactional
+    public UUID recordCompletedCulqiPurchase(UUID userId, String packageId, String culqiChargeId) {
+        CreditPackageJpaEntity pkg = creditPackageRepository.findById(packageId)
+                .filter(CreditPackageJpaEntity::isActive)
+                .orElseThrow(() -> new IllegalArgumentException("Paquete de publicaciones no encontrado"));
+
+        UUID purchaseId = UUID.randomUUID();
+        jdbcTemplate.update("""
+                insert into credit_package_purchases
+                    (id, user_id, package_id, credits_granted, amount_paid, payment_method, status, mp_payment_id)
+                values (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                purchaseId,
+                userId,
+                pkg.getId(),
+                pkg.getCredits(),
+                pkg.getPrice(),
+                "CULQI",
+                "COMPLETED",
+                culqiChargeId
+        );
+
+        jdbcTemplate.update("""
+                insert into publication_credit_wallets (user_id, balance)
+                values (?, ?)
+                on conflict (user_id)
+                do update set balance = publication_credit_wallets.balance + excluded.balance,
+                              updated_at = current_timestamp
+                """, userId, pkg.getCredits());
+
+        return purchaseId;
+    }
+
     private Optional<PendingPurchase> findPendingPurchase(UUID purchaseId) {
         return jdbcTemplate.query("""
                 select user_id, credits_granted

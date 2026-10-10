@@ -59,6 +59,7 @@ export function useCompanyDashboard(searchQuery?: string) {
     }
 
     const jobs = jobsQuery.data?.items ?? [];
+    const activeRecentJobs = jobs.filter((job) => job.status === "PUBLISHED");
     const company = companyQuery.data!;
 
     // El backend usa PUBLISHED en lugar de ACTIVE
@@ -73,7 +74,7 @@ export function useCompanyDashboard(searchQuery?: string) {
       totalApplications: stats?.totalApplications ?? null,
       interviewsInProgress: stats?.interviewsInProgress ?? null,
       finalists: stats?.finalists ?? null,
-      recentJobs: jobs.slice(0, 5),
+      recentJobs: activeRecentJobs.slice(0, 12),
     };
   })();
 

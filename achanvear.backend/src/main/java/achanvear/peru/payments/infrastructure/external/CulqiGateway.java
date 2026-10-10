@@ -127,6 +127,36 @@ public class CulqiGateway {
                 .body(CulqiChargeResponse.class);
     }
 
+    public CulqiChargeResponse createCreditPackageCharge(
+            BigDecimal amount,
+            String packageId,
+            String packageName,
+            String token,
+            String email,
+            UUID companyUserId
+    ) {
+        var request = new CulqiChargeRequest(
+                toCents(amount),
+                properties.currencyCode(),
+                email,
+                token,
+                true,
+                "Paquete de publicaciones " + packageName + " - Achanvear",
+                Map.of(
+                        "type", "credit_package",
+                        "packageId", packageId,
+                        "companyUserId", companyUserId.toString(),
+                        "provider", "culqi"
+                )
+        );
+
+        return restClient.post()
+                .uri("/charges")
+                .body(request)
+                .retrieve()
+                .body(CulqiChargeResponse.class);
+    }
+
     public CulqiChargeResponse getCharge(String chargeId) {
         return restClient.get()
                 .uri("/charges/{id}", chargeId)

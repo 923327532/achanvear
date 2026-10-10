@@ -8,6 +8,7 @@ public record MyJobApplicationResponse(
         String jobTitle,
         String companyName,
         Instant appliedAt,
+        String selectionMode,
         String status,
         String currentStage,
         Double screeningScore,

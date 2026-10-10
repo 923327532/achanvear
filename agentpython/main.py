@@ -13,6 +13,7 @@ from screening.router import router as screening_router
 from theory_interview.router import router as theory_router
 from technical_interview.router import router as technical_router
 from practical_voice.router import router as practical_voice_router
+from code_runner.router import router as code_runner_router
 from report_generator.router import router as report_router
 from shared.n8n_client import notify_whatsapp
 from shared.session_orchestrator import get_session, list_sessions, create_session
@@ -140,6 +141,7 @@ app.include_router(screening_router)
 app.include_router(theory_router)
 app.include_router(technical_router)
 app.include_router(practical_voice_router)
+app.include_router(code_runner_router)
 app.include_router(report_router)
 
 if __name__ == "__main__":

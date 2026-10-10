@@ -7,8 +7,17 @@ WORKDIR /app
 
 # Instalar dependencias del sistema
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
     curl \
     ffmpeg \
+    postgresql-client \
+    nodejs \
+    npm \
+    default-jdk-headless \
+    golang-go \
+    php-cli \
+    ruby-full \
+    mono-devel \
     && rm -rf /var/lib/apt/lists/*
 
 # Copiar requirements primero para cachear

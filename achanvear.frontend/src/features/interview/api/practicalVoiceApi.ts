@@ -2,10 +2,32 @@ import { API_BASE_URL } from "@/lib/constants";
 
 export type WorkspaceType = "coding" | "case_study" | "document_review" | "simulation";
 
+export interface PracticalCodeFile {
+  path: string;
+  content: string;
+  language?: string;
+}
+
+export interface PracticalInterviewerProfile {
+  id: string;
+  name: string;
+  role: string;
+  voice: string;
+  gender: "male" | "female";
+  style: string;
+}
+
 export interface PracticalChallenge {
   title: string;
   prompt: string;
   language?: string;
+  entry_file?: string;
+  files?: PracticalCodeFile[];
+  workspace_tool?: "code_project" | "document" | "case_notes" | "spreadsheet_notes" | "test_plan" | "runbook" | "notes";
+  interviewer_profile?: PracticalInterviewerProfile;
+  function_name?: string;
+  test_cases?: unknown[];
+  preview?: "html" | "json";
   starter_code?: string;
   expected_output?: string[];
   document?: string;
@@ -15,6 +37,7 @@ export interface StartPracticalRequest {
   session_id: string;
   career: string;
   job_title: string;
+  candidate_name?: string;
   workspace_type?: WorkspaceType;
   country?: string;
 }
@@ -88,6 +111,30 @@ export async function finishPracticalInterview(data: {
   });
   if (!response.ok) throw new Error("No se pudo finalizar la entrevista practica");
   return response.json();
+}
+
+export async function runPracticalCode(data: {
+  language: string;
+  code: string;
+  files?: PracticalCodeFile[];
+  entry_file?: string;
+  function_name?: string;
+  test_cases?: unknown[];
+}) {
+  const response = await fetch(`${AGENT_BASE_URL}/code-runner/run`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!response.ok) throw new Error("No se pudo ejecutar el codigo");
+  return response.json() as Promise<{
+    success: boolean;
+    language?: string;
+    stdout: string;
+    stderr: string;
+    exit_code: number;
+    runtime_available: boolean;
+  }>;
 }
 
 export { AGENT_BASE_URL, API_BASE_URL };
