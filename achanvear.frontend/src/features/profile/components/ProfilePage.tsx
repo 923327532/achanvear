@@ -1,6 +1,7 @@
 // features/profile/components/ProfilePage.tsx
 "use client";
 
+import Link from "next/link";
 import { useMyProfile } from "../hooks/useProfile";
 import { useAuthContext } from "@/providers/AuthProvider";
 import { ProfileHeader } from "./ProfileHeader";
@@ -85,8 +86,11 @@ function VirtualProfileView({ profile }: { profile: any }) {
   };
 
   return (
-    <div className="min-h-screen bg-[#f5f7fb]">
-      <div className="px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6 lg:pt-8 pb-4">
+    // RESPONSIVE: ProfilePage ya envuelve esta vista con px-4/6/8 y fondo. Antes esta vista repetía
+    // el padding (doble margen: ~64px menos de ancho útil a 284px) y otro min-h-screen anidado.
+    // Se quitaron el padding horizontal y el min-h-screen de aquí.
+    <div>
+      <div className="pb-4">
         <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
 
           {/* Banner */}
@@ -96,11 +100,12 @@ function VirtualProfileView({ profile }: { profile: any }) {
                 className="absolute inset-0 w-full h-full object-cover"
                 onError={() => setBannerError(true)} />
             )}
+            {/* RESPONSIVE: más cerca de la esquina y más compacto en celular */}
             <button
               type="button"
               onClick={() => bannerInputRef.current?.click()}
               disabled={isUploading || !dni}
-              className="absolute right-4 top-4 z-20 inline-flex items-center gap-2 rounded-xl bg-white/90 px-3 py-2 text-xs font-semibold text-[#1e3a8a] shadow-sm hover:bg-white disabled:opacity-50"
+              className="absolute right-3 top-3 z-20 inline-flex items-center gap-2 rounded-xl bg-white/90 px-2.5 py-2 text-xs font-semibold text-[#1e3a8a] shadow-sm hover:bg-white disabled:opacity-50 sm:right-4 sm:top-4 sm:px-3"
             >
               {isUploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImageUp className="h-3.5 w-3.5" />}
               Cambiar banner
@@ -141,6 +146,7 @@ function VirtualProfileView({ profile }: { profile: any }) {
                   disabled={isUploading || !dni}
                   className="absolute -bottom-2 -right-2 flex h-9 w-9 items-center justify-center rounded-full border-2 border-white bg-[#0d9488] text-white shadow-md hover:bg-teal-700 disabled:opacity-50"
                   title="Cambiar foto"
+                  aria-label="Cambiar foto"
                 >
                   {isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
                 </button>
@@ -149,8 +155,9 @@ function VirtualProfileView({ profile }: { profile: any }) {
 
               <div className="flex-1 min-w-0 pt-2 sm:pt-8 lg:pt-14 w-full">
                 <div className="flex flex-col lg:flex-row items-start justify-between gap-4 lg:gap-6">
-                  <div className="space-y-2 sm:space-y-3 w-full">
-                    <h1 className="text-2xl sm:text-3xl font-bold text-[#0a1628] tracking-tight text-center sm:text-left">{name}</h1>
+                  <div className="min-w-0 space-y-2 sm:space-y-3 w-full">
+                    {/* RESPONSIVE: text-xl en celular + break-words (un nombre largo empujaba el ancho) */}
+                    <h1 className="text-xl sm:text-3xl font-bold text-[#0a1628] tracking-tight text-center sm:text-left break-words">{name}</h1>
                     <div className="flex items-center justify-center sm:justify-start gap-2 text-sm text-slate-500 flex-wrap">
                       <span className="inline-flex items-center gap-1.5">
                         <GraduationCap className="w-4 h-4 text-slate-400" /> Freelancer
@@ -215,19 +222,21 @@ function VirtualProfileView({ profile }: { profile: any }) {
                       </a>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3 shrink-0 pt-1 w-full lg:w-auto justify-center lg:justify-end">
+                  {/* RESPONSIVE: flex-wrap + w-full en celular; antes los 2 botones en fila no cabían a 284px */}
+                  <div className="flex flex-wrap items-center gap-3 shrink-0 pt-1 w-full lg:w-auto justify-center lg:justify-end">
                     <button
                       onClick={() => {
                         const sections = document.querySelector('.space-y-4');
                         if (sections) sections.scrollIntoView({ behavior: 'smooth', block: 'start' });
                       }}
-                      className="inline-flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl border-2 border-[#1e3a8a] text-[#1e3a8a] text-sm font-semibold hover:bg-blue-50 transition-all shadow-sm">
+                      className="inline-flex w-full sm:w-auto items-center justify-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl border-2 border-[#1e3a8a] text-[#1e3a8a] text-sm font-semibold hover:bg-blue-50 transition-all shadow-sm">
                       <Save className="w-4 h-4" /> Editar Perfil
                     </button>
-                    <a href="/freelancer/projects"
-                      className="inline-flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl bg-[#1e3a8a] text-white text-sm font-semibold hover:bg-[#1e3a8a]/90 transition-all shadow-sm">
+                    {/* FIX: <a href> interno → <Link> (regla no-html-link-for-pages de Next) */}
+                    <Link href="/freelancer/projects"
+                      className="inline-flex w-full sm:w-auto items-center justify-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl bg-[#1e3a8a] text-white text-sm font-semibold hover:bg-[#1e3a8a]/90 transition-all shadow-sm">
                       <Briefcase className="w-4 h-4" /> Explorar Proyectos
-                    </a>
+                    </Link>
                   </div>
 
                 </div>
@@ -244,14 +253,14 @@ function VirtualProfileView({ profile }: { profile: any }) {
                 { icon: Code2,     color: "bg-orange-50 text-orange-600", value: String(profile?.skills?.length || 0), label: "Habilidades" },
                 { icon: Award,     color: "bg-emerald-50 text-emerald-600", value: String(profile?.certifications?.length || 0), label: "Certificaciones" },
               ].map(({ icon: Icon, color, value, label }) => (
-                <div key={label} className="py-5 sm:py-7 text-center">
+                <div key={label} className="min-w-0 px-1 py-5 sm:py-7 text-center">
                   <div className="flex items-center justify-center mb-2">
                     <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center ${color.split(" ")[0]}`}>
                       <Icon className={`w-4 h-4 sm:w-5 sm:h-5 ${color.split(" ")[1]}`} />
                     </div>
                   </div>
                   <p className="text-xl sm:text-3xl font-bold text-[#0a1628]">{value}</p>
-                  <p className="text-xs text-slate-500 mt-1">{label}</p>
+                  <p className="text-xs text-slate-500 mt-1 break-words">{label}</p>
                 </div>
               ))}
             </div>
@@ -260,23 +269,25 @@ function VirtualProfileView({ profile }: { profile: any }) {
       </div>
 
       {/* Datos Personales */}
-      <div className="px-4 sm:px-6 lg:px-8 pb-4 sm:pb-6 lg:pb-8 mt-4 sm:mt-6 lg:mt-8">
+      {/* RESPONSIVE: sin px propio (ya lo da ProfilePage) */}
+      <div className="pb-4 sm:pb-6 lg:pb-8 mt-4 sm:mt-6 lg:mt-8">
         <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200 shadow-sm p-4 sm:p-6 lg:p-8">
           <div className="flex items-start gap-3 sm:gap-4 pb-4 sm:pb-6 border-b border-slate-100 mb-6 sm:mb-8">
             <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-blue-50 flex items-center justify-center shrink-0">
               <ShieldCheck className="w-5 h-5 sm:w-6 sm:h-6 text-[#1e3a8a]" />
             </div>
-            <div>
+            <div className="min-w-0">
               <h2 className="text-lg sm:text-xl font-bold text-slate-900">Datos Personales (Verificados)</h2>
               <p className="text-xs sm:text-sm text-slate-500 mt-1">Información validada con registros oficiales peruanos</p>
             </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-            <div>
+            <div className="min-w-0">
               <label className="block text-sm font-semibold text-slate-700 mb-2">DNI</label>
-              <div className="flex items-center gap-3">
+              {/* RESPONSIVE: flex-wrap + min-w-0 en el input; la insignia "Verificado" baja de línea si no cabe */}
+              <div className="flex flex-wrap items-center gap-3">
                 <input type="text" value={dni || "—"} readOnly
-                  className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-800 cursor-default outline-none" />
+                  className="min-w-0 flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-800 cursor-default outline-none" />
                 <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold shrink-0">
                   <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -285,17 +296,18 @@ function VirtualProfileView({ profile }: { profile: any }) {
                 </span>
               </div>
             </div>
-            <div>
+            <div className="min-w-0">
               <label className="block text-sm font-semibold text-slate-700 mb-2">Nombre Completo</label>
               <input type="text" value={name || "—"} readOnly
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-800 cursor-default outline-none" />
+                className="w-full min-w-0 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-800 cursor-default outline-none" />
             </div>
           </div>
         </div>
       </div>
 
       {/* Mensaje informativo */}
-      <div className="px-4 sm:px-6 lg:px-8 pb-8">
+      {/* RESPONSIVE: sin px propio (ya lo da ProfilePage) */}
+      <div className="pb-8">
         <div className="bg-gradient-to-r from-blue-50 to-teal-50 rounded-2xl sm:rounded-3xl border border-blue-200 shadow-sm p-4 sm:p-6 lg:p-8">
           <div className="flex items-start gap-3 sm:gap-4">
             <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-blue-100 flex items-center justify-center shrink-0">
@@ -303,7 +315,7 @@ function VirtualProfileView({ profile }: { profile: any }) {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
               </svg>
             </div>
-            <div>
+            <div className="min-w-0">
               <h3 className="text-sm sm:text-base font-bold text-slate-900">Completa tu perfil profesional</h3>
               <p className="text-xs sm:text-sm text-slate-600 mt-1">
                 Agrega tu experiencia, habilidades, portafolio y más para que las empresas puedan conocerte mejor.
@@ -336,15 +348,16 @@ function ProfileSkeleton() {
     <div className="min-h-screen bg-[#f5f7fb]">
       <div className="px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6 lg:pt-8 pb-8 max-w-7xl mx-auto animate-pulse space-y-5">
         <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100">
-          <div className="h-40 bg-gray-100" />
-          <div className="p-6">
-            <div className="flex items-end justify-between -mt-12 mb-4">
-              <div className="w-24 h-24 rounded-full bg-gray-200 border-4 border-white" />
+          <div className="h-28 sm:h-40 bg-gray-100" />
+          <div className="p-4 sm:p-6">
+            <div className="flex items-end justify-between -mt-10 sm:-mt-12 mb-4">
+              <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gray-200 border-4 border-white" />
             </div>
-            <div className="h-6 bg-gray-100 rounded w-48 mb-2" />
+            <div className="h-6 bg-gray-100 rounded w-48 max-w-full mb-2" />
             <div className="h-4 bg-gray-100 rounded w-32 mb-4" />
             <div className="h-16 bg-gray-100 rounded mb-4" />
-            <div className="grid grid-cols-4 gap-4 pt-4 border-t border-gray-100">
+            {/* RESPONSIVE: 2 columnas en celular, 4 desde sm (igual que ProfileHeader) */}
+            <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-100 sm:grid-cols-4">
               {[1, 2, 3, 4].map((i) => (
                 <div key={i} className="text-center">
                   <div className="h-7 bg-gray-100 rounded mx-auto w-16 mb-1" />

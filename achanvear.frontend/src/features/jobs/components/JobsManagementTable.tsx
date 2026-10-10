@@ -1,6 +1,7 @@
 // features/jobs/components/JobsManagementTable.tsx
 "use client";
 
+import Link from "next/link";
 import { Pencil, Trash2, Play, Pause, XCircle, Loader2, MapPin, Clock } from "lucide-react";
 import type { Job } from "@/features/jobs/types/job.types";
 
@@ -86,6 +87,117 @@ function formatDate(dateStr?: string) {
   });
 }
 
+// ─── Acciones de una fila/tarjeta ─────────────────────────────────────────────
+// Un solo componente para tabla y tarjeta, así la lógica (qué botón aparece
+// según el estado) no se duplica. En la tabla van solo íconos; en la tarjeta
+// móvil llevan texto, porque en pantalla táctil no existe el tooltip (title).
+
+interface JobActionsProps {
+  job: Job;
+  isLoadingAction: boolean;
+  onDelete: (jobId: string) => void;
+  onChangeStatus: (jobId: string, newStatus: string) => void;
+  onClose: (job: Job) => void;
+  showLabels?: boolean;
+}
+
+function JobActions({
+  job,
+  isLoadingAction,
+  onDelete,
+  onChangeStatus,
+  onClose,
+  showLabels = false,
+}: JobActionsProps) {
+  const base = showLabels
+    ? "inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 transition disabled:opacity-50"
+    : "p-2 text-slate-400 rounded-lg transition disabled:opacity-50";
+
+  return (
+    <>
+      {/* Editar */}
+      <Link
+        href={`/company/jobs/${job.id}/edit`}
+        className={`${base} hover:text-[#1e3a8a] hover:bg-slate-100`}
+        title="Editar"
+      >
+        <Pencil className="w-4 h-4" strokeWidth={1.5} />
+        {showLabels && "Editar"}
+      </Link>
+
+      {/* Publicar (si está SUSPENDED) */}
+      {job.status === "SUSPENDED" && (
+        <button
+          type="button"
+          onClick={() => onChangeStatus(job.id, "PUBLISHED")}
+          disabled={isLoadingAction}
+          className={`${base} hover:text-emerald-600 hover:bg-emerald-50`}
+          title="Publicar"
+        >
+          {isLoadingAction ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <Play className="w-4 h-4" strokeWidth={1.5} />
+          )}
+          {showLabels && "Publicar"}
+        </button>
+      )}
+
+      {/* Pausar (si está PUBLISHED) */}
+      {job.status === "PUBLISHED" && (
+        <button
+          type="button"
+          onClick={() => onChangeStatus(job.id, "SUSPENDED")}
+          disabled={isLoadingAction}
+          className={`${base} hover:text-amber-600 hover:bg-amber-50`}
+          title="Pausar"
+        >
+          {isLoadingAction ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <Pause className="w-4 h-4" strokeWidth={1.5} />
+          )}
+          {showLabels && "Pausar"}
+        </button>
+      )}
+
+      {/* Cerrar (si no está CLOSED) — pide confirmación */}
+      {job.status !== "CLOSED" && (
+        <button
+          type="button"
+          onClick={() => onClose(job)}
+          disabled={isLoadingAction}
+          className={`${base} hover:text-red-600 hover:bg-red-50`}
+          title="Cerrar"
+        >
+          {isLoadingAction ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <XCircle className="w-4 h-4" strokeWidth={1.5} />
+          )}
+          {showLabels && "Cerrar"}
+        </button>
+      )}
+
+      {/* Eliminar */}
+      <button
+        type="button"
+        onClick={() => onDelete(job.id)}
+        disabled={isLoadingAction}
+        className={`${base} hover:text-red-700 hover:bg-red-50`}
+        title="Eliminar"
+      >
+        {isLoadingAction ? (
+          <Loader2 className="w-4 h-4 animate-spin" />
+        ) : (
+          <Trash2 className="w-4 h-4" strokeWidth={1.5} />
+        )}
+        {showLabels && "Eliminar"}
+      </button>
+    </>
+  );
+}
+
 export function JobsManagementTable({ jobs, actionLoading, onDelete, onChangeStatus }: JobsManagementTableProps) {
   if (jobs.length === 0) {
     return (
@@ -110,138 +222,137 @@ export function JobsManagementTable({ jobs, actionLoading, onDelete, onChangeSta
   };
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full">
-        <thead>
-          <tr className="border-b border-slate-100">
-            <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider pb-3 pr-4">Puesto</th>
-            <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider pb-3 pr-4">Postulaciones</th>
-            <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider pb-3 pr-4">Modo Selección</th>
-            <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider pb-3 pr-4">Estado</th>
-            <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider pb-3 pr-4">Publicado</th>
-            <th className="text-right text-xs font-semibold text-slate-500 uppercase tracking-wider pb-3">Acciones</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-50">
-          {jobs.map((job) => {
-            const isLoadingAction = actionLoading === job.id;
-            const newApplications = job.applications?.filter((a) => a.status === "PENDING").length ?? 0;
-            const totalApps = job.applications?.length ?? 0;
+    <>
+      {/* ── RESPONSIVE: tarjetas por debajo de xl (1280px) ────────────────────
+          La tabla de 6 columnas necesita ~740px libres. Con el sidebar de
+          260px visible desde lg (1024px), a 1024px quedan ~650px y la columna
+          Acciones (la última) se salía de pantalla. Por eso la tabla solo se
+          usa desde xl; antes de eso cada empleo es una tarjeta con sus
+          botones siempre visibles. */}
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:hidden">
+        {jobs.map((job) => {
+          const isLoadingAction = actionLoading === job.id;
+          const newApplications = job.applications?.filter((a) => a.status === "PENDING").length ?? 0;
+          const totalApps = job.applications?.length ?? 0;
 
-            return (
-              <tr key={job.id} className="group hover:bg-slate-50/50 transition-colors">
-                <td className="py-4 pr-4">
-                  <div>
-                    <p className="text-sm font-semibold text-slate-900">{job.title}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      {job.location && (
-                        <span className="text-xs text-slate-400 flex items-center gap-1">
-                          <MapPin className="w-3 h-3" />
-                          {job.location}
-                        </span>
-                      )}
-                      {job.createdAt && (
-                        <span className="text-xs text-slate-400 flex items-center gap-1">
-                          <Clock className="w-3 h-3" />
-                          {formatDate(job.createdAt)}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </td>
-                <td className="py-4 pr-4">
-                  <span className="text-sm font-semibold text-[#1e3a8a]">{totalApps}</span>
+          return (
+            <div key={job.id} className="rounded-xl border border-slate-200 bg-white p-4">
+              <div className="flex items-start justify-between gap-2">
+                <p className="min-w-0 break-words text-sm font-semibold text-slate-900">{job.title}</p>
+                <div className="shrink-0">{getStatusBadge(job.status)}</div>
+              </div>
+
+              <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400">
+                {job.location && (
+                  <span className="flex items-center gap-1">
+                    <MapPin className="w-3 h-3" />
+                    {job.location}
+                  </span>
+                )}
+                {job.createdAt && (
+                  <span className="flex items-center gap-1">
+                    <Clock className="w-3 h-3" />
+                    {formatDate(job.createdAt)}
+                  </span>
+                )}
+              </div>
+
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                {getSelectionModeBadge(job.selectionMode)}
+                <span className="text-xs text-slate-500">
+                  <span className="font-semibold text-[#1e3a8a]">{totalApps}</span> postulaciones
                   {newApplications > 0 && (
-                    <span className="ml-1.5 text-xs text-emerald-600 font-medium">
-                      ({newApplications} nuevas)
-                    </span>
+                    <span className="ml-1 font-medium text-emerald-600">({newApplications} nuevas)</span>
                   )}
-                </td>
-                <td className="py-4 pr-4">{getSelectionModeBadge(job.selectionMode)}</td>
-                <td className="py-4 pr-4">{getStatusBadge(job.status)}</td>
-                <td className="py-4 pr-4">
-                  <span className="text-sm text-slate-500">{formatDate(job.createdAt)}</span>
-                </td>
-                <td className="py-4 text-right">
-                  <div className="flex items-center justify-end gap-1">
-                    {/* Editar */}
-                    <a
-                      href={`/company/jobs/${job.id}/edit`}
-                      className="p-2 text-slate-400 hover:text-[#1e3a8a] hover:bg-slate-100 rounded-lg transition"
-                      title="Editar"
-                    >
-                      <Pencil className="w-4 h-4" strokeWidth={1.5} />
-                    </a>
+                </span>
+              </div>
 
-                    {/* Publicar (si está SUSPENDED) */}
-                    {job.status === "SUSPENDED" && (
-                      <button
-                        onClick={() => onChangeStatus(job.id, "PUBLISHED")}
-                        disabled={isLoadingAction}
-                        className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition"
-                        title="Publicar"
-                      >
-                        {isLoadingAction ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <Play className="w-4 h-4" strokeWidth={1.5} />
+              <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
+                <JobActions
+                  job={job}
+                  isLoadingAction={isLoadingAction}
+                  onDelete={onDelete}
+                  onChangeStatus={onChangeStatus}
+                  onClose={handleCloseClick}
+                  showLabels
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* ── Tabla: solo desde xl (1280px) ──────────────────────────────────── */}
+      <div className="hidden overflow-x-auto xl:block">
+        <table className="w-full">
+          <thead>
+            <tr className="border-b border-slate-100">
+              <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider pb-3 pr-4">Puesto</th>
+              <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider pb-3 pr-4">Postulaciones</th>
+              <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider pb-3 pr-4">Modo Selección</th>
+              <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider pb-3 pr-4">Estado</th>
+              <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider pb-3 pr-4">Publicado</th>
+              <th className="text-right text-xs font-semibold text-slate-500 uppercase tracking-wider pb-3">Acciones</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-50">
+            {jobs.map((job) => {
+              const isLoadingAction = actionLoading === job.id;
+              const newApplications = job.applications?.filter((a) => a.status === "PENDING").length ?? 0;
+              const totalApps = job.applications?.length ?? 0;
+
+              return (
+                <tr key={job.id} className="group hover:bg-slate-50/50 transition-colors">
+                  <td className="py-4 pr-4">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900">{job.title}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        {job.location && (
+                          <span className="text-xs text-slate-400 flex items-center gap-1">
+                            <MapPin className="w-3 h-3" />
+                            {job.location}
+                          </span>
                         )}
-                      </button>
-                    )}
-
-                    {/* Pausar (si está PUBLISHED) */}
-                    {job.status === "PUBLISHED" && (
-                      <button
-                        onClick={() => onChangeStatus(job.id, "SUSPENDED")}
-                        disabled={isLoadingAction}
-                        className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition"
-                        title="Pausar"
-                      >
-                        {isLoadingAction ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <Pause className="w-4 h-4" strokeWidth={1.5} />
+                        {job.createdAt && (
+                          <span className="text-xs text-slate-400 flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            {formatDate(job.createdAt)}
+                          </span>
                         )}
-                      </button>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="py-4 pr-4">
+                    <span className="text-sm font-semibold text-[#1e3a8a]">{totalApps}</span>
+                    {newApplications > 0 && (
+                      <span className="ml-1.5 text-xs text-emerald-600 font-medium">
+                        ({newApplications} nuevas)
+                      </span>
                     )}
-
-                    {/* Cerrar (si no está CLOSED) — ahora pide confirmación */}
-                    {job.status !== "CLOSED" && (
-                      <button
-                        onClick={() => handleCloseClick(job)}
-                        disabled={isLoadingAction}
-                        className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
-                        title="Cerrar"
-                      >
-                        {isLoadingAction ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <XCircle className="w-4 h-4" strokeWidth={1.5} />
-                        )}
-                      </button>
-                    )}
-
-                    {/* Eliminar */}
-                    <button
-                      onClick={() => onDelete(job.id)}
-                      disabled={isLoadingAction}
-                      className="p-2 text-slate-400 hover:text-red-700 hover:bg-red-50 rounded-lg transition"
-                      title="Eliminar"
-                    >
-                      {isLoadingAction ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <Trash2 className="w-4 h-4" strokeWidth={1.5} />
-                      )}
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
+                  </td>
+                  <td className="py-4 pr-4">{getSelectionModeBadge(job.selectionMode)}</td>
+                  <td className="py-4 pr-4">{getStatusBadge(job.status)}</td>
+                  <td className="py-4 pr-4">
+                    <span className="text-sm text-slate-500">{formatDate(job.createdAt)}</span>
+                  </td>
+                  <td className="py-4 text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      <JobActions
+                        job={job}
+                        isLoadingAction={isLoadingAction}
+                        onDelete={onDelete}
+                        onChangeStatus={onChangeStatus}
+                        onClose={handleCloseClick}
+                      />
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </>
   );
 }
 

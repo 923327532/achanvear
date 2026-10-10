@@ -139,6 +139,9 @@ export function ServiceForm({ service, onSubmit, isSubmitting, freelancerProfile
   const [statusEdit, setStatusEdit] = useState<"ACTIVE" | "PAUSED">("ACTIVE");
   const [tagInput, setTagInput] = useState("");
   const [faqInputs, setFaqInputs] = useState<{ question: string; answer: string }[]>([]);
+  // FIX: URLs de imagen que dieron error al cargar (404 del file-proxy, pendiente backend #22).
+  // Se muestra un recuadro de reemplazo en vez del texto alternativo desbordado.
+  const [failedImages, setFailedImages] = useState<string[]>([]);
   
   // ── Estado del chat IA ─────────────────────────────────────────────────────
   const [showAiChat, setShowAiChat] = useState(false);
@@ -342,8 +345,10 @@ export function ServiceForm({ service, onSubmit, isSubmitting, freelancerProfile
     }
   };
 
+  // RESPONSIVE: en celular los 6 pasos se muestran en 2 filas de 3 (antes había scroll horizontal y
+  // los primeros pasos quedaban ocultos fuera de la pantalla); desde sm vuelven a una fila que puede envolver.
   const renderStepIndicator = () => (
-    <div className="flex items-center gap-1 mb-4 overflow-x-auto pb-1">
+    <div className="grid grid-cols-3 gap-1.5 mb-4 sm:flex sm:flex-wrap sm:gap-1">
       {STEPS.map(({ id, label, icon: Icon }, index) => {
         const isActive = currentStep === id;
         const isCompleted = stepIndex > index;
@@ -351,7 +356,7 @@ export function ServiceForm({ service, onSubmit, isSubmitting, freelancerProfile
           <button
             key={id}
             onClick={() => setCurrentStep(id)}
-            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] sm:text-xs font-medium whitespace-nowrap transition-all ${
+            className={`flex min-w-0 items-center justify-center gap-1 px-2 py-2 sm:px-2.5 sm:py-1.5 rounded-lg text-[11px] sm:text-xs font-medium whitespace-nowrap transition-all ${
               isActive
                 ? "bg-[#1B3A6B] text-white"
                 : isCompleted
@@ -359,9 +364,9 @@ export function ServiceForm({ service, onSubmit, isSubmitting, freelancerProfile
                 : "bg-gray-100 text-gray-500 hover:bg-gray-200"
             }`}
           >
-            {isCompleted ? <Check className="w-2.5 h-2.5 sm:w-3 sm:h-3" /> : <Icon className="w-2.5 h-2.5 sm:w-3 sm:h-3" />}
+            {isCompleted ? <Check className="w-2.5 h-2.5 sm:w-3 sm:h-3 flex-shrink-0" /> : <Icon className="w-2.5 h-2.5 sm:w-3 sm:h-3 flex-shrink-0" />}
             <span className="hidden sm:inline">{label}</span>
-            <span className="sm:hidden">{label.split(" ")[0]}</span>
+            <span className="sm:hidden truncate">{label.split(" ")[0]}</span>
           </button>
         );
       })}
@@ -381,7 +386,7 @@ export function ServiceForm({ service, onSubmit, isSubmitting, freelancerProfile
           value={form.title}
           onChange={(e) => setForm({ ...form, title: e.target.value })}
           maxLength={80}
-          className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0EA5A0]/30 focus:border-[#0EA5A0] transition-colors"
+          className="w-full min-w-0 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0EA5A0]/30 focus:border-[#0EA5A0] transition-colors"
         />
         <p className="text-xs text-gray-400 mt-1">{form.title.length}/80 caracteres</p>
       </div>
@@ -397,7 +402,7 @@ export function ServiceForm({ service, onSubmit, isSubmitting, freelancerProfile
           value={form.shortDescription}
           onChange={(e) => setForm({ ...form, shortDescription: e.target.value })}
           maxLength={300}
-          className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0EA5A0]/30 focus:border-[#0EA5A0] transition-colors"
+          className="w-full min-w-0 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0EA5A0]/30 focus:border-[#0EA5A0] transition-colors"
         />
       </div>
 
@@ -406,19 +411,21 @@ export function ServiceForm({ service, onSubmit, isSubmitting, freelancerProfile
         <label className="block text-sm font-semibold text-gray-700 mb-3">
           Categoría <span className="text-red-500">*</span>
         </label>
+        {/* RESPONSIVE: en celular icono arriba y texto debajo (centrados) y text-xs; los iconos se aplastaban
+            y palabras como "Construcción" / "Contabilidad" se cortaban. Desde sm vuelve a icono + texto en fila. */}
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
           {CATEGORY_OPTIONS.map(({ value, icon: Icon, color }) => (
             <button
               key={value}
               onClick={() => setForm({ ...form, category: value })}
-              className={`flex items-center gap-2 px-4 py-3 rounded-xl border text-sm font-medium transition-all ${
+              className={`flex min-w-0 flex-col items-center gap-1 px-2 py-2.5 text-center sm:flex-row sm:gap-2 sm:px-4 sm:py-3 sm:text-left rounded-xl border text-xs sm:text-sm font-medium transition-all ${
                 form.category === value
                   ? "border-[#1B3A6B] bg-[#1B3A6B] text-white"
                   : "border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50"
               }`}
             >
-              <Icon className={`w-4 h-4 ${form.category === value ? "text-white" : color}`} />
-              {CATEGORY_LABELS[value as ServiceCategory]}
+              <Icon className={`w-4 h-4 flex-shrink-0 ${form.category === value ? "text-white" : color}`} />
+              <span className="min-w-0">{CATEGORY_LABELS[value as ServiceCategory]}</span>
             </button>
           ))}
         </div>
@@ -432,7 +439,7 @@ export function ServiceForm({ service, onSubmit, isSubmitting, freelancerProfile
           placeholder="Ej: Desarrollo Web, Diseño UX/UI, Marketing Digital..."
           value={form.subcategory}
           onChange={(e) => setForm({ ...form, subcategory: e.target.value })}
-          className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0EA5A0]/30 focus:border-[#0EA5A0] transition-colors"
+          className="w-full min-w-0 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0EA5A0]/30 focus:border-[#0EA5A0] transition-colors"
         />
       </div>
 
@@ -440,17 +447,19 @@ export function ServiceForm({ service, onSubmit, isSubmitting, freelancerProfile
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
         <label className="block text-sm font-semibold text-gray-700 mb-1.5">Etiquetas (Tags)</label>
         <div className="flex items-center gap-2 mb-2">
+          {/* RESPONSIVE: min-w-0 en el input y flex-shrink-0 en el "+" (antes el botón se salía de la tarjeta) */}
           <input
             type="text"
             placeholder="Agrega una etiqueta y presiona Enter"
             value={tagInput}
             onChange={(e) => setTagInput(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addTag(); } }}
-            className="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0EA5A0]/30 focus:border-[#0EA5A0] transition-colors"
+            className="min-w-0 flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0EA5A0]/30 focus:border-[#0EA5A0] transition-colors"
           />
           <button
             onClick={addTag}
-            className="p-2.5 bg-[#1B3A6B] text-white rounded-xl hover:bg-[#0EA5A0] transition-colors"
+            aria-label="Agregar etiqueta"
+            className="flex-shrink-0 p-2.5 bg-[#1B3A6B] text-white rounded-xl hover:bg-[#0EA5A0] transition-colors"
           >
             <Plus className="w-4 h-4" />
           </button>
@@ -459,7 +468,7 @@ export function ServiceForm({ service, onSubmit, isSubmitting, freelancerProfile
           {form.tags.map((tag) => (
             <span key={tag} className="inline-flex items-center gap-1 px-2.5 py-1 bg-gray-100 text-gray-700 rounded-lg text-xs font-medium">
               {tag}
-              <button onClick={() => removeTag(tag)} className="text-gray-400 hover:text-red-500">
+              <button onClick={() => removeTag(tag)} aria-label={`Quitar ${tag}`} className="text-gray-400 hover:text-red-500">
                 <X className="w-3 h-3" />
               </button>
             </span>
@@ -482,7 +491,7 @@ export function ServiceForm({ service, onSubmit, isSubmitting, freelancerProfile
           value={form.description}
           onChange={(e) => setForm({ ...form, description: e.target.value })}
           rows={6}
-          className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0EA5A0]/30 focus:border-[#0EA5A0] transition-colors resize-none"
+          className="w-full min-w-0 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0EA5A0]/30 focus:border-[#0EA5A0] transition-colors resize-none"
         />
         <p className="text-xs text-gray-400 mt-1">{form.description.length} caracteres (mín. 10)</p>
       </div>
@@ -494,18 +503,19 @@ export function ServiceForm({ service, onSubmit, isSubmitting, freelancerProfile
       {/* Modalidad */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
         <label className="block text-sm font-semibold text-gray-700 mb-3">Modalidad de Trabajo</label>
-        <div className="grid grid-cols-3 gap-3">
+        {/* RESPONSIVE: apiladas en fila (icono + texto) en celular; 3 columnas con icono arriba desde sm */}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           {MODALITY_OPTIONS.map(({ value, label, icon: Icon }) => (
             <button
               key={value}
               onClick={() => setForm({ ...form, modality: value as any })}
-              className={`flex flex-col items-center gap-2 p-4 rounded-xl border text-sm font-medium transition-all ${
+              className={`flex min-w-0 flex-row items-center justify-center gap-2 px-4 py-3 sm:flex-col sm:p-4 rounded-xl border text-sm font-medium transition-all ${
                 form.modality === value
                   ? "border-[#1B3A6B] bg-[#1B3A6B] text-white"
                   : "border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50"
               }`}
             >
-              <Icon className="w-5 h-5" />
+              <Icon className="w-5 h-5 flex-shrink-0" />
               {label}
             </button>
           ))}
@@ -515,18 +525,19 @@ export function ServiceForm({ service, onSubmit, isSubmitting, freelancerProfile
       {/* Cobertura */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
         <label className="block text-sm font-semibold text-gray-700 mb-3">Cobertura</label>
-        <div className="grid grid-cols-3 gap-3">
+        {/* RESPONSIVE: igual que Modalidad ("Internacional" se montaba sobre el borde en 3 columnas) */}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           {COVERAGE_OPTIONS.map(({ value, label, icon: Icon }) => (
             <button
               key={value}
               onClick={() => setForm({ ...form, coverageType: value as any })}
-              className={`flex flex-col items-center gap-2 p-4 rounded-xl border text-sm font-medium transition-all ${
+              className={`flex min-w-0 flex-row items-center justify-center gap-2 px-4 py-3 sm:flex-col sm:p-4 rounded-xl border text-sm font-medium transition-all ${
                 form.coverageType === value
                   ? "border-[#1B3A6B] bg-[#1B3A6B] text-white"
                   : "border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50"
               }`}
             >
-              <Icon className="w-5 h-5" />
+              <Icon className="w-5 h-5 flex-shrink-0" />
               {label}
             </button>
           ))}
@@ -536,7 +547,7 @@ export function ServiceForm({ service, onSubmit, isSubmitting, freelancerProfile
           placeholder="Detalles de cobertura (distritos, ciudades, países)"
           value={form.coverageDetails}
           onChange={(e) => setForm({ ...form, coverageDetails: e.target.value })}
-          className="w-full mt-3 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0EA5A0]/30 focus:border-[#0EA5A0] transition-colors"
+          className="w-full min-w-0 mt-3 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0EA5A0]/30 focus:border-[#0EA5A0] transition-colors"
         />
       </div>
 
@@ -548,7 +559,7 @@ export function ServiceForm({ service, onSubmit, isSubmitting, freelancerProfile
           placeholder="Ej: Lunes a Viernes 9am - 6pm"
           value={form.schedule}
           onChange={(e) => setForm({ ...form, schedule: e.target.value })}
-          className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0EA5A0]/30 focus:border-[#0EA5A0] transition-colors"
+          className="w-full min-w-0 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0EA5A0]/30 focus:border-[#0EA5A0] transition-colors"
         />
       </div>
 
@@ -563,7 +574,7 @@ export function ServiceForm({ service, onSubmit, isSubmitting, freelancerProfile
           value={form.deliveryDays}
           onChange={(e) => setForm({ ...form, deliveryDays: e.target.value === "" ? "" : Number(e.target.value) })}
           min={1}
-          className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0EA5A0]/30 focus:border-[#0EA5A0] transition-colors"
+          className="w-full min-w-0 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0EA5A0]/30 focus:border-[#0EA5A0] transition-colors"
         />
       </div>
 
@@ -574,9 +585,9 @@ export function ServiceForm({ service, onSubmit, isSubmitting, freelancerProfile
             type="checkbox"
             checked={form.availableImmediately}
             onChange={(e) => setForm({ ...form, availableImmediately: e.target.checked })}
-            className="w-4 h-4 rounded border-gray-300 text-[#1B3A6B] focus:ring-[#0EA5A0]"
+            className="w-4 h-4 flex-shrink-0 rounded border-gray-300 text-[#1B3A6B] focus:ring-[#0EA5A0]"
           />
-          <div>
+          <div className="min-w-0">
             <span className="text-sm font-semibold text-gray-700">Disponibilidad inmediata</span>
             <p className="text-xs text-gray-400">Puedo empezar el proyecto de inmediato</p>
           </div>
@@ -592,19 +603,20 @@ export function ServiceForm({ service, onSubmit, isSubmitting, freelancerProfile
         <label className="block text-sm font-semibold text-gray-700 mb-1.5">
           Precio Base <span className="text-red-500">*</span>
         </label>
-        <div className="flex gap-3">
+        {/* RESPONSIVE: precio y moneda apilados en celular (el selector de moneda se salía de la tarjeta), en fila desde sm */}
+        <div className="flex flex-col gap-3 sm:flex-row">
           <input
             type="number"
             placeholder="500"
             value={form.basePrice}
             onChange={(e) => setForm({ ...form, basePrice: e.target.value === "" ? "" : Number(e.target.value) })}
             min={1}
-            className="flex-1 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0EA5A0]/30 focus:border-[#0EA5A0] transition-colors"
+            className="min-w-0 flex-1 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0EA5A0]/30 focus:border-[#0EA5A0] transition-colors"
           />
           <select
             value={form.currency}
             onChange={(e) => setForm({ ...form, currency: e.target.value })}
-            className="border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#0EA5A0]/30 focus:border-[#0EA5A0] transition-colors"
+            className="w-full min-w-0 sm:w-auto border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#0EA5A0]/30 focus:border-[#0EA5A0] transition-colors"
           >
             {CURRENCY_OPTIONS.map(({ value, label }) => (
               <option key={value} value={value}>{label}</option>
@@ -621,7 +633,7 @@ export function ServiceForm({ service, onSubmit, isSubmitting, freelancerProfile
             <button
               key={value}
               onClick={() => setForm({ ...form, billingType: value as any })}
-              className={`px-4 py-3 rounded-xl border text-sm font-medium transition-all ${
+              className={`min-w-0 px-2 py-3 sm:px-4 rounded-xl border text-sm font-medium transition-all ${
                 form.billingType === value
                   ? "border-[#1B3A6B] bg-[#1B3A6B] text-white"
                   : "border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50"
@@ -635,14 +647,15 @@ export function ServiceForm({ service, onSubmit, isSubmitting, freelancerProfile
 
       {/* Planes / Paquetes */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-        <div className="flex items-center justify-between mb-4">
-          <div>
+        {/* RESPONSIVE: flex-wrap; el botón "Agregar Plan" no se encoge y no parte su texto */}
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+          <div className="min-w-0">
             <label className="text-sm font-semibold text-gray-700">Planes o Paquetes</label>
             <p className="text-xs text-gray-400">Ofrece diferentes niveles de servicio</p>
           </div>
           <button
             onClick={addPlan}
-            className="flex items-center gap-1 text-xs font-medium text-[#1B3A6B] bg-[#1B3A6B]/5 px-3 py-1.5 rounded-lg hover:bg-[#1B3A6B]/10 transition-colors"
+            className="flex flex-shrink-0 items-center gap-1 whitespace-nowrap text-xs font-medium text-[#1B3A6B] bg-[#1B3A6B]/5 px-3 py-1.5 rounded-lg hover:bg-[#1B3A6B]/10 transition-colors"
           >
             <Plus className="w-3 h-3" /> Agregar Plan
           </button>
@@ -654,24 +667,25 @@ export function ServiceForm({ service, onSubmit, isSubmitting, freelancerProfile
           <div key={index} className="border border-gray-200 rounded-xl p-4 mb-3">
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs font-semibold text-gray-500 uppercase">Plan {index + 1}</span>
-              <button onClick={() => removePlan(index)} className="text-gray-400 hover:text-red-500">
+              <button onClick={() => removePlan(index)} aria-label="Quitar plan" className="text-gray-400 hover:text-red-500">
                 <X className="w-4 h-4" />
               </button>
             </div>
-            <div className="grid grid-cols-2 gap-3 mb-3">
+            {/* RESPONSIVE: nombre y precio apilados en celular, 2 columnas desde sm */}
+            <div className="grid grid-cols-1 gap-3 mb-3 sm:grid-cols-2">
               <input
                 type="text"
                 placeholder="Nombre del plan (Ej: Básico)"
                 value={plan.name}
                 onChange={(e) => updatePlan(index, { name: e.target.value })}
-                className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0EA5A0]/30 focus:border-[#0EA5A0]"
+                className="min-w-0 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0EA5A0]/30 focus:border-[#0EA5A0]"
               />
               <input
                 type="number"
                 placeholder="Precio"
                 value={plan.price}
                 onChange={(e) => updatePlan(index, { price: e.target.value === "" ? "" : Number(e.target.value) })}
-                className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0EA5A0]/30 focus:border-[#0EA5A0]"
+                className="min-w-0 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0EA5A0]/30 focus:border-[#0EA5A0]"
               />
             </div>
             <input
@@ -679,14 +693,14 @@ export function ServiceForm({ service, onSubmit, isSubmitting, freelancerProfile
               placeholder="Descripción del plan"
               value={plan.description}
               onChange={(e) => updatePlan(index, { description: e.target.value })}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-[#0EA5A0]/30 focus:border-[#0EA5A0]"
+              className="w-full min-w-0 border border-gray-200 rounded-xl px-3 py-2 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-[#0EA5A0]/30 focus:border-[#0EA5A0]"
             />
             <input
               type="number"
               placeholder="Días de entrega para este plan"
               value={plan.deliveryDays}
               onChange={(e) => updatePlan(index, { deliveryDays: e.target.value === "" ? "" : Number(e.target.value) })}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-[#0EA5A0]/30 focus:border-[#0EA5A0]"
+              className="w-full min-w-0 border border-gray-200 rounded-xl px-3 py-2 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-[#0EA5A0]/30 focus:border-[#0EA5A0]"
             />
             <div>
               <p className="text-xs font-medium text-gray-500 mb-1">Características del plan:</p>
@@ -694,13 +708,13 @@ export function ServiceForm({ service, onSubmit, isSubmitting, freelancerProfile
                 {plan.features.map((f) => (
                   <span key={f} className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded text-xs">
                     {f}
-                    <button onClick={() => removePlanFeature(index, f)} className="text-emerald-400 hover:text-red-500">
+                    <button onClick={() => removePlanFeature(index, f)} aria-label={`Quitar ${f}`} className="text-emerald-400 hover:text-red-500">
                       <X className="w-3 h-3" />
                     </button>
                   </span>
                 ))}
               </div>
-              <div className="flex gap-2">
+              <div className="flex items-center gap-2">
                 <input
                   type="text"
                   placeholder="Agregar característica"
@@ -711,7 +725,7 @@ export function ServiceForm({ service, onSubmit, isSubmitting, freelancerProfile
                       (e.target as HTMLInputElement).value = "";
                     }
                   }}
-                  className="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-[#0EA5A0]/30"
+                  className="min-w-0 flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-[#0EA5A0]/30"
                 />
                 <button
                   onClick={(e) => {
@@ -719,7 +733,7 @@ export function ServiceForm({ service, onSubmit, isSubmitting, freelancerProfile
                     addPlanFeature(index, input.value);
                     input.value = "";
                   }}
-                  className="text-xs text-[#0EA5A0] font-medium hover:underline"
+                  className="flex-shrink-0 whitespace-nowrap text-xs text-[#0EA5A0] font-medium hover:underline"
                 >
                   + Agregar
                 </button>
@@ -739,7 +753,7 @@ export function ServiceForm({ service, onSubmit, isSubmitting, freelancerProfile
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">WhatsApp</label>
             <div className="flex items-center gap-2">
-              <Phone className="w-4 h-4 text-green-500" />
+              <Phone className="w-4 h-4 flex-shrink-0 text-green-500" />
               <input
                 type="text"
                 inputMode="numeric"
@@ -747,7 +761,7 @@ export function ServiceForm({ service, onSubmit, isSubmitting, freelancerProfile
                 placeholder="999888777"
                 value={form.whatsapp}
                 onChange={(e) => handleNineDigitContactChange("whatsapp", e.target.value)}
-                className={`flex-1 border rounded-xl px-4 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 transition-colors ${
+                className={`min-w-0 flex-1 border rounded-xl px-4 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 transition-colors ${
                   form.whatsapp && !hasValidWhatsapp
                     ? "border-red-300 focus:border-red-400 focus:ring-red-100"
                     : "border-gray-200 focus:border-[#0EA5A0] focus:ring-[#0EA5A0]/30"
@@ -761,7 +775,7 @@ export function ServiceForm({ service, onSubmit, isSubmitting, freelancerProfile
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">Teléfono</label>
             <div className="flex items-center gap-2">
-              <Phone className="w-4 h-4 text-blue-500" />
+              <Phone className="w-4 h-4 flex-shrink-0 text-blue-500" />
               <input
                 type="text"
                 inputMode="numeric"
@@ -769,7 +783,7 @@ export function ServiceForm({ service, onSubmit, isSubmitting, freelancerProfile
                 placeholder="999888777"
                 value={form.phone}
                 onChange={(e) => handleNineDigitContactChange("phone", e.target.value)}
-                className={`flex-1 border rounded-xl px-4 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 transition-colors ${
+                className={`min-w-0 flex-1 border rounded-xl px-4 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 transition-colors ${
                   form.phone && !hasValidPhone
                     ? "border-red-300 focus:border-red-400 focus:ring-red-100"
                     : "border-gray-200 focus:border-[#0EA5A0] focus:ring-[#0EA5A0]/30"
@@ -783,13 +797,13 @@ export function ServiceForm({ service, onSubmit, isSubmitting, freelancerProfile
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">Correo Electrónico</label>
             <div className="flex items-center gap-2">
-              <Mail className="w-4 h-4 text-gray-500" />
+              <Mail className="w-4 h-4 flex-shrink-0 text-gray-500" />
               <input
                 type="email"
                 placeholder="correo@ejemplo.com"
                 value={form.emailContact}
                 onChange={(e) => setForm({ ...form, emailContact: e.target.value })}
-                className={`flex-1 border rounded-xl px-4 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 transition-colors ${
+                className={`min-w-0 flex-1 border rounded-xl px-4 py-2.5 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 transition-colors ${
                   form.emailContact && !hasValidEmail
                     ? "border-red-300 focus:border-red-400 focus:ring-red-100"
                     : "border-gray-200 focus:border-[#0EA5A0] focus:ring-[#0EA5A0]/30"
@@ -805,7 +819,7 @@ export function ServiceForm({ service, onSubmit, isSubmitting, freelancerProfile
             <select
               value={form.responseTime}
               onChange={(e) => setForm({ ...form, responseTime: e.target.value })}
-              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#0EA5A0]/30 focus:border-[#0EA5A0] transition-colors"
+              className="w-full min-w-0 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#0EA5A0]/30 focus:border-[#0EA5A0] transition-colors"
             >
               <option value="">Seleccionar tiempo de respuesta</option>
               {RESPONSE_TIME_OPTIONS.map((opt) => (
@@ -880,11 +894,26 @@ export function ServiceForm({ service, onSubmit, isSubmitting, freelancerProfile
         {/* Files preview */}
         {form[formKey].filter(Boolean).length > 0 && (
           <div className="flex flex-wrap gap-2 mb-3">
-            {form[formKey].filter(Boolean).map((url, i) => (
+            {form[formKey].filter(Boolean).map((url, i) => {
+              const imageSrc = toServiceMediaUrl(url) ?? url;
+              const imageFailed = failedImages.includes(imageSrc);
+              return (
               <div key={i} className="relative group">
                 {type === "images" ? (
                   <div className="w-20 h-20 rounded-lg overflow-hidden border border-gray-200">
-                    <img src={toServiceMediaUrl(url) ?? url} alt={`${label} ${i + 1}`} className="w-full h-full object-cover" />
+                    {/* FIX: si la imagen da 404 se muestra un recuadro con ícono en vez del texto alternativo desbordado */}
+                    {imageFailed ? (
+                      <div className="w-full h-full flex items-center justify-center bg-gray-50">
+                        <Camera className="w-6 h-6 text-gray-300" />
+                      </div>
+                    ) : (
+                      <img
+                        src={imageSrc}
+                        alt={`${label} ${i + 1}`}
+                        onError={() => setFailedImages((prev) => (prev.includes(imageSrc) ? prev : [...prev, imageSrc]))}
+                        className="w-full h-full object-cover"
+                      />
+                    )}
                   </div>
                 ) : type === "videos" ? (
                   <div className="w-20 h-20 rounded-lg border border-gray-200 flex items-center justify-center bg-gray-50">
@@ -895,19 +924,24 @@ export function ServiceForm({ service, onSubmit, isSubmitting, freelancerProfile
                     <FileText className="w-6 h-6 text-gray-400" />
                   </div>
                 )}
+                {/* RESPONSIVE: en pantallas táctiles no existe "hover", así que el botón de quitar quedaba
+                    invisible e inalcanzable. Ahora es visible siempre en celular y aparece al pasar el mouse desde sm. */}
                 <button
                   onClick={() => removeFile(formKey, i)}
-                  className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                  aria-label="Quitar archivo"
+                  className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100 transition-opacity"
                 >
                   <X className="w-3 h-3" />
                 </button>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
         {/* Upload zone */}
-        <label className="border-2 border-dashed border-gray-200 rounded-xl p-6 text-center hover:border-[#0EA5A0]/40 transition-colors cursor-pointer block">
+        {/* RESPONSIVE: p-4 en celular, p-6 desde sm; texto con break-words */}
+        <label className="border-2 border-dashed border-gray-200 rounded-xl p-4 sm:p-6 text-center hover:border-[#0EA5A0]/40 transition-colors cursor-pointer block">
           <input
             type="file"
             accept={accept}
@@ -924,8 +958,8 @@ export function ServiceForm({ service, onSubmit, isSubmitting, freelancerProfile
           ) : (
             <>
               <Icon className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-              <p className="text-sm text-gray-500">{description}</p>
-              <p className="text-xs text-gray-400 mt-1">{hint}</p>
+              <p className="text-sm text-gray-500 break-words">{description}</p>
+              <p className="text-xs text-gray-400 mt-1 break-words">{hint}</p>
             </>
           )}
         </label>
@@ -966,14 +1000,15 @@ export function ServiceForm({ service, onSubmit, isSubmitting, freelancerProfile
     <div className="space-y-6">
       {/* FAQs */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-        <div className="flex items-center justify-between mb-4">
-          <div>
+        {/* RESPONSIVE: flex-wrap; el botón "Agregar FAQ" no se encoge ni parte su texto */}
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+          <div className="min-w-0">
             <label className="text-sm font-semibold text-gray-700">Preguntas Frecuentes (FAQs)</label>
             <p className="text-xs text-gray-400">Resuelve las dudas comunes de tus clientes</p>
           </div>
           <button
             onClick={addFaq}
-            className="flex items-center gap-1 text-xs font-medium text-[#1B3A6B] bg-[#1B3A6B]/5 px-3 py-1.5 rounded-lg hover:bg-[#1B3A6B]/10 transition-colors"
+            className="flex flex-shrink-0 items-center gap-1 whitespace-nowrap text-xs font-medium text-[#1B3A6B] bg-[#1B3A6B]/5 px-3 py-1.5 rounded-lg hover:bg-[#1B3A6B]/10 transition-colors"
           >
             <Plus className="w-3 h-3" /> Agregar FAQ
           </button>
@@ -982,7 +1017,7 @@ export function ServiceForm({ service, onSubmit, isSubmitting, freelancerProfile
           <div key={index} className="border border-gray-200 rounded-xl p-4 mb-3">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-semibold text-gray-500">FAQ {index + 1}</span>
-              <button onClick={() => removeFaq(index)} className="text-gray-400 hover:text-red-500">
+              <button onClick={() => removeFaq(index)} aria-label="Quitar FAQ" className="text-gray-400 hover:text-red-500">
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -991,14 +1026,14 @@ export function ServiceForm({ service, onSubmit, isSubmitting, freelancerProfile
               placeholder="Pregunta"
               value={faq.question}
               onChange={(e) => updateFaq(index, { question: e.target.value })}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm mb-2 focus:outline-none focus:ring-2 focus:ring-[#0EA5A0]/30 focus:border-[#0EA5A0]"
+              className="w-full min-w-0 border border-gray-200 rounded-xl px-3 py-2 text-sm mb-2 focus:outline-none focus:ring-2 focus:ring-[#0EA5A0]/30 focus:border-[#0EA5A0]"
             />
             <textarea
               placeholder="Respuesta"
               value={faq.answer}
               onChange={(e) => updateFaq(index, { answer: e.target.value })}
               rows={2}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0EA5A0]/30 focus:border-[#0EA5A0] resize-none"
+              className="w-full min-w-0 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0EA5A0]/30 focus:border-[#0EA5A0] resize-none"
             />
           </div>
         ))}
@@ -1015,7 +1050,7 @@ export function ServiceForm({ service, onSubmit, isSubmitting, freelancerProfile
           value={form.warrantyInfo}
           onChange={(e) => setForm({ ...form, warrantyInfo: e.target.value })}
           rows={3}
-          className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0EA5A0]/30 focus:border-[#0EA5A0] transition-colors resize-none"
+          className="w-full min-w-0 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0EA5A0]/30 focus:border-[#0EA5A0] transition-colors resize-none"
         />
       </div>
 
@@ -1027,7 +1062,7 @@ export function ServiceForm({ service, onSubmit, isSubmitting, freelancerProfile
           value={form.cancellationPolicy}
           onChange={(e) => setForm({ ...form, cancellationPolicy: e.target.value })}
           rows={3}
-          className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0EA5A0]/30 focus:border-[#0EA5A0] transition-colors resize-none"
+          className="w-full min-w-0 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0EA5A0]/30 focus:border-[#0EA5A0] transition-colors resize-none"
         />
       </div>
 
@@ -1039,7 +1074,7 @@ export function ServiceForm({ service, onSubmit, isSubmitting, freelancerProfile
           value={form.supportInfo}
           onChange={(e) => setForm({ ...form, supportInfo: e.target.value })}
           rows={3}
-          className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0EA5A0]/30 focus:border-[#0EA5A0] transition-colors resize-none"
+          className="w-full min-w-0 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0EA5A0]/30 focus:border-[#0EA5A0] transition-colors resize-none"
         />
       </div>
     </div>
@@ -1047,18 +1082,20 @@ export function ServiceForm({ service, onSubmit, isSubmitting, freelancerProfile
 
   return (
     <div className="min-h-full bg-gray-50/50">
-      <div className="mx-auto w-full max-w-7xl px-4 py-4 sm:px-6 sm:py-6 xl:px-8">
+      {/* RESPONSIVE: pb-24 en celular para que el botón flotante del asistente IA no tape el último contenido y los botones de navegación */}
+      <div className="mx-auto w-full max-w-7xl px-4 py-4 pb-24 sm:px-6 sm:py-6 sm:pb-6 xl:px-8">
 
         {/* Header */}
         <div className="flex items-center gap-3 mb-4">
           <button
             onClick={() => router.back()}
-            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-white border border-gray-200 rounded-xl transition-colors"
+            aria-label="Volver"
+            className="flex-shrink-0 p-2 text-gray-400 hover:text-gray-600 hover:bg-white border border-gray-200 rounded-xl transition-colors"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <div>
-            <h1 className="text-2xl font-bold text-[#1B3A6B]">
+          <div className="min-w-0">
+            <h1 className="text-xl sm:text-2xl font-bold text-[#1B3A6B] break-words">
               {isEditMode ? "Editar Servicio" : "Crear Nuevo Servicio Profesional"}
             </h1>
             <p className="text-sm text-gray-500 mt-0.5">
@@ -1081,9 +1118,9 @@ export function ServiceForm({ service, onSubmit, isSubmitting, freelancerProfile
         {currentStep === "extras" && renderExtrasStep()}
 
         {/* Tips */}
-        <div className="bg-teal-50 border border-teal-100 rounded-2xl p-5 mt-6">
+        <div className="bg-teal-50 border border-teal-100 rounded-2xl p-4 sm:p-5 mt-6">
           <div className="flex items-center gap-2 mb-3">
-            <Lightbulb className="w-4 h-4 text-[#0EA5A0]" />
+            <Lightbulb className="w-4 h-4 flex-shrink-0 text-[#0EA5A0]" />
             <span className="text-sm font-semibold text-[#0EA5A0]">Consejos para destacar tu servicio</span>
           </div>
           <ul className="space-y-1.5">
@@ -1097,24 +1134,26 @@ export function ServiceForm({ service, onSubmit, isSubmitting, freelancerProfile
         </div>
 
         {/* Navigation & Submit */}
-        <div className="flex items-center justify-between gap-3 pt-6 pb-8">
-          <div className="flex gap-2">
+        {/* RESPONSIVE: en celular los botones se apilan a ancho completo (arriba Siguiente/Publicar, luego Borrador,
+            al final Anterior); antes 3 botones en una fila se salían de la pantalla. Desde sm vuelve la fila original. */}
+        <div className="flex flex-col-reverse gap-3 pt-6 pb-8 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex gap-2 empty:hidden sm:empty:block">
             {!isFirstStep && (
               <button
                 onClick={() => setCurrentStep(STEPS[stepIndex - 1].id)}
-                className="flex items-center gap-1.5 text-sm font-medium text-gray-600 border border-gray-200 bg-white rounded-xl px-5 py-3 hover:bg-gray-50 transition-colors"
+                className="flex w-full items-center justify-center gap-1.5 text-sm font-medium text-gray-600 border border-gray-200 bg-white rounded-xl px-5 py-3 hover:bg-gray-50 transition-colors sm:w-auto"
               >
                 <ChevronLeft className="w-4 h-4" />
                 Anterior
               </button>
             )}
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center">
             {!isEditMode && (
               <button
                 onClick={() => handleSubmit(false)}
                 disabled={isSubmitting || !form.title}
-                className="text-sm font-medium text-gray-600 border border-gray-200 bg-white rounded-xl px-5 py-3 hover:bg-gray-50 transition-colors disabled:opacity-50"
+                className="w-full text-sm font-medium text-gray-600 border border-gray-200 bg-white rounded-xl px-5 py-3 hover:bg-gray-50 transition-colors disabled:opacity-50 sm:w-auto"
               >
                 Guardar como Borrador
               </button>
@@ -1123,7 +1162,7 @@ export function ServiceForm({ service, onSubmit, isSubmitting, freelancerProfile
               <button
                 onClick={() => handleSubmit(true)}
                 disabled={isSubmitting || !isValid}
-                className="flex items-center justify-center gap-2 text-sm font-semibold text-white bg-[#1B3A6B] rounded-xl px-6 py-3 hover:bg-[#0EA5A0] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex w-full items-center justify-center gap-2 text-sm font-semibold text-white bg-[#1B3A6B] rounded-xl px-6 py-3 hover:bg-[#0EA5A0] transition-colors disabled:opacity-50 disabled:cursor-not-allowed sm:w-auto"
               >
                 {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
                 {isEditMode ? "Guardar Cambios" : "Publicar Servicio"}
@@ -1132,7 +1171,7 @@ export function ServiceForm({ service, onSubmit, isSubmitting, freelancerProfile
               <button
                 onClick={() => setCurrentStep(STEPS[stepIndex + 1].id)}
                 disabled={!canGoNext}
-                className="flex items-center gap-1.5 text-sm font-semibold text-white bg-[#1B3A6B] rounded-xl px-5 py-3 hover:bg-[#0EA5A0] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex w-full items-center justify-center gap-1.5 text-sm font-semibold text-white bg-[#1B3A6B] rounded-xl px-5 py-3 hover:bg-[#0EA5A0] transition-colors disabled:opacity-50 disabled:cursor-not-allowed sm:w-auto"
               >
                 Siguiente
                 <ChevronRight className="w-4 h-4" />
@@ -1177,6 +1216,7 @@ export function ServiceForm({ service, onSubmit, isSubmitting, freelancerProfile
         onClick={() => setShowAiChat(!showAiChat)}
         className="fixed bottom-6 right-6 z-50 w-14 h-14 flex items-center justify-center rounded-full bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg hover:shadow-xl hover:scale-105 active:scale-95 transition-all duration-200"
         title="Asistente IA - Autocompletar servicio"
+        aria-label="Asistente IA - Autocompletar servicio"
       >
         <Bot className="w-7 h-7" />
       </button>
@@ -1189,7 +1229,7 @@ export function ServiceForm({ service, onSubmit, isSubmitting, freelancerProfile
               <Bot className="w-5 h-5" />
               <span className="text-sm font-semibold">Asistente IA</span>
             </div>
-            <button type="button" onClick={() => setShowAiChat(false)} className="p-1.5 rounded-lg hover:bg-white/20 transition">
+            <button type="button" onClick={() => setShowAiChat(false)} aria-label="Cerrar asistente" className="p-1.5 rounded-lg hover:bg-white/20 transition">
               <X className="w-4 h-4" />
             </button>
           </div>
@@ -1210,12 +1250,13 @@ export function ServiceForm({ service, onSubmit, isSubmitting, freelancerProfile
                 onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleAiAssist(); } }}
                 placeholder="Ej: Desarrollo web con React y Node.js..."
                 disabled={aiLoading}
-                className="flex-1 h-9 px-3 rounded-lg border border-slate-300 bg-white text-sm text-slate-700 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition disabled:opacity-50"
+                className="min-w-0 flex-1 h-9 px-3 rounded-lg border border-slate-300 bg-white text-sm text-slate-700 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition disabled:opacity-50"
               />
               <button
                 type="button"
                 onClick={handleAiAssist}
                 disabled={!aiPrompt.trim() || aiLoading}
+                aria-label="Enviar"
                 className="shrink-0 h-9 w-9 flex items-center justify-center rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {aiLoading ? (

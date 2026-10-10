@@ -73,6 +73,51 @@ const SELECTION_CARDS: SelectionCard[] = [
   },
 ];
 
+type NotificationTiming = "IMMEDIATE" | "AFTER_2_HOURS" | "AFTER_CLOSING";
+
+const NOTIFICATION_OPTIONS: { id: NotificationTiming; label: string; help: string }[] = [
+  {
+    id: "IMMEDIATE",
+    label: "Al instante",
+    help: "El candidato recibe la notificacion apenas se evalua su perfil",
+  },
+  {
+    id: "AFTER_2_HOURS",
+    label: "En 2 horas",
+    help: "Las notificaciones se agrupan y envian cada 2 horas",
+  },
+  {
+    id: "AFTER_CLOSING",
+    label: "Al cierre de postulaciones",
+    help: "Todos los candidatos reciben su resultado cuando se cierren las postulaciones",
+  },
+];
+
+const CLOSING_OPTIONS: { id: ClosingMode; label: string; help: string; icon: React.ReactNode }[] = [
+  {
+    id: "CONTINUOUS",
+    label: "Siempre abierto",
+    help: "Las postulaciones estaran abiertas hasta que la empresa decida cerrarlas manualmente",
+    icon: <span className="text-sm font-bold">∞</span>,
+  },
+  {
+    id: "MAX_APPLICANTS",
+    label: "Por maximo de postulantes",
+    help: "Las postulaciones se cierran automaticamente al alcanzar el numero maximo de postulantes",
+    icon: <Users className="w-4 h-4" />,
+  },
+  {
+    id: "FIXED_DATE",
+    label: "Por fecha limite",
+    help: "Las postulaciones se cierran en una fecha especifica que tu elijas",
+    icon: <span className="text-sm font-bold">📅</span>,
+  },
+];
+
+// RESPONSIVE: padding de las tarjetas de sección. 24px por lado en celular
+// dejaba muy poco ancho útil (a 284px quedaban ~190px para el contenido).
+const CARD = "bg-white rounded-xl border border-slate-200 p-4 sm:p-6 shadow-sm";
+
 export default function EditJobPostPage() {
   const router = useRouter();
   const params = useParams();
@@ -107,9 +152,7 @@ export default function EditJobPostPage() {
   const [closingDate, setClosingDate] = useState("");
 
   // ─── Notification timing ────────────────────────────────────────────────
-  const [notificationTiming, setNotificationTiming] = useState<
-    "IMMEDIATE" | "AFTER_2_HOURS" | "AFTER_CLOSING"
-  >("IMMEDIATE");
+  const [notificationTiming, setNotificationTiming] = useState<NotificationTiming>("IMMEDIATE");
 
   // ─── Cargar datos del job cuando esté disponible ─────────────────────────
   useEffect(() => {
@@ -292,7 +335,7 @@ export default function EditJobPostPage() {
 
   return (
     <div className="min-h-screen bg-[#f8f9fb]">
-      <div className="mx-auto max-w-7xl px-6 py-8">
+      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">
         {/* Back button */}
         <button
           onClick={() => router.push("/company")}
@@ -303,7 +346,7 @@ export default function EditJobPostPage() {
         </button>
 
         {/* Title */}
-        <h1 className="text-3xl font-bold text-[#0a1628] mb-2">
+        <h1 className="text-2xl sm:text-3xl font-bold text-[#0a1628] mb-2">
           Editar oferta laboral
         </h1>
         <p className="text-sm text-slate-500 mb-8">
@@ -311,11 +354,11 @@ export default function EditJobPostPage() {
         </p>
 
         {/* Two column layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
           {/* ─── Left column - Form ─────────────────────────────────────── */}
-          <div className="lg:col-span-2 space-y-8">
+          <div className="min-w-0 lg:col-span-2 space-y-6 sm:space-y-8">
             {/* 1. Title */}
-            <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
+            <div className={CARD}>
               <label className="block text-sm font-semibold text-[#0a1628] mb-2">
                 Titulo del puesto <span className="text-red-500">*</span>
               </label>
@@ -324,16 +367,18 @@ export default function EditJobPostPage() {
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="Ej: Desarrollador Full Stack Senior"
-                className="w-full h-12 px-4 rounded-lg border border-slate-300 bg-white text-[#0a1628] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition text-base"
+                className="w-full min-w-0 h-12 px-4 rounded-lg border border-slate-300 bg-white text-[#0a1628] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition text-base"
               />
             </div>
 
-            {/* 2. Job Type */}
-            <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
+            {/* 2. Job Type
+                RESPONSIVE: 3 botones en una fila se salían de la tarjeta en
+                celular (FREELANCE quedaba fuera). Apilados hasta sm. */}
+            <div className={CARD}>
               <label className="block text-sm font-semibold text-[#0a1628] mb-3">
                 Tipo de empleo <span className="text-red-500">*</span>
               </label>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 {JOB_TYPES.map((option) => (
                   <button
                     key={option.value}
@@ -351,25 +396,27 @@ export default function EditJobPostPage() {
               </div>
             </div>
 
-            {/* 3. Location */}
-            <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
+            {/* 3. Location
+                RESPONSIVE: input + checkbox "Trabajo remoto" en una sola fila
+                empujaban el checkbox fuera de la tarjeta. Apilados hasta sm. */}
+            <div className={CARD}>
               <label className="block text-sm font-semibold text-[#0a1628] mb-2">
                 Ubicacion <span className="text-red-500">*</span>
               </label>
-              <div className="flex items-center gap-3">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                 <input
                   type="text"
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
                   placeholder="Ej: Lima, Peru"
                   disabled={remote}
-                  className={`flex-1 h-12 px-4 rounded-lg border bg-white text-[#0a1628] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition text-base ${
+                  className={`w-full min-w-0 sm:flex-1 h-12 px-4 rounded-lg border bg-white text-[#0a1628] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition text-base ${
                     remote
                       ? "border-slate-200 bg-slate-50 text-slate-400"
                       : "border-slate-300"
                   }`}
                 />
-                <label className="flex items-center gap-2 h-12 px-4 rounded-lg border border-slate-300 bg-white cursor-pointer select-none shrink-0">
+                <label className="flex w-full items-center gap-2 h-12 px-4 rounded-lg border border-slate-300 bg-white cursor-pointer select-none shrink-0 sm:w-auto">
                   <input
                     type="checkbox"
                     checked={remote}
@@ -386,19 +433,22 @@ export default function EditJobPostPage() {
               </div>
             </div>
 
-            {/* 4. Salary Range */}
-            <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
+            {/* 4. Salary Range
+                RESPONSIVE: los dos inputs en fila no encogían (un input tiene
+                un ancho mínimo propio) y el segundo se cortaba. Se apilan
+                hasta sm y llevan min-w-0. */}
+            <div className={CARD}>
               <label className="block text-sm font-semibold text-[#0a1628] mb-2">
                 Rango salarial (S/.)
               </label>
-              <div className="flex items-center gap-3">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                 <input
                   type="number"
                   value={salaryMin}
                   onChange={(e) => setSalaryMin(e.target.value)}
                   placeholder="Minimo"
                   disabled={hideSalary}
-                  className={`flex-1 h-12 px-4 rounded-lg border bg-white text-[#0a1628] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition text-base ${
+                  className={`w-full min-w-0 sm:flex-1 h-12 px-4 rounded-lg border bg-white text-[#0a1628] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition text-base ${
                     hideSalary
                       ? "border-slate-200 bg-slate-50 text-slate-400"
                       : "border-slate-300"
@@ -410,7 +460,7 @@ export default function EditJobPostPage() {
                   onChange={(e) => setSalaryMax(e.target.value)}
                   placeholder="Maximo"
                   disabled={hideSalary}
-                  className={`flex-1 h-12 px-4 rounded-lg border bg-white text-[#0a1628] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition text-base ${
+                  className={`w-full min-w-0 sm:flex-1 h-12 px-4 rounded-lg border bg-white text-[#0a1628] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition text-base ${
                     hideSalary
                       ? "border-slate-200 bg-slate-50 text-slate-400"
                       : "border-slate-300"
@@ -431,7 +481,7 @@ export default function EditJobPostPage() {
             </div>
 
             {/* 5. Description */}
-            <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
+            <div className={CARD}>
               <label className="block text-sm font-semibold text-[#0a1628] mb-2">
                 Descripcion del puesto <span className="text-red-500">*</span>
               </label>
@@ -445,7 +495,7 @@ export default function EditJobPostPage() {
             </div>
 
             {/* 6. Requirements */}
-            <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
+            <div className={CARD}>
               <label className="block text-sm font-semibold text-[#0a1628] mb-2">
                 Requisitos
               </label>
@@ -459,7 +509,7 @@ export default function EditJobPostPage() {
             </div>
 
             {/* 7. Configuracion de seleccion */}
-            <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
+            <div className={CARD}>
               <h2 className="text-lg font-bold text-[#0a1628] mb-1">
                 Configura el proceso de seleccion
               </h2>
@@ -477,15 +527,21 @@ export default function EditJobPostPage() {
                       <button
                         type="button"
                         onClick={() => handleSelectionModeClick(card.id)}
-                        className={`w-full text-left rounded-xl border-2 p-5 transition-all ${
+                        className={`w-full text-left rounded-xl border-2 p-3 sm:p-5 transition-all ${
                           isSelected
                             ? "border-blue-600 bg-blue-50/60 shadow-sm"
                             : "border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm"
                         }`}
                       >
-                        <div className="flex items-start gap-4">
+                        {/* RESPONSIVE: en celular el texto quedaba en una
+                            columna de ~60px (una palabra por línea) porque el
+                            ícono, el radio y los paddings comían todo el
+                            ancho. Con grid, la descripción ocupa el ancho
+                            completo en celular y queda alineada bajo el título
+                            desde sm. */}
+                        <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-x-3 gap-y-2 sm:gap-x-4">
                           <div
-                            className={`shrink-0 w-10 h-10 rounded-lg flex items-center justify-center transition-colors ${
+                            className={`sm:row-span-2 w-10 h-10 rounded-lg flex items-center justify-center transition-colors ${
                               isSelected
                                 ? "bg-[#0a1628] text-white"
                                 : "bg-slate-100 text-slate-500"
@@ -494,10 +550,10 @@ export default function EditJobPostPage() {
                             {card.icon}
                           </div>
 
-                          <div className="flex-1 min-w-0">
+                          <div className="min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
                               <span
-                                className={`font-semibold text-base ${
+                                className={`min-w-0 break-words font-semibold text-sm sm:text-base ${
                                   isSelected ? "text-[#0a1628]" : "text-slate-800"
                                 }`}
                               >
@@ -515,13 +571,26 @@ export default function EditJobPostPage() {
                                 </span>
                               )}
                               {isFreePlan && card.id !== "MANUAL" && (
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-slate-900 text-white">
+                                <span className="inline-flex items-center gap-1 whitespace-nowrap px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-slate-900 text-white">
                                   <Lock className="w-3 h-3" />
                                   Plan superior
                                 </span>
                               )}
                             </div>
-                            <p className="text-sm text-slate-600 mt-1 leading-relaxed">
+                          </div>
+
+                          <div
+                            className={`w-5 h-5 rounded-full border-2 flex items-center justify-center mt-0.5 ${
+                              isSelected ? "border-blue-600" : "border-slate-300"
+                            }`}
+                          >
+                            {isSelected && (
+                              <div className="w-2.5 h-2.5 rounded-full bg-blue-600" />
+                            )}
+                          </div>
+
+                          <div className="col-span-3 min-w-0 sm:col-span-2 sm:col-start-2">
+                            <p className="text-sm text-slate-600 leading-relaxed">
                               {card.description}
                             </p>
                             {card.secondaryBadge && (
@@ -530,22 +599,11 @@ export default function EditJobPostPage() {
                               </span>
                             )}
                           </div>
-
-                          <div
-                            className={`shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center mt-1 ${
-                              isSelected ? "border-blue-600" : "border-slate-300"
-                            }`}
-                          >
-                            {isSelected && (
-                              <div className="w-2.5 h-2.5 rounded-full bg-blue-600" />
-                            )}
-                          </div>
                         </div>
                       </button>
 
-
                       {isFullyAuto && isSelected && (
-                        <div className="mt-3 ml-14 pl-4 border-l-2 border-blue-200 space-y-4 py-2">
+                        <div className="mt-3 ml-2 pl-3 sm:ml-14 sm:pl-4 border-l-2 border-blue-200 space-y-4 py-2">
                           <div className="flex items-center gap-2 text-sm font-medium text-blue-700">
                             <Zap className="w-4 h-4" />
                             <span>Maximo ahorro de tiempo</span>
@@ -561,7 +619,7 @@ export default function EditJobPostPage() {
                                 setMaxCandidatesForScreening(e.target.value)
                               }
                               min={1}
-                              className="w-full h-10 px-3 rounded-lg border border-slate-300 bg-white text-[#0a1628] text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              className="w-full min-w-0 h-10 px-3 rounded-lg border border-slate-300 bg-white text-[#0a1628] text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                             />
                           </div>
                           <div>
@@ -575,7 +633,7 @@ export default function EditJobPostPage() {
                                 setCandidatesForTheoryInterview(e.target.value)
                               }
                               min={1}
-                              className="w-full h-10 px-3 rounded-lg border border-slate-300 bg-white text-[#0a1628] text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              className="w-full min-w-0 h-10 px-3 rounded-lg border border-slate-300 bg-white text-[#0a1628] text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                             />
                           </div>
                           <div>
@@ -601,39 +659,19 @@ export default function EditJobPostPage() {
                               <span>100%</span>
                             </div>
                           </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
 
-
+                          {/* FIX: este bloque ("¿Cuando notificar al
+                              candidato?") había quedado FUERA de la tarjeta y
+                              fuera del condicional, así que aparecía suelto
+                              entre las secciones 7 y 8 para cualquier modo.
+                              Solo se envía en FULLY_AUTOMATED, así que vive
+                              aquí dentro. */}
                           <div>
                             <label className="block text-xs font-medium text-slate-600 mb-2">
                               ¿Cuando notificar al candidato?
                             </label>
                             <div className="space-y-2">
-                              {(
-                                [
-                                  {
-                                    id: "IMMEDIATE",
-                                    label: "Al instante",
-                                    help: "El candidato recibe la notificacion apenas se evalua su perfil",
-                                  },
-                                  {
-                                    id: "AFTER_2_HOURS",
-                                    label: "En 2 horas",
-                                    help: "Las notificaciones se agrupan y envian cada 2 horas",
-                                  },
-                                  {
-                                    id: "AFTER_CLOSING",
-                                    label: "Al cierre de postulaciones",
-                                    help: "Todos los candidatos reciben su resultado cuando se cierren las postulaciones",
-                                  },
-                                ] as const
-                              ).map((opt) => (
+                              {NOTIFICATION_OPTIONS.map((opt) => (
                                 <button
                                   key={opt.id}
                                   type="button"
@@ -656,7 +694,7 @@ export default function EditJobPostPage() {
                                         <div className="w-2.5 h-2.5 rounded-full bg-blue-600" />
                                       )}
                                     </div>
-                                    <div>
+                                    <div className="min-w-0">
                                       <span
                                         className={`text-xs font-semibold ${
                                           notificationTiming === opt.id
@@ -675,9 +713,16 @@ export default function EditJobPostPage() {
                               ))}
                             </div>
                           </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
 
             {/* 8. Cierre de vacantes */}
-            <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
+            <div className={CARD}>
               <h2 className="text-lg font-bold text-[#0a1628] mb-1">
                 Cierre de vacantes
               </h2>
@@ -686,149 +731,55 @@ export default function EditJobPostPage() {
               </p>
 
               <div className="space-y-3">
-                <button
-                  type="button"
-                  onClick={() => setClosingMode("CONTINUOUS")}
-                  className={`w-full text-left rounded-xl border-2 p-4 transition-all ${
-                    closingMode === "CONTINUOUS"
-                      ? "border-blue-600 bg-blue-50/60 shadow-sm"
-                      : "border-slate-200 bg-white hover:border-slate-300"
-                  }`}
-                >
-                  <div className="flex items-start gap-3">
-                    <div
-                      className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center ${
-                        closingMode === "CONTINUOUS"
-                          ? "bg-[#0a1628] text-white"
-                          : "bg-slate-100 text-slate-500"
+                {CLOSING_OPTIONS.map((opt) => {
+                  const selected = closingMode === opt.id;
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => setClosingMode(opt.id)}
+                      className={`w-full text-left rounded-xl border-2 p-3 sm:p-4 transition-all ${
+                        selected
+                          ? "border-blue-600 bg-blue-50/60 shadow-sm"
+                          : "border-slate-200 bg-white hover:border-slate-300"
                       }`}
                     >
-                      <span className="text-sm font-bold">∞</span>
-                    </div>
-                    <div className="flex-1">
-                      <span
-                        className={`font-semibold text-sm ${
-                          closingMode === "CONTINUOUS"
-                            ? "text-[#0a1628]"
-                            : "text-slate-800"
-                        }`}
-                      >
-                        Siempre abierto
-                      </span>
-                      <p className="text-xs text-slate-500 mt-0.5">
-                        Las postulaciones estaran abiertas hasta que la empresa decida cerrarlas manualmente
-                      </p>
-                    </div>
-                    <div
-                      className={`shrink-0 w-4 h-4 rounded-full border-2 flex items-center justify-center mt-1 ${
-                        closingMode === "CONTINUOUS"
-                          ? "border-blue-600"
-                          : "border-slate-300"
-                      }`}
-                    >
-                      {closingMode === "CONTINUOUS" && (
-                        <div className="w-2 h-2 rounded-full bg-blue-600" />
-                      )}
-                    </div>
-                  </div>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setClosingMode("MAX_APPLICANTS")}
-                  className={`w-full text-left rounded-xl border-2 p-4 transition-all ${
-                    closingMode === "MAX_APPLICANTS"
-                      ? "border-blue-600 bg-blue-50/60 shadow-sm"
-                      : "border-slate-200 bg-white hover:border-slate-300"
-                  }`}
-                >
-                  <div className="flex items-start gap-3">
-                    <div
-                      className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center ${
-                        closingMode === "MAX_APPLICANTS"
-                          ? "bg-[#0a1628] text-white"
-                          : "bg-slate-100 text-slate-500"
-                      }`}
-                    >
-                      <Users className="w-4 h-4" />
-                    </div>
-                    <div className="flex-1">
-                      <span
-                        className={`font-semibold text-sm ${
-                          closingMode === "MAX_APPLICANTS"
-                            ? "text-[#0a1628]"
-                            : "text-slate-800"
-                        }`}
-                      >
-                        Por maximo de postulantes
-                      </span>
-                      <p className="text-xs text-slate-500 mt-0.5">
-                        Las postulaciones se cierran automaticamente al alcanzar el numero maximo de postulantes
-                      </p>
-                    </div>
-                    <div
-                      className={`shrink-0 w-4 h-4 rounded-full border-2 flex items-center justify-center mt-1 ${
-                        closingMode === "MAX_APPLICANTS"
-                          ? "border-blue-600"
-                          : "border-slate-300"
-                      }`}
-                    >
-                      {closingMode === "MAX_APPLICANTS" && (
-                        <div className="w-2 h-2 rounded-full bg-blue-600" />
-                      )}
-                    </div>
-                  </div>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setClosingMode("FIXED_DATE")}
-                  className={`w-full text-left rounded-xl border-2 p-4 transition-all ${
-                    closingMode === "FIXED_DATE"
-                      ? "border-blue-600 bg-blue-50/60 shadow-sm"
-                      : "border-slate-200 bg-white hover:border-slate-300"
-                  }`}
-                >
-                  <div className="flex items-start gap-3">
-                    <div
-                      className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center ${
-                        closingMode === "FIXED_DATE"
-                          ? "bg-[#0a1628] text-white"
-                          : "bg-slate-100 text-slate-500"
-                      }`}
-                    >
-                      <span className="text-sm font-bold">📅</span>
-                    </div>
-                    <div className="flex-1">
-                      <span
-                        className={`font-semibold text-sm ${
-                          closingMode === "FIXED_DATE"
-                            ? "text-[#0a1628]"
-                            : "text-slate-800"
-                        }`}
-                      >
-                        Por fecha limite
-                      </span>
-                      <p className="text-xs text-slate-500 mt-0.5">
-                        Las postulaciones se cierran en una fecha especifica que tu elijas
-                      </p>
-                    </div>
-                    <div
-                      className={`shrink-0 w-4 h-4 rounded-full border-2 flex items-center justify-center mt-1 ${
-                        closingMode === "FIXED_DATE"
-                          ? "border-blue-600"
-                          : "border-slate-300"
-                      }`}
-                    >
-                      {closingMode === "FIXED_DATE" && (
-                        <div className="w-2 h-2 rounded-full bg-blue-600" />
-                      )}
-                    </div>
-                  </div>
-                </button>
+                      <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-x-3 gap-y-2">
+                        <div
+                          className={`sm:row-span-2 w-8 h-8 rounded-lg flex items-center justify-center ${
+                            selected
+                              ? "bg-[#0a1628] text-white"
+                              : "bg-slate-100 text-slate-500"
+                          }`}
+                        >
+                          {opt.icon}
+                        </div>
+                        <span
+                          className={`min-w-0 break-words font-semibold text-sm ${
+                            selected ? "text-[#0a1628]" : "text-slate-800"
+                          }`}
+                        >
+                          {opt.label}
+                        </span>
+                        <div
+                          className={`w-4 h-4 rounded-full border-2 flex items-center justify-center mt-0.5 ${
+                            selected ? "border-blue-600" : "border-slate-300"
+                          }`}
+                        >
+                          {selected && (
+                            <div className="w-2 h-2 rounded-full bg-blue-600" />
+                          )}
+                        </div>
+                        <p className="col-span-3 min-w-0 text-xs text-slate-500 sm:col-span-2 sm:col-start-2">
+                          {opt.help}
+                        </p>
+                      </div>
+                    </button>
+                  );
+                })}
 
                 {closingMode === "MAX_APPLICANTS" && (
-                  <div className="ml-11 pl-4 border-l-2 border-blue-200 pt-2 pb-1">
+                  <div className="ml-2 pl-3 sm:ml-11 sm:pl-4 border-l-2 border-blue-200 pt-2 pb-1">
                     <label className="block text-xs font-medium text-slate-600 mb-1.5">
                       Numero maximo de postulantes
                     </label>
@@ -837,13 +788,13 @@ export default function EditJobPostPage() {
                       value={maxApplicants}
                       onChange={(e) => setMaxApplicants(e.target.value)}
                       min={1}
-                      className="w-full h-10 px-3 rounded-lg border border-slate-300 bg-white text-[#0a1628] text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full min-w-0 h-10 px-3 rounded-lg border border-slate-300 bg-white text-[#0a1628] text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     />
                   </div>
                 )}
 
                 {closingMode === "FIXED_DATE" && (
-                  <div className="ml-11 pl-4 border-l-2 border-blue-200 pt-2 pb-1">
+                  <div className="ml-2 pl-3 sm:ml-11 sm:pl-4 border-l-2 border-blue-200 pt-2 pb-1">
                     <label className="block text-xs font-medium text-slate-600 mb-1.5">
                       Fecha de cierre
                     </label>
@@ -851,7 +802,7 @@ export default function EditJobPostPage() {
                       type="datetime-local"
                       value={closingDate}
                       onChange={(e) => setClosingDate(e.target.value)}
-                      className="w-full h-10 px-3 rounded-lg border border-slate-300 bg-white text-[#0a1628] text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full min-w-0 h-10 px-3 rounded-lg border border-slate-300 bg-white text-[#0a1628] text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     />
                   </div>
                 )}
@@ -873,40 +824,40 @@ export default function EditJobPostPage() {
               </div>
             )}
 
-            {/* ─── Action buttons ────────────────────────────────────────── */}
-            <div className="flex items-center justify-between pt-2">
+            {/* ─── Action buttons ──────────────────────────────────────────
+                RESPONSIVE: "Cancelar" + "Guardar cambios" en una sola fila
+                no cabían a 284px. En celular se apilan (Guardar arriba). */}
+            <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:items-center sm:justify-between">
               <button
                 onClick={() => router.push("/company")}
-                className="h-12 px-6 rounded-xl text-slate-500 font-medium hover:text-slate-700 transition"
+                className="h-12 w-full px-6 rounded-xl text-slate-500 font-medium hover:text-slate-700 transition sm:w-auto"
               >
                 Cancelar
               </button>
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={handleSubmit}
-                  disabled={isPending || errors.length > 0}
-                  className="h-12 px-8 rounded-xl bg-[#0a1628] text-white font-semibold hover:bg-[#1a2a42] transition disabled:opacity-50 flex items-center gap-2"
-                >
-                  {isPending ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Guardando...
-                    </>
-                  ) : (
-                    <>
-                      Guardar cambios
-                      <ChevronRight className="w-4 h-4" />
-                    </>
-                  )}
-                </button>
-              </div>
+              <button
+                onClick={handleSubmit}
+                disabled={isPending || errors.length > 0}
+                className="h-12 w-full px-8 rounded-xl bg-[#0a1628] text-white font-semibold hover:bg-[#1a2a42] transition disabled:opacity-50 flex items-center justify-center gap-2 sm:w-auto"
+              >
+                {isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Guardando...
+                  </>
+                ) : (
+                  <>
+                    Guardar cambios
+                    <ChevronRight className="w-4 h-4" />
+                  </>
+                )}
+              </button>
             </div>
           </div>
 
           {/* ─── Right column - Preview ──────────────────────────────────── */}
-          <div className="lg:col-span-1">
-            <div className="sticky top-8">
-              <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
+          <div className="min-w-0 lg:col-span-1">
+            <div className="lg:sticky lg:top-8">
+              <div className={CARD}>
                 <div className="flex items-center gap-2 mb-5">
                   <Eye className="w-4 h-4 text-slate-400" />
                   <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
@@ -915,13 +866,13 @@ export default function EditJobPostPage() {
                 </div>
 
                 <div className="space-y-4">
-                  <h3 className="text-xl font-bold text-[#0a1628] leading-tight">
+                  <h3 className="break-words text-xl font-bold text-[#0a1628] leading-tight">
                     {preview.title}
                   </h3>
 
                   <div className="flex items-center gap-1.5 text-slate-500 text-sm">
-                    <MapPin className="w-4 h-4" />
-                    <span>{preview.location}</span>
+                    <MapPin className="w-4 h-4 shrink-0" />
+                    <span className="min-w-0 break-words">{preview.location}</span>
                   </div>
 
                   <span className="inline-block px-3 py-1 rounded-md bg-[#0a1628] text-white text-xs font-semibold">
@@ -940,13 +891,13 @@ export default function EditJobPostPage() {
 
       {showUpgradeModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4">
-          <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl border border-slate-200">
-            <div className="flex items-start justify-between gap-4 border-b border-slate-100 p-6">
+          <div className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-2xl border border-slate-200">
+            <div className="flex items-start justify-between gap-4 border-b border-slate-100 p-4 sm:p-6">
               <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#0a1628] text-white">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#0a1628] text-white">
                   <Crown className="h-5 w-5" />
                 </div>
-                <div>
+                <div className="min-w-0">
                   <h2 className="text-lg font-bold text-[#0a1628]">
                     Actualiza tu plan
                   </h2>
@@ -964,7 +915,7 @@ export default function EditJobPostPage() {
               </button>
             </div>
 
-            <div className="space-y-4 p-6">
+            <div className="space-y-4 p-4 sm:p-6">
               <p className="text-sm leading-6 text-slate-600">
                 En el plan gratuito las postulaciones llegan a la empresa y el proceso queda manual. Para activar filtros con IA, entrevistas automaticas y reportes inteligentes, elige un plan superior.
               </p>
@@ -973,7 +924,7 @@ export default function EditJobPostPage() {
                 Free: solicitudes manuales, sin automatizacion IA.
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <button
                   type="button"
                   onClick={() => {

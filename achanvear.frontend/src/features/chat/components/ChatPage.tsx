@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { MessageSquare, Loader2 } from "lucide-react";
+import { MessageSquare, Loader2, ArrowLeft } from "lucide-react";
 import { useConversations } from "../hooks/useChat";
 import { chatApi } from "../api/chatApi";
 import { ConversationList } from "./ConversationList";
@@ -50,8 +50,8 @@ export function ChatPage({ initialUserId }: ChatPageProps) {
   if (isLoading) {
     return (
       <div className="flex min-h-0 w-full flex-1 overflow-hidden">
-        {/* Lista skeleton */}
-        <div className="flex flex-col h-full border-r border-[#E5E7EB] bg-white w-[320px] flex-shrink-0">
+        {/* Lista skeleton — RESPONSIVE: ancho completo en celular */}
+        <div className="flex h-full w-full min-w-0 flex-col border-r border-[#E5E7EB] bg-white md:w-[320px] md:flex-shrink-0">
           <div className="px-4 py-4 border-b border-[#E5E7EB]">
             <div className="h-5 w-24 bg-[#F1F5F9] rounded animate-pulse mb-3" />
             <div className="h-9 bg-[#F1F5F9] rounded-[12px] animate-pulse" />
@@ -69,8 +69,8 @@ export function ChatPage({ initialUserId }: ChatPageProps) {
             ))}
           </div>
         </div>
-        {/* Ventana skeleton */}
-        <div className="flex-1 flex items-center justify-center bg-gradient-to-b from-[#F8FAFC] to-[#F1F5F9]">
+        {/* Ventana skeleton — solo desde md (en celular se ve solo la lista) */}
+        <div className="hidden flex-1 items-center justify-center bg-gradient-to-b from-[#F8FAFC] to-[#F1F5F9] md:flex">
           <div className="h-4 w-32 bg-[#F1F5F9] rounded animate-pulse" />
         </div>
       </div>
@@ -124,29 +124,74 @@ export function ChatPage({ initialUserId }: ChatPageProps) {
   }
 
   // ── Layout normal — hay conversaciones ──────────────────────────────────
+  // RESPONSIVE (patrón lista → detalle):
+  //  - Celular (< md): se ve la lista O la conversación, no las dos. Al elegir
+  //    una conversación aparece la ventana con un botón "Mensajes" para volver.
+  //    Antes, la lista (320px fijos) y la ventana iban lado a lado y en celular
+  //    la ventana quedaba fuera de pantalla.
+  //  - md en adelante: lista y ventana lado a lado, como antes.
+  //  - Panel de información: se abre como capa sobre el chat hasta xl (1280px).
+  //    Con el sidebar de 260px visible desde lg, lista (320) + panel (320)
+  //    dejaban a la ventana con ~120px.
   return (
-    <div className="flex min-h-0 w-full flex-1 overflow-hidden">
-      <ConversationList
-        conversations={conversations}
-        activeConversationId={activeConversation?.id ?? null}
-        onSelect={(conv) => {
-          setActiveConversation(conv);
-          setShowInfoPanel(false);
-        }}
-      />
-      <ChatWindow
-        conversation={activeConversation}
-        onConversationDeleted={() => {
-          setActiveConversation(null);
-          setShowInfoPanel(false);
-        }}
-        onToggleInfoPanel={() => setShowInfoPanel((v) => !v)}
-      />
-      {showInfoPanel && activeConversation && (
-        <ParticipantInfoPanel
-          conversation={activeConversation}
-          onClose={() => setShowInfoPanel(false)}
+    <div className="relative flex min-h-0 w-full flex-1 overflow-hidden">
+      <div
+        className={`min-h-0 w-full md:w-auto md:shrink-0 ${
+          activeConversation ? "hidden md:block" : "block"
+        }`}
+      >
+        <ConversationList
+          conversations={conversations}
+          activeConversationId={activeConversation?.id ?? null}
+          onSelect={(conv) => {
+            setActiveConversation(conv);
+            setShowInfoPanel(false);
+          }}
         />
+      </div>
+
+      <div
+        className={`min-w-0 flex-1 flex-col [&>:last-child]:min-h-0 ${
+          activeConversation ? "flex" : "hidden md:flex"
+        }`}
+      >
+        {/* Botón para volver a la lista — solo en celular */}
+        {activeConversation && (
+          <div className="flex shrink-0 items-center border-b border-[#E5E7EB] bg-white px-2 py-1.5 md:hidden">
+            <button
+              type="button"
+              onClick={() => {
+                setActiveConversation(null);
+                setShowInfoPanel(false);
+              }}
+              aria-label="Volver a mensajes"
+              className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm font-medium text-[#2563EB] transition-colors hover:bg-[#F8FAFC]"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Mensajes
+            </button>
+          </div>
+        )}
+        <ChatWindow
+          conversation={activeConversation}
+          onConversationDeleted={() => {
+            setActiveConversation(null);
+            setShowInfoPanel(false);
+          }}
+          onToggleInfoPanel={() => setShowInfoPanel((v) => !v)}
+        />
+      </div>
+
+      {showInfoPanel && activeConversation && (
+        // Capa a pantalla completa del área del chat hasta xl. El panel tiene
+        // w-[320px] fijo en su propio archivo; max-xl:[&>div]:!w-full lo estira
+        // mientras sea capa (ver nota en la respuesta).
+        <div className="absolute inset-0 z-10 flex bg-white max-xl:[&>div]:!w-full xl:static xl:z-auto xl:bg-transparent">
+          <ParticipantInfoPanel
+            conversation={activeConversation}
+            onClose={() => setShowInfoPanel(false)}
+          />
+        </div>
       )}
     </div>
   );

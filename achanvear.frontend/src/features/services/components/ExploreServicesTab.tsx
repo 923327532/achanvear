@@ -75,23 +75,26 @@ export function ExploreServicesTab() {
 
   return (
     <>
-      {/* Search + select */}
-      <div className="flex items-center gap-3 mb-4">
-        <div className="relative flex-1">
+      {/* Search + select
+          RESPONSIVE: buscador y selector en una fila: el buscador quedaba
+          reducido a un ícono. En celular se apilan, con el selector a ancho
+          completo. */}
+      <div className="flex flex-col gap-3 mb-4 sm:flex-row sm:items-center">
+        <div className="relative min-w-0 flex-1">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
             type="text"
             placeholder="Buscar servicios por nombre o descripción..."
             value={filters.search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0EA5A0]/30 focus:border-[#0EA5A0] bg-white transition-colors"
+            className="w-full min-w-0 pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0EA5A0]/30 focus:border-[#0EA5A0] bg-white transition-colors"
           />
         </div>
-        <div className="relative">
+        <div className="relative w-full sm:w-auto">
           <select
             value={filters.category}
             onChange={(e) => setCategory(e.target.value as ServiceCategory | "ALL")}
-            className="appearance-none pl-4 pr-9 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-[#0EA5A0]/30 focus:border-[#0EA5A0] cursor-pointer transition-colors"
+            className="w-full appearance-none pl-4 pr-9 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-[#0EA5A0]/30 focus:border-[#0EA5A0] cursor-pointer transition-colors sm:w-auto"
           >
             {ALL_CATEGORIES.map(({ value, label }) => (
               <option key={value} value={value}>{label}</option>
@@ -101,8 +104,11 @@ export function ExploreServicesTab() {
         </div>
       </div>
 
-      {/* Category pills */}
-      <div className="flex items-center gap-2 flex-wrap mb-4">
+      {/* Category pills
+          RESPONSIVE: las 11 píldoras envueltas ocupaban unos 300px de alto en
+          celular y repetían lo que ya hace el selector de arriba. Se muestran
+          desde sm; en celular la categoría se elige con el selector. */}
+      <div className="hidden items-center gap-2 flex-wrap mb-4 sm:flex">
         {ALL_CATEGORIES.map(({ value, label }) => (
           <button
             key={value}
@@ -118,13 +124,18 @@ export function ExploreServicesTab() {
         ))}
       </div>
 
-      {/* Count */}
+      {/* Count (antes decía "1 servicios disponibles") */}
       {!isLoading && (
-        <p className="text-sm text-gray-500 mb-4">{total} servicios disponibles</p>
+        <p className="text-sm text-gray-500 mb-4">
+          {total} {total === 1 ? "servicio disponible" : "servicios disponibles"}
+        </p>
       )}
 
-      {/* Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      {/* Grid
+          RESPONSIVE: antes pasaba a 3 columnas en lg (1024px). Con el sidebar
+          de 260px visible desde lg quedan ~700px, o sea ~220px por tarjeta y
+          los botones no cabían. Ahora 2 columnas en lg y 3 desde xl. */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 xl:grid-cols-3">
 
         {isLoading ? (
           Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} />)

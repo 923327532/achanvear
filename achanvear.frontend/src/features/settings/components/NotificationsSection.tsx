@@ -22,6 +22,8 @@ function Toggle({ enabled, onChange }: { enabled: boolean; onChange: (v: boolean
   return (
     <button
       onClick={() => onChange(!enabled)}
+      role="switch"
+      aria-checked={enabled}
       className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 ${enabled ? "bg-[#0EA5A0]" : "bg-gray-200"}`}
     >
       <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${enabled ? "translate-x-5" : "translate-x-0"}`} />
@@ -48,29 +50,31 @@ export function NotificationsSection() {
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-6">
+    // RESPONSIVE: p-4 en celular, p-6 desde sm
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-6 space-y-6">
       <h2 className="text-lg font-bold text-[#1B3A6B]">Notificaciones</h2>
 
       <div className="space-y-5">
         {prefs.map((pref) => (
           <div key={pref.id} className="flex items-start justify-between gap-4">
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-700">{pref.label}</p>
-              <p className="text-xs text-gray-400 mt-0.5">{pref.description}</p>
+              <p className="text-sm font-medium text-gray-700 break-words">{pref.label}</p>
+              <p className="text-xs text-gray-400 mt-0.5 break-words">{pref.description}</p>
             </div>
             <Toggle enabled={pref.enabled} onChange={(v) => toggle(pref.id, v)} />
           </div>
         ))}
       </div>
 
-      <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
+      {/* RESPONSIVE: botones apilados a ancho completo en celular (Guardar arriba), en fila a la derecha desde sm */}
+      <div className="flex flex-col-reverse gap-3 pt-4 border-t border-gray-100 sm:flex-row sm:items-center sm:justify-end">
         <button className="text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors">
           Cancelar
         </button>
         <button
           onClick={handleSave}
           disabled={isSaving}
-          className="flex items-center gap-2 text-sm font-semibold text-white bg-[#1B3A6B] px-5 py-2.5 rounded-xl hover:bg-[#0EA5A0] transition-colors disabled:opacity-50"
+          className="flex w-full sm:w-auto items-center justify-center gap-2 text-sm font-semibold text-white bg-[#1B3A6B] px-5 py-2.5 rounded-xl hover:bg-[#0EA5A0] transition-colors disabled:opacity-50"
         >
           {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : saved ? <Check className="w-4 h-4" /> : null}
           {saved ? "Guardado" : "Guardar Cambios"}

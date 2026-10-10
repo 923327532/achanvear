@@ -10,7 +10,9 @@ function Toggle({ enabled, onChange }: { enabled: boolean; onChange: (v: boolean
   return (
     <button
       onClick={() => onChange(!enabled)}
-      className={`relative w-11 h-6 rounded-full transition-colors ${enabled ? "bg-[#0EA5A0]" : "bg-gray-200"}`}
+      role="switch"
+      aria-checked={enabled}
+      className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 ${enabled ? "bg-[#0EA5A0]" : "bg-gray-200"}`}
     >
       <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${enabled ? "translate-x-5" : "translate-x-0"}`} />
     </button>
@@ -30,9 +32,10 @@ function PasswordInput({ label, value, onChange, show, onToggleShow, hint }: {
           value={value}
           onChange={(e) => onChange(e.target.value)}
           autoComplete="off"
-          className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-700 pr-10 outline-none focus:border-[#0EA5A0] focus:ring-1 focus:ring-[#0EA5A0]/20 transition [&::-ms-reveal]:hidden [&::-ms-clear]:hidden"
+          className="w-full min-w-0 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-700 pr-10 outline-none focus:border-[#0EA5A0] focus:ring-1 focus:ring-[#0EA5A0]/20 transition [&::-ms-reveal]:hidden [&::-ms-clear]:hidden"
         />
         <button type="button" onClick={onToggleShow}
+          aria-label={show ? "Ocultar contraseña" : "Mostrar contraseña"}
           className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition">
           {show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
         </button>
@@ -67,7 +70,8 @@ function PasswordStrength({ password }: { password: string }) {
       <p className={`text-xs font-medium ${passed < 2 ? "text-red-500" : passed < 4 ? "text-amber-500" : "text-emerald-600"}`}>
         {labels[passed - 1] ?? "Muy debil"}
       </p>
-      <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+      {/* RESPONSIVE: 1 columna en celular (los textos de los requisitos se partían en 2 columnas angostas) */}
+      <div className="grid grid-cols-1 gap-x-4 gap-y-1 sm:grid-cols-2">
         {checks.map(({ label, ok }) => (
           <div key={label} className="flex items-center gap-1.5">
             <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${ok ? "bg-emerald-500" : "bg-gray-300"}`} />
@@ -85,7 +89,8 @@ function QRCodeDisplay({ otpAuthUrl }: { otpAuthUrl: string }) {
 
   return (
     <div className="flex flex-col items-center gap-3 py-4">
-      <img src={qrUrl} alt="2FA QR Code" className="w-48 h-48 rounded-xl border border-gray-200" />
+      {/* RESPONSIVE: QR un poco más chico en celular */}
+      <img src={qrUrl} alt="2FA QR Code" className="w-40 h-40 sm:w-48 sm:h-48 rounded-xl border border-gray-200" />
       <p className="text-xs text-gray-500 text-center">
         Escanea este codigo con Google Authenticator o cualquier app TOTP
       </p>
@@ -217,15 +222,17 @@ export function SecuritySection() {
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-6">
+    // RESPONSIVE: p-4 en celular, p-6 desde sm
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-6 space-y-6">
       <h2 className="text-lg font-bold text-[#1B3A6B]">Seguridad y Autenticacion</h2>
 
       {/* ─── 2FA Section ─────────────────────────────────────────────────────── */}
       <div>
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <Smartphone className="w-5 h-5 text-gray-400" />
-            <div>
+        {/* RESPONSIVE: gap-3 y min-w-0; el interruptor no se encoge ni se sale */}
+        <div className="flex items-center justify-between gap-3 mb-4">
+          <div className="flex min-w-0 items-center gap-3">
+            <Smartphone className="w-5 h-5 flex-shrink-0 text-gray-400" />
+            <div className="min-w-0">
               <h3 className="text-sm font-semibold text-gray-700">Autenticacion de Dos Factores (2FA)</h3>
               <p className="text-xs text-gray-400">
                 {twoFAEnabled
@@ -235,7 +242,7 @@ export function SecuritySection() {
             </div>
           </div>
           {twoFALoading ? (
-            <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+            <Loader2 className="w-5 h-5 flex-shrink-0 animate-spin text-gray-400" />
           ) : (
             <Toggle enabled={twoFAEnabled} onChange={handleToggle2FA} />
           )}
@@ -245,7 +252,7 @@ export function SecuritySection() {
         {twoFAEnabled && verifySuccess && !twoFASetup && (
           <div className="flex items-center gap-2 rounded-lg bg-emerald-50 border border-emerald-100 px-4 py-3">
             <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-            <div>
+            <div className="min-w-0">
               <p className="text-sm font-medium text-emerald-700">2FA activada correctamente</p>
               <p className="text-xs text-emerald-600">Recuerda desactivarla desde aqui si ya no la necesitas</p>
             </div>
@@ -254,13 +261,13 @@ export function SecuritySection() {
 
         {/* QR Setup - solo cuando se activa por primera vez */}
         {twoFAEnabled && twoFASetup && !verifySuccess && (
-          <div className="space-y-4 p-4 bg-gray-50 rounded-xl border border-gray-100">
+          <div className="space-y-4 p-3 sm:p-4 bg-gray-50 rounded-xl border border-gray-100">
             <p className="text-sm font-medium text-gray-700">Paso 1: Escanea el codigo QR con Google Authenticator</p>
             <QRCodeDisplay otpAuthUrl={twoFASetup.otpAuthUrl} />
 
             <div className="text-center">
               <p className="text-xs text-gray-500 mb-1">O ingresa manualmente este codigo:</p>
-              <code className="text-sm font-mono bg-gray-200 px-3 py-1.5 rounded-lg break-all">
+              <code className="inline-block max-w-full text-sm font-mono bg-gray-200 px-3 py-1.5 rounded-lg break-all">
                 {twoFASetup.secret}
               </code>
             </div>
@@ -271,20 +278,21 @@ export function SecuritySection() {
               <label className="block text-xs text-gray-500 mb-1.5">
                 Ingresa el codigo que aparece en tu app de autenticacion
               </label>
-              <div className="flex gap-2">
+              {/* RESPONSIVE: campo y botón "Verificar" apilados en celular, en fila desde sm */}
+              <div className="flex flex-col gap-2 sm:flex-row">
                 <input
                   type="text"
                   maxLength={6}
                   value={verifyCode}
                   onChange={(e) => setVerifyCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
                   placeholder="000000"
-                  className="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-center text-gray-700 outline-none focus:border-[#0EA5A0] focus:ring-1 focus:ring-[#0EA5A0]/20 transition font-mono text-lg tracking-widest"
+                  className="min-w-0 flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-center text-gray-700 outline-none focus:border-[#0EA5A0] focus:ring-1 focus:ring-[#0EA5A0]/20 transition font-mono text-lg tracking-widest"
                   autoFocus
                 />
                 <button
                   onClick={handleVerify2FA}
                   disabled={verifyLoading || verifyCode.length !== 6}
-                  className="flex items-center gap-2 text-sm font-semibold text-white bg-[#1B3A6B] px-5 py-2.5 rounded-xl hover:bg-[#0EA5A0] transition-colors disabled:opacity-50"
+                  className="flex items-center justify-center gap-2 text-sm font-semibold text-white bg-[#1B3A6B] px-5 py-2.5 rounded-xl hover:bg-[#0EA5A0] transition-colors disabled:opacity-50"
                 >
                   {verifyLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
                   Verificar
@@ -296,7 +304,7 @@ export function SecuritySection() {
 
         {/* Mensaje de error */}
         {error && (
-          <div className="mt-3 rounded-lg bg-red-50 border border-red-100 px-4 py-3 text-xs text-red-600">
+          <div className="mt-3 rounded-lg bg-red-50 border border-red-100 px-4 py-3 text-xs text-red-600 break-words">
             {error}
           </div>
         )}
@@ -337,19 +345,21 @@ export function SecuritySection() {
         </div>
 
         {error && (
-          <div className="mt-3 rounded-lg bg-red-50 border border-red-100 px-4 py-3 text-xs text-red-600">
+          <div className="mt-3 rounded-lg bg-red-50 border border-red-100 px-4 py-3 text-xs text-red-600 break-words">
             {error}
           </div>
         )}
         {success && (
           <div className="mt-3 flex items-center gap-2 rounded-lg bg-emerald-50 border border-emerald-100 px-4 py-3 text-xs text-emerald-700">
-            <Check className="w-3.5 h-3.5" />
+            <Check className="w-3.5 h-3.5 flex-shrink-0" />
             Contrasena actualizada correctamente.
           </div>
         )}
 
       </div>
 
+      {/* Pie de tu compañero: "Actualizar Contrasena" pasó del bloque de contraseña al pie.
+          Ya es columna en celular (botones a ancho completo) y fila a la derecha desde sm. */}
       <div className="flex flex-col gap-3 pt-4 border-t border-gray-100 sm:flex-row sm:items-center sm:justify-end">
         <button
           onClick={handleChangePassword}

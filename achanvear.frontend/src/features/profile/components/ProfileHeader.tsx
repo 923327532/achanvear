@@ -31,6 +31,7 @@ export function ProfileHeader({ profile }: Props) {
   const profilePhotoUrl = toProfileImageUrl(profile.profilePhotoUrl);
   const bannerUrl = toProfileImageUrl(profile.bannerUrl);
 
+
   const handleSave = async () => {
     if (!profileId) return;
     await updateAsync({ profileId, payload: { biography } });
@@ -67,7 +68,8 @@ export function ProfileHeader({ profile }: Props) {
 
   return (
     <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 mb-5">
-      <div className="relative h-40 bg-gradient-to-r from-[#1B3A6B] to-[#0EA5A0] overflow-hidden">
+      {/* RESPONSIVE: banner más bajo en celular */}
+      <div className="relative h-28 sm:h-40 bg-gradient-to-r from-[#1B3A6B] to-[#0EA5A0] overflow-hidden">
         {bannerUrl && !bannerError && (
           <img
             src={bannerUrl}
@@ -77,11 +79,12 @@ export function ProfileHeader({ profile }: Props) {
           />
         )}
         <div className="absolute inset-0 bg-black/10" />
+        {/* RESPONSIVE: el botón se acerca a la esquina y es más compacto en celular */}
         <button
           type="button"
           onClick={() => bannerInputRef.current?.click()}
           disabled={isUploading || !profileId}
-          className="absolute right-4 top-4 inline-flex items-center gap-2 rounded-xl bg-white/90 px-3 py-2 text-xs font-semibold text-[#1B3A6B] shadow-sm hover:bg-white disabled:opacity-50"
+          className="absolute right-3 top-3 inline-flex items-center gap-2 rounded-xl bg-white/90 px-2.5 py-2 text-xs font-semibold text-[#1B3A6B] shadow-sm hover:bg-white disabled:opacity-50 sm:right-4 sm:top-4 sm:px-3"
         >
           {isUploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImageUp className="h-3.5 w-3.5" />}
           Cambiar banner
@@ -95,16 +98,19 @@ export function ProfileHeader({ profile }: Props) {
         />
       </div>
 
-      <div className="px-6 pb-6">
-        <div className="flex items-end justify-between -mt-12 mb-4">
-          <div className="relative">
-            <div className="w-24 h-24 rounded-full border-4 border-white shadow-md overflow-hidden bg-[#1B3A6B] flex items-center justify-center">
+      {/* RESPONSIVE: px-4 en celular, px-6 desde sm */}
+      <div className="px-4 pb-6 sm:px-6">
+        {/* RESPONSIVE: flex-wrap + gap para que "Editar perfil" y el modo edición (Cancelar/Guardar)
+            bajen de línea en vez de salirse de la tarjeta; avatar un poco más chico en celular */}
+        <div className="flex flex-wrap items-end justify-between gap-3 -mt-10 sm:-mt-12 mb-4">
+          <div className="relative flex-shrink-0">
+            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full border-4 border-white shadow-md overflow-hidden bg-[#1B3A6B] flex items-center justify-center">
               {profilePhotoUrl && !photoError ? (
                 <img
                   src={profilePhotoUrl}
                   alt="avatar"
-                  className="w-full h-full object-cover"
                   onError={() => setPhotoError(true)}
+                  className="w-full h-full object-cover"
                 />
               ) : (
                 <span className="text-2xl font-bold text-white">{initials}</span>
@@ -113,6 +119,7 @@ export function ProfileHeader({ profile }: Props) {
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={isUploading || !profileId}
+              aria-label="Cambiar foto de perfil"
               className="absolute bottom-0 right-0 w-7 h-7 bg-[#0EA5A0] rounded-full flex items-center justify-center border-2 border-white hover:bg-teal-600 transition-colors disabled:opacity-50"
             >
               {isUploading
@@ -126,18 +133,18 @@ export function ProfileHeader({ profile }: Props) {
             <button
               onClick={() => setIsEditing(true)}
               disabled={!profileId}
-              className="flex items-center gap-1.5 text-sm font-medium text-[#1B3A6B] border border-[#1B3A6B]/30 px-4 py-2 rounded-xl hover:bg-[#1B3A6B]/5 transition-colors disabled:opacity-40"
+              className="flex flex-shrink-0 items-center gap-1.5 whitespace-nowrap text-sm font-medium text-[#1B3A6B] border border-[#1B3A6B]/30 px-3 py-2 sm:px-4 rounded-xl hover:bg-[#1B3A6B]/5 transition-colors disabled:opacity-40"
             >
               <Pencil className="w-3.5 h-3.5" /> Editar perfil
             </button>
           ) : (
             <div className="flex items-center gap-2">
               <button onClick={handleCancel}
-                className="flex items-center gap-1.5 text-sm font-medium text-gray-500 border border-gray-200 px-4 py-2 rounded-xl hover:bg-gray-50 transition-colors">
+                className="flex items-center gap-1.5 whitespace-nowrap text-sm font-medium text-gray-500 border border-gray-200 px-3 py-2 sm:px-4 rounded-xl hover:bg-gray-50 transition-colors">
                 <X className="w-3.5 h-3.5" /> Cancelar
               </button>
               <button onClick={handleSave} disabled={isSaving}
-                className="flex items-center gap-1.5 text-sm font-semibold text-white bg-[#1B3A6B] px-4 py-2 rounded-xl hover:bg-[#0EA5A0] transition-colors disabled:opacity-50">
+                className="flex items-center gap-1.5 whitespace-nowrap text-sm font-semibold text-white bg-[#1B3A6B] px-3 py-2 sm:px-4 rounded-xl hover:bg-[#0EA5A0] transition-colors disabled:opacity-50">
                 {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
                 Guardar
               </button>
@@ -146,11 +153,12 @@ export function ProfileHeader({ profile }: Props) {
         </div>
 
         {/* Nombre */}
-        <h1 className="text-xl font-bold text-[#1B3A6B] mb-1">{displayName}</h1>
+        {/* RESPONSIVE: break-words por si el nombre trae una palabra muy larga */}
+        <h1 className="text-xl font-bold text-[#1B3A6B] mb-1 break-words">{displayName}</h1>
 
         {/* Specialty • Industry */}
         {(profile.specialty || profile.industry) && (
-          <p className="text-sm text-gray-500 mb-2">
+          <p className="text-sm text-gray-500 mb-2 break-words">
             {[profile.specialty, profile.industry].filter(Boolean).join(" • ")}
           </p>
         )}
@@ -158,7 +166,7 @@ export function ProfileHeader({ profile }: Props) {
         {/* Verificado */}
         <div className="flex items-center gap-2 mb-3">
           <span className="inline-flex items-center gap-1.5 text-xs font-medium text-[#0EA5A0] bg-teal-50 border border-teal-200 px-3 py-1 rounded-full">
-            <BadgeCheck className="w-3.5 h-3.5" />
+            <BadgeCheck className="w-3.5 h-3.5 flex-shrink-0" />
             Verificado por Achanvear
           </span>
         </div>
@@ -169,12 +177,12 @@ export function ProfileHeader({ profile }: Props) {
             value={biography}
             onChange={(e) => setBiography(e.target.value)}
             rows={3}
-            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#0EA5A0]/30 focus:border-[#0EA5A0] resize-none mb-3"
+            className="w-full min-w-0 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#0EA5A0]/30 focus:border-[#0EA5A0] resize-none mb-3"
             placeholder="Cuéntanos sobre ti..."
           />
         ) : (
           profile.biography && (
-            <p className="text-sm text-gray-600 leading-relaxed mb-4">{profile.biography}</p>
+            <p className="text-sm text-gray-600 leading-relaxed mb-4 break-words">{profile.biography}</p>
           )
         )}
 
@@ -227,26 +235,28 @@ export function ProfileHeader({ profile }: Props) {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-4 gap-4 pt-4 border-t border-gray-100 mt-4">
-          <div className="text-center">
+        {/* RESPONSIVE: 2 columnas en celular (antes 4 fijas y "Recomendación" / "Certificaciones" se montaban),
+            4 desde sm; min-w-0 + break-words en las etiquetas */}
+        <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-100 mt-4 sm:grid-cols-4">
+          <div className="min-w-0 text-center">
             <p className="text-xl font-bold text-amber-500">
               {averageStars > 0 ? averageStars.toFixed(1) : "—"}
             </p>
-            <p className="text-xs text-gray-400 mt-0.5">Calificación</p>
+            <p className="text-xs text-gray-400 mt-0.5 break-words">Calificación</p>
           </div>
-          <div className="text-center">
+          <div className="min-w-0 text-center">
             <p className="text-xl font-bold text-[#1B3A6B]">{totalRatings}</p>
-            <p className="text-xs text-gray-400 mt-0.5">Reseñas</p>
+            <p className="text-xs text-gray-400 mt-0.5 break-words">Reseñas</p>
           </div>
-          <div className="text-center">
+          <div className="min-w-0 text-center">
             <p className="text-xl font-bold text-[#0EA5A0]">
               {recommendPct > 0 ? `${recommendPct}%` : "—"}
             </p>
-            <p className="text-xs text-gray-400 mt-0.5">Recomendación</p>
+            <p className="text-xs text-gray-400 mt-0.5 break-words">Recomendación</p>
           </div>
-          <div className="text-center">
+          <div className="min-w-0 text-center">
             <p className="text-xl font-bold text-emerald-600">{certCount}</p>
-            <p className="text-xs text-gray-400 mt-0.5">Certificaciones</p>
+            <p className="text-xs text-gray-400 mt-0.5 break-words">Certificaciones</p>
           </div>
         </div>
       </div>

@@ -2,6 +2,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Plus } from "lucide-react";
 import { useCompanyDashboard } from "@/features/jobs/hooks/useCompanyDashboard";
 import { jobApi } from "@/features/jobs/api/jobApi";
@@ -53,13 +54,13 @@ export function CompanyDashboardHome() {
               Gestiona tus procesos de selección y vacantes activas
             </p>
           </div>
-          <a
+          <Link
             href="/company/jobs/create"
             className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#1e3a8a] px-5 py-2.5 font-semibold text-white shadow-sm transition-all hover:bg-[#162f58] sm:w-auto"
           >
             <Plus className="w-5 h-5" />
             Publicar nuevo empleo
-          </a>
+          </Link>
         </div>
 
         {statsError && (
@@ -85,15 +86,21 @@ export function CompanyDashboardHome() {
           </div>
         )}
 
-        {/* Sección Publicaciones */}
+        {/* Sección Publicaciones
+            RESPONSIVE: el padding horizontal pasa de 24px fijos a 16px en
+            celular. A 306px de ancho, 24px por lado dejaban solo ~226px útiles
+            para el contenido. */}
         <section className="bg-white rounded-2xl border border-slate-200 shadow-sm">
-          <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-slate-100">
+          <div className="flex items-center justify-between gap-3 px-4 sm:px-6 pt-6 pb-4 border-b border-slate-100">
             <h2 className="text-lg font-bold text-slate-900">Mis publicaciones activas</h2>
-            <a href="/company/jobs" className="text-sm font-medium text-[#1e3a8a] hover:text-[#162f58] transition-colors">
+            <Link
+              href="/company/jobs"
+              className="shrink-0 text-sm font-medium text-[#1e3a8a] hover:text-[#162f58] transition-colors"
+            >
               Ver todas
-            </a>
+            </Link>
           </div>
-          <div className="px-6 pb-6 pt-2">
+          <div className="px-4 sm:px-6 pb-6 pt-4">
             <JobsManagementTable
               jobs={dashboard?.recentJobs ?? []}
               actionLoading={actionLoading}

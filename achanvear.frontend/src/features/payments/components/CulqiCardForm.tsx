@@ -201,9 +201,9 @@ export function CulqiCardForm({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-start gap-2 bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-3">
+      <div className="flex items-start gap-2 bg-emerald-50 border border-emerald-100 rounded-xl px-3 py-3 sm:px-4">
         <Shield className="w-4 h-4 text-emerald-600 mt-0.5 flex-shrink-0" />
-        <div>
+        <div className="min-w-0">
           <p className="text-xs font-semibold text-emerald-800">Tokenizacion segura con Culqi</p>
           <p className="text-xs text-emerald-700 mt-0.5">
             Los datos de tu tarjeta se ingresan directamente en la pasarela de Culqi. Achanvear
@@ -221,7 +221,7 @@ export function CulqiCardForm({
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="facturacion@empresa.com"
-          className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 outline-none focus:border-[#0EA5A0]"
+          className="w-full min-w-0 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 outline-none focus:border-[#0EA5A0]"
         />
       </div>
 
@@ -233,7 +233,7 @@ export function CulqiCardForm({
           value={cardholderName}
           onChange={(e) => setCardholderName(e.target.value)}
           placeholder="Nombre como aparece en la tarjeta"
-          className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 outline-none focus:border-[#0EA5A0]"
+          className="w-full min-w-0 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 outline-none focus:border-[#0EA5A0]"
         />
       </div>
 
@@ -241,8 +241,11 @@ export function CulqiCardForm({
         <label className="block text-xs font-semibold text-gray-700 mb-1.5">
           Telefono (opcional)
         </label>
+        {/* RESPONSIVE: el input con flex-1 pero sin min-w-0 no se encogía (un
+            input tiene un ancho mínimo propio) y se salía del modal. El
+            prefijo +51 no debe encogerse. */}
         <div className="flex gap-2">
-          <span className="flex items-center px-3 border border-gray-200 rounded-xl text-sm text-gray-600 bg-gray-50">
+          <span className="flex shrink-0 items-center px-3 border border-gray-200 rounded-xl text-sm text-gray-600 bg-gray-50">
             +51
           </span>
           <input
@@ -250,32 +253,35 @@ export function CulqiCardForm({
             onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, "").slice(0, 9))}
             placeholder="987 654 321"
             maxLength={9}
-            className="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 outline-none focus:border-[#0EA5A0]"
+            className="min-w-0 flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800 outline-none focus:border-[#0EA5A0]"
           />
         </div>
       </div>
 
       {error && (
-        <div className="flex items-start gap-2 bg-red-50 border border-red-100 rounded-xl px-4 py-3">
+        <div className="flex items-start gap-2 bg-red-50 border border-red-100 rounded-xl px-3 py-3 sm:px-4">
           <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
-          <p className="text-xs text-red-600">{error}</p>
+          <p className="min-w-0 break-words text-xs text-red-600">{error}</p>
         </div>
       )}
 
+      {/* RESPONSIVE: el texto "Agregar tarjeta con Culqi" tocaba el borde del
+          botón a ~280px. Menos padding lateral, ícono que no se encoge y
+          texto que puede pasar a una segunda línea si no cabe. */}
       <button
         type="button"
         onClick={handleOpenCulqi}
         disabled={!isSdkReady || isLoading}
-        className="w-full flex items-center justify-center gap-2 text-sm font-semibold text-white bg-[#1B3A6B] rounded-xl py-3 hover:bg-[#0EA5A0] transition-colors disabled:opacity-50"
+        className="w-full flex items-center justify-center gap-2 px-3 text-center text-sm font-semibold leading-snug text-white bg-[#1B3A6B] rounded-xl py-3 hover:bg-[#0EA5A0] transition-colors disabled:opacity-50"
       >
         {isLoading ? (
           <>
-            <Loader2 className="w-4 h-4 animate-spin" />
+            <Loader2 className="w-4 h-4 shrink-0 animate-spin" />
             {submitLabel ?? (mode === "charge" ? "Procesando pago..." : "Guardando tarjeta...")}
           </>
         ) : (
           <>
-            <CreditCard className="w-4 h-4" />
+            <CreditCard className="w-4 h-4 shrink-0" />
             {isSdkReady
               ? buttonLabel ?? (mode === "charge" ? "Pagar con Culqi" : "Agregar tarjeta con Culqi")
               : "Cargando Culqi..."}
