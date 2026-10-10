@@ -99,10 +99,13 @@ export function PracticalVoiceInterviewRoom({
   const [showMeetPanel, setShowMeetPanel] = useState(true);
   const [createDialog, setCreateDialog] = useState<"file" | "folder" | null>(null);
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
+  const [explorerWidth, setExplorerWidth] = useState(286);
+  const [folderContextMenu, setFolderContextMenu] = useState<{ x: number; y: number; path: string } | null>(null);
   const [meetPanelPosition, setMeetPanelPosition] = useState({ x: 16, y: 16 });
   const [securityEvents, setSecurityEvents] = useState<Array<{ type: string; detail: string; at: string }>>([]);
   const [screenExitCount, setScreenExitCount] = useState(0);
   const dragStateRef = useRef<{ startX: number; startY: number; originX: number; originY: number } | null>(null);
+  const explorerResizeRef = useRef<{ startX: number; originWidth: number } | null>(null);
   const timerWarningsRef = useRef({ ten: false, five: false });
 
   const workspaceState = useMemo(
@@ -963,6 +966,24 @@ export function PracticalVoiceInterviewRoom({
     }
   }
 
+  function startExplorerResize(event: PointerEvent<HTMLDivElement>) {
+    explorerResizeRef.current = { startX: event.clientX, originWidth: explorerWidth };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+
+  function moveExplorerResize(event: PointerEvent<HTMLDivElement>) {
+    const resize = explorerResizeRef.current;
+    if (!resize) return;
+    setExplorerWidth(Math.min(460, Math.max(220, resize.originWidth + event.clientX - resize.startX)));
+  }
+
+  function stopExplorerResize(event: PointerEvent<HTMLDivElement>) {
+    explorerResizeRef.current = null;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+  }
+
   async function runCode() {
     try {
       setCodeOutput("Ejecutando en runner multi-lenguaje...");
@@ -1164,6 +1185,42 @@ export function PracticalVoiceInterviewRoom({
           </div>
         </div>
       )}
+      {folderContextMenu && (
+        <div
+          className="absolute z-50 w-48 overflow-hidden rounded-lg border border-white/10 bg-[#252526]/95 py-1 text-xs text-slate-200 shadow-2xl"
+          style={{ left: folderContextMenu.x, top: folderContextMenu.y }}
+        >
+          <button
+            className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-white/10"
+            onClick={() => {
+              setSelectedFolderPath(folderContextMenu.path);
+              setCreateDialog("file");
+              setFolderContextMenu(null);
+            }}
+          >
+            <FilePlus2 className="h-3.5 w-3.5 text-emerald-300" /> Nuevo archivo
+          </button>
+          <button
+            className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-white/10"
+            onClick={() => {
+              setSelectedFolderPath(folderContextMenu.path);
+              setCreateDialog("folder");
+              setFolderContextMenu(null);
+            }}
+          >
+            <FolderPlus className="h-3.5 w-3.5 text-sky-300" /> Nueva carpeta
+          </button>
+          <button
+            className="flex w-full items-center gap-2 px-3 py-2 text-left text-red-100 hover:bg-red-400/15"
+            onClick={() => {
+              removeFolder(folderContextMenu.path);
+              setFolderContextMenu(null);
+            }}
+          >
+            <X className="h-3.5 w-3.5" /> Eliminar carpeta
+          </button>
+        </div>
+      )}
       <div className="flex h-full flex-col">
         <header className="flex min-h-[44px] items-center justify-end gap-1.5 border-b border-white/10 px-3 py-1.5">
           <div className="hidden">
@@ -1264,7 +1321,7 @@ export function PracticalVoiceInterviewRoom({
           </div>
         </header>
 
-        <main className="relative grid min-h-0 flex-1 grid-cols-1 gap-0">
+        <main className="relative grid min-h-0 flex-1 grid-cols-1 gap-0" onClick={() => setFolderContextMenu(null)}>
           {showMeetPanel ? (
             <div
               className="absolute z-20 w-[300px] overflow-hidden rounded-2xl border border-white/10 bg-slate-950/95 shadow-2xl backdrop-blur"
@@ -1332,8 +1389,11 @@ export function PracticalVoiceInterviewRoom({
           ) : null}
           <section className="min-h-0 bg-[#101826]">
             {isCoding ? (
-              <div className="grid h-full min-h-0 grid-cols-[286px_minmax(0,1fr)]">
-                  <aside className="min-h-0 border-r border-white/10 bg-[#181818]">
+              <div
+                className="grid h-full min-h-0"
+                style={{ gridTemplateColumns: `${explorerWidth}px 4px minmax(0, 1fr)` }}
+              >
+                  <aside className="min-h-0 overflow-hidden bg-[#181818]">
                     <div className="border-b border-white/10 px-2.5 py-1.5">
                       <div className="flex items-center justify-between gap-2">
                         <div className="min-w-0">
@@ -1376,8 +1436,8 @@ export function PracticalVoiceInterviewRoom({
                         </div>
                       </div>
                     </div>
-                    <div className="overflow-y-auto px-2 py-1">
-                      <div className="mb-1 flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-semibold text-slate-200">
+                    <div className="h-[calc(100%-45px)] overflow-auto px-2 py-1">
+                      <div className="mb-1 flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-semibold text-slate-200">
                         <ChevronRight className="h-3.5 w-3.5 text-slate-500" />
                         <Folder className="h-4 w-4 text-sky-300" />
                         proyecto-entrevista
@@ -1390,7 +1450,14 @@ export function PracticalVoiceInterviewRoom({
                           <button
                             key={`${item.type}:${item.path}`}
                             onClick={() => item.type === "file" ? selectFile(item.path) : setSelectedFolderPath(item.path)}
-                            className={`group relative flex w-full items-center justify-between gap-2 rounded-sm py-1 pr-1.5 text-left text-[12px] ${
+                            onContextMenu={(event) => {
+                              if (item.type !== "folder") return;
+                              event.preventDefault();
+                              event.stopPropagation();
+                              setSelectedFolderPath(item.path);
+                              setFolderContextMenu({ x: event.clientX, y: event.clientY, path: item.path });
+                            }}
+                            className={`group relative flex w-full items-center justify-between gap-2 rounded-sm py-0.5 pr-1.5 text-left text-[11px] ${
                               isActive
                                 ? "bg-[#37373d] text-white"
                                 : item.type === "folder" && selectedFolderPath === item.path
@@ -1412,10 +1479,10 @@ export function PracticalVoiceInterviewRoom({
                               {item.type === "folder" ? (
                                 <>
                                   <ChevronRight className="h-3 w-3 rotate-90 text-slate-500" />
-                                  <Folder className="h-3.5 w-3.5 text-sky-400" />
+                                  <Folder className="h-3 w-3 text-sky-400" />
                                 </>
                               ) : (
-                                <FileCode2 className={`h-3.5 w-3.5 shrink-0 ${extStyle?.icon}`} />
+                                <FileCode2 className={`h-3 w-3 shrink-0 ${extStyle?.icon}`} />
                               )}
                               <span className={`truncate ${item.type === "folder" ? "font-semibold" : ""}`}>{item.name}</span>
                               {item.type === "file" && extStyle && (
@@ -1497,6 +1564,13 @@ export function PracticalVoiceInterviewRoom({
                       </div>
                     </div>
                   </aside>
+                  <div
+                    className="cursor-col-resize border-r border-white/10 bg-[#202020] hover:bg-emerald-400/40"
+                    onPointerDown={startExplorerResize}
+                    onPointerMove={moveExplorerResize}
+                    onPointerUp={stopExplorerResize}
+                    onPointerCancel={stopExplorerResize}
+                  />
                   <div className="flex min-h-0 flex-col">
                     {showCase && (
                       <div className="border-b border-white/10 bg-slate-900/80 px-4 py-3">
