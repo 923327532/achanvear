@@ -43,7 +43,8 @@ export function JobList() {
             className="fixed inset-0 z-30 bg-black/20 lg:hidden"
             onClick={() => setShowFilters(false)}
           />
-          <div className="fixed left-0 top-0 z-40 h-full w-64 shadow-xl lg:relative lg:z-auto lg:shadow-none lg:w-56 lg:flex-shrink-0 lg:border-r lg:border-slate-200">
+          {/* RESPONSIVE: max-w-[85vw] evita que el panel ocupe todo el ancho en pantallas muy angostas */}
+          <div className="fixed left-0 top-0 z-40 h-full w-64 max-w-[85vw] shadow-xl lg:relative lg:z-auto lg:shadow-none lg:w-56 lg:max-w-none lg:flex-shrink-0 lg:border-r lg:border-slate-200">
             <JobFilters onClose={() => setShowFilters(false)} />
           </div>
         </>
@@ -52,15 +53,16 @@ export function JobList() {
       {/* Contenido principal */}
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4">
-          <div>
-            <h1 className="text-xl font-semibold text-slate-900">Explorar Empleos</h1>
+        {/* RESPONSIVE: px-4 en celular, px-6 desde sm; gap-3 y título más chico en celular; el botón Filtros no se encoge */}
+        <div className="flex items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-4 sm:px-6">
+          <div className="min-w-0">
+            <h1 className="text-lg font-semibold text-slate-900 sm:text-xl">Explorar Empleos</h1>
             <p className="mt-1 text-xs text-slate-500">Mostrando empleos activos disponibles</p>
           </div>
           <button
             type="button"
             onClick={() => setShowFilters(!showFilters)}
-            className={`flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-semibold transition-colors ${
+            className={`flex flex-shrink-0 items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold transition-colors sm:px-4 ${
               showFilters
                 ? "border-[#1B3A6B] bg-blue-50 text-[#1B3A6B]"
                 : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
@@ -72,15 +74,16 @@ export function JobList() {
         </div>
 
         {/* Search bar */}
-        <div className="border-b border-slate-100 bg-white px-6 py-3">
+        <div className="border-b border-slate-100 bg-white px-4 py-3 sm:px-6">
           <div className="flex max-w-md items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
             <Search className="h-4 w-4 flex-shrink-0 text-slate-400" strokeWidth={1.5} />
+            {/* RESPONSIVE: min-w-0 para que el input se pueda encoger */}
             <input
               type="text"
               value={filters.search}
               onChange={(e) => setFilter("search", e.target.value)}
               placeholder="Buscar por título, empresa o habilidad..."
-              className="flex-1 bg-transparent text-sm text-slate-700 placeholder-slate-400 outline-none"
+              className="min-w-0 flex-1 bg-transparent text-sm text-slate-700 placeholder-slate-400 outline-none"
             />
           </div>
         </div>
@@ -109,7 +112,8 @@ export function JobList() {
               <p className="text-xs font-medium text-slate-500">
                 {jobs.length} de {totalItems} empleos activos disponibles
               </p>
-              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+              {/* RESPONSIVE: 2 columnas solo desde xl (el sidebar deja ~700px a 1024px, y con el panel de filtros abierto aún menos) */}
+              <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
                 {jobs.map((job) => (
                   <JobCard
                     key={job.id}

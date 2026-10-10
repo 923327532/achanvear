@@ -21,7 +21,10 @@ export function ConversationList({ conversations, activeConversationId, onSelect
   );
 
   return (
-    <div className="flex flex-col h-full border-r border-[#E5E7EB] bg-white w-[320px] flex-shrink-0">
+    // RESPONSIVE: el ancho era w-[320px] fijo: a ~284px de pantalla la lista
+    // se salía por la derecha (nombre, etiqueta y hora cortados). En celular
+    // ocupa todo el ancho; desde md vuelve a los 320px de siempre.
+    <div className="flex h-full w-full min-w-0 flex-col border-r border-[#E5E7EB] bg-white md:w-[320px] md:flex-shrink-0">
       {/* Header */}
       <div className="px-4 py-4 border-b border-[#E5E7EB]">
         <h2 className="text-base font-bold text-[#0F172A] mb-3">Mensajes</h2>
@@ -32,7 +35,7 @@ export function ConversationList({ conversations, activeConversationId, onSelect
             placeholder="Buscar conversaciones..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="flex-1 bg-transparent text-xs text-[#0F172A] placeholder:text-[#64748B] outline-none"
+            className="min-w-0 flex-1 bg-transparent text-xs text-[#0F172A] placeholder:text-[#64748B] outline-none"
           />
         </div>
       </div>

@@ -44,21 +44,24 @@ function PayoutCard({
   const theme = getCardTheme(method);
 
   return (
-    <div className="relative">
-      <div className={`relative aspect-[1.586/1] overflow-hidden rounded-xl bg-gradient-to-br ${theme.bg} p-4 text-white shadow-lg shadow-slate-200`}>
+    <div className="relative min-w-0">
+      {/* RESPONSIVE: min-h-[11.5rem]. Con overflow-hidden la proporción 1.586:1 no deja crecer la tarjeta,
+          y a 284px (~147px de alto) el contenido se recortaba. */}
+      <div className={`relative min-h-[11.5rem] aspect-[1.586/1] overflow-hidden rounded-xl bg-gradient-to-br ${theme.bg} p-4 text-white shadow-lg shadow-slate-200`}>
         <div className="absolute inset-0 opacity-20">
           <div className="absolute left-1/2 top-0 h-full w-1/2 bg-white/20" />
           <div className="absolute bottom-0 left-0 h-1/3 w-full bg-black/15" />
           <div className="absolute right-8 top-8 h-24 w-24 rounded-full bg-white/10 blur-xl" />
         </div>
         <div className="relative flex h-full flex-col justify-between">
-          <div className="flex items-start justify-between gap-3">
-            <div>
+          {/* RESPONSIVE: pr-10 para que "Principal" no quede debajo del botón de tres puntos */}
+          <div className="flex items-start justify-between gap-3 pr-10">
+            <div className="min-w-0">
               <p className="text-sm font-semibold tracking-wide">Tarjeta de retiro</p>
-              <p className="mt-1 text-xs text-white/75">{method.provider || "Izipay Dispersion"}</p>
+              <p className="mt-1 truncate text-xs text-white/75">{method.provider || "Izipay Dispersion"}</p>
             </div>
             {method.isDefault && (
-              <span className="rounded-full bg-white/18 px-2.5 py-1 text-[11px] font-medium backdrop-blur">
+              <span className="flex-shrink-0 rounded-full bg-white/18 px-2.5 py-1 text-[11px] font-medium backdrop-blur">
                 Principal
               </span>
             )}
@@ -73,7 +76,9 @@ function PayoutCard({
                 <span className="rounded-sm bg-slate-300/80" />
               </div>
             </div>
-            <p className="font-mono text-sm tracking-[0.12em] text-white drop-shadow-sm">
+            {/* RESPONSIVE: más chico y con menos espaciado de letras en celular; a 284px el número
+                completo (22 caracteres) no cabía en el ancho de la tarjeta */}
+            <p className="whitespace-nowrap font-mono text-xs tracking-[0.08em] text-white drop-shadow-sm sm:text-sm sm:tracking-[0.12em]">
               4000  1234  5678  {method.lastFourDigits || "****"}
             </p>
           </div>
@@ -85,7 +90,7 @@ function PayoutCard({
                 {method.accountHolderName || "Profesional"}
               </p>
             </div>
-            <p className="text-xl font-black italic tracking-tight">{theme.brand}</p>
+            <p className="flex-shrink-0 text-xl font-black italic tracking-tight">{theme.brand}</p>
           </div>
         </div>
       </div>
@@ -93,6 +98,7 @@ function PayoutCard({
       <div className="absolute right-3 top-3">
         <button
           onClick={onToggleMenu}
+          aria-label="Opciones de la tarjeta"
           className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/15 text-white transition hover:bg-white/25"
         >
           <MoreHorizontal className="h-4 w-4" />
@@ -157,15 +163,16 @@ export function FinancesSection({ profile }: Props) {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      {/* RESPONSIVE: p-4 en celular, p-6 desde sm (en las 4 tarjetas de sección) */}
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-          <div>
+          <div className="min-w-0">
             <h2 className="text-lg font-bold text-[#1B3A6B]">Finanzas y Pagos</h2>
             <p className="mt-1 text-sm text-slate-500">
               Configura moneda, tarjetas de retiro y revisa la comision de la plataforma.
             </p>
           </div>
-          <div className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700">
+          <div className="inline-flex flex-shrink-0 items-center gap-2 self-start rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700">
             <ShieldCheck className="h-3.5 w-3.5" />
             Escrow con comision 5%
           </div>
@@ -173,9 +180,9 @@ export function FinancesSection({ profile }: Props) {
       </div>
 
       {/* Moneda preferida */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
         <label className="block text-sm font-semibold text-gray-700 mb-3">Moneda Preferida</label>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           {(["PEN", "USD"] as PreferredCurrency[]).map((c) => (
             <button
               key={c}
@@ -193,9 +200,10 @@ export function FinancesSection({ profile }: Props) {
       </div>
 
       {/* Método de retiro */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="flex items-start justify-between mb-3">
-          <div>
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
+        {/* RESPONSIVE: flex-wrap; el botón "Agregar tarjeta" baja de línea en vez de comprimir el texto */}
+        <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
+          <div className="min-w-0">
             <label className="block text-sm font-semibold text-gray-700">Método de retiro</label>
             <p className="text-xs text-gray-400 mt-0.5">
               Configura la tarjeta donde recibirás tus ganancias cuando solicites un retiro.
@@ -203,7 +211,7 @@ export function FinancesSection({ profile }: Props) {
           </div>
           <button
             onClick={() => setMethodModalOpen(true)}
-            className="flex items-center gap-1.5 text-xs font-semibold text-white bg-[#1B3A6B] px-3.5 py-2 rounded-xl hover:bg-[#0EA5A0] transition-colors whitespace-nowrap"
+            className="flex flex-shrink-0 items-center gap-1.5 text-xs font-semibold text-white bg-[#1B3A6B] px-3.5 py-2 rounded-xl hover:bg-[#0EA5A0] transition-colors whitespace-nowrap"
           >
             <Plus className="w-3.5 h-3.5" />
             Agregar tarjeta
@@ -223,7 +231,9 @@ export function FinancesSection({ profile }: Props) {
             </p>
           </div>
         ) : (
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          // RESPONSIVE: con el menú lateral de Configuración al lado (desde lg) el contenido mide ~450px, así que
+          // las tarjetas pasan a 2 columnas solo desde xl y a 3 desde 2xl. Entre md y lg (pantalla completa) siguen en 2.
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3">
             {methods.map((m) => (
               <PayoutCard
                 key={m.id}
@@ -239,12 +249,14 @@ export function FinancesSection({ profile }: Props) {
       </div>
 
       {/* Historial de comisiones */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
         <label className="block text-sm font-semibold text-gray-700 mb-3">
           Historial de Comisiones (5%)
         </label>
-        <div className="rounded-xl border border-gray-100 overflow-hidden">
-          <table className="w-full text-sm">
+        {/* RESPONSIVE: la tabla se muestra SIEMPRE con sus 5 columnas. En pantallas angostas se desplaza
+            horizontalmente dentro de su recuadro (min-w-[560px]) en vez de recortarse (antes overflow-hidden). */}
+        <div className="rounded-xl border border-gray-100 overflow-x-auto">
+          <table className="w-full min-w-[560px] text-sm">
             <thead className="bg-gray-50">
               <tr>
                 <th className="text-left text-xs font-semibold text-gray-500 px-4 py-3">Fecha</th>
@@ -282,14 +294,15 @@ export function FinancesSection({ profile }: Props) {
       </div>
 
       {/* Footer */}
-      <div className="flex items-center justify-end gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      {/* RESPONSIVE: botones apilados a ancho completo en celular (Guardar arriba), en fila a la derecha desde sm */}
+      <div className="flex flex-col-reverse gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-end">
         <button className="text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors">
           Cancelar
         </button>
         <button
           onClick={handleSave}
           disabled={isSaving}
-          className="flex items-center gap-2 text-sm font-semibold text-white bg-[#1B3A6B] px-5 py-2.5 rounded-xl hover:bg-[#0EA5A0] transition-colors disabled:opacity-50"
+          className="flex w-full sm:w-auto items-center justify-center gap-2 text-sm font-semibold text-white bg-[#1B3A6B] px-5 py-2.5 rounded-xl hover:bg-[#0EA5A0] transition-colors disabled:opacity-50"
         >
           {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : saved ? <Check className="w-4 h-4" /> : null}
           {saved ? "Guardado" : "Guardar Cambios"}

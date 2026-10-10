@@ -49,7 +49,8 @@ export function JobCard({ job, onApply, onViewDetail }: JobCardProps) {
 
 
   return (
-    <div className="flex flex-col rounded-xl border border-slate-200 bg-white p-5 transition-shadow hover:shadow-sm">
+    // RESPONSIVE: p-4 en celular, p-5 desde sm; min-w-0 para que la tarjeta no desborde la columna de la grilla
+    <div className="flex min-w-0 flex-col rounded-xl border border-slate-200 bg-white p-4 transition-shadow hover:shadow-sm sm:p-5">
       {/* Header — empresa */}
       <div className="mb-3 flex items-start gap-3">
         {companyLogoUrl && !logoFailed ? (
@@ -65,14 +66,19 @@ export function JobCard({ job, onApply, onViewDetail }: JobCardProps) {
           </div>
         )}
         <div className="min-w-0">
-          <h3 className="truncate text-sm font-semibold text-slate-900">{job.title}</h3>
-          <div className="flex items-center gap-1.5 text-xs text-slate-500">
-            <span className="truncate">{companyName}</span>
+          {/* RESPONSIVE: el título puede ocupar hasta 2 líneas en vez de cortarse con "…" */}
+          <h3 className="line-clamp-2 break-words text-sm font-semibold text-slate-900">{job.title}</h3>
+          {/* RESPONSIVE: flex-wrap; la ubicación baja a otra línea en vez de cortar empresa y ubicación a la vez
+              ("ALPESA GLOBAL P… • Re…" en la captura a 284px) */}
+          <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-slate-500">
+            <span className="break-words">{companyName}</span>
             {job.location && (
               <>
                 <span>•</span>
-                <MapPin className="h-3 w-3 flex-shrink-0" />
-                <span className="truncate">{job.location}</span>
+                <span className="inline-flex min-w-0 items-center gap-1">
+                  <MapPin className="h-3 w-3 flex-shrink-0" />
+                  <span className="break-words">{job.location}</span>
+                </span>
               </>
             )}
           </div>
@@ -113,35 +119,37 @@ export function JobCard({ job, onApply, onViewDetail }: JobCardProps) {
       )}
 
       {/* Footer — salario + acciones */}
-      <div className="mt-auto flex items-center justify-between pt-2">
-        <div>
+      {/* RESPONSIVE: flex-wrap + gap; en celular las acciones bajan a una segunda fila alineada a la derecha
+          (antes "Ver detalles" se partía en 2 líneas y "Postular" quedaba apretado contra el salario) */}
+      <div className="mt-auto flex flex-wrap items-center justify-between gap-x-3 gap-y-2 pt-2">
+        <div className="min-w-0">
           {salary && (
-            <p className="text-sm font-bold text-[#0EA5A0]">{salary}</p>
+            <p className="text-sm font-bold text-[#0EA5A0] break-words">{salary}</p>
           )}
           {job.createdAt && (
             <div className="flex items-center gap-1 text-xs text-slate-400 mt-0.5">
-              <Clock className="h-3 w-3" />
+              <Clock className="h-3 w-3 flex-shrink-0" />
               <span>{formatTimeAgo(job.createdAt)}</span>
             </div>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="ml-auto flex flex-shrink-0 items-center gap-2">
           <button
             type="button"
             onClick={() => onViewDetail(job)}
-            className="text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors"
+            className="whitespace-nowrap text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors"
           >
             Ver detalles
           </button>
           {hasApplied ? (
-            <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-600 border border-emerald-200">
+            <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-lg bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-600 border border-emerald-200">
               <CheckCircle2 className="w-3 h-3" /> Ya postulaste
             </span>
           ) : (
             <button
               type="button"
               onClick={() => onApply(job)}
-              className="rounded-lg bg-[#1B3A6B] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#162f58] transition-colors"
+              className="whitespace-nowrap rounded-lg bg-[#1B3A6B] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#162f58] transition-colors"
             >
               Postular
             </button>

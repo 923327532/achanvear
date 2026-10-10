@@ -18,15 +18,17 @@ const PIPELINE_STEPS = [
 ];
 
 export function HiringPipeline({ data }: { data: PipelineData }) {
+  // RESPONSIVE: ya era 2 columnas en celular. Solo se reduce el padding hasta
+  // sm para que el contenido respire mejor a ~280px.
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
       {PIPELINE_STEPS.map((step) => {
         const Icon = step.icon;
         const value = data[step.key];
         return (
           <div
             key={step.key}
-            className="bg-white rounded-xl border border-slate-200 p-5 text-center shadow-sm hover:shadow-md transition-shadow"
+            className="min-w-0 bg-white rounded-xl border border-slate-200 p-4 sm:p-5 text-center shadow-sm hover:shadow-md transition-shadow"
           >
             <div className="flex items-center justify-center h-10 w-10 rounded-lg bg-slate-100 mx-auto mb-3">
               <Icon className="w-5 h-5 text-slate-500" strokeWidth={1.5} />

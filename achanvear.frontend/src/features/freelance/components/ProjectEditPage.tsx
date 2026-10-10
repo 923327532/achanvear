@@ -235,10 +235,17 @@ export function ProjectEditPage() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl p-4 sm:p-6 lg:p-8">
+    // RESPONSIVE (causa raíz del desborde): este contenedor es hijo directo del
+    // <main> del layout, que es una columna flex. Con mx-auto SIN un ancho
+    // definido, un hijo de flex no se estira: toma el ancho de su contenido.
+    // En los pasos con algo que no se encoge (el input de habilidades, por
+    // ejemplo) el contenedor entero crecía más que la pantalla y la tarjeta
+    // quedaba cortada. w-full fija el ancho al del <main>; en el paso 4, que no
+    // tiene ese elemento, no se notaba.
+    <div className="mx-auto w-full max-w-4xl p-4 sm:p-6 lg:p-8">
       {/* ── Header ─────────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between mb-8">
-        <div>
+        <div className="min-w-0">
           <button
             onClick={() => router.push(`/company/projects/${projectId}`)}
             className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 mb-2 transition"
@@ -253,12 +260,14 @@ export function ProjectEditPage() {
         </div>
       </div>
 
-      {/* ── Steps Progress ─────────────────────────────────────────────── */}
-      <div className="flex items-center gap-2 mb-8">
+      {/* ── Steps Progress ─────────────────────────────────────────────────
+          RESPONSIVE: con px-4 por paso, los 4 indicadores no cabían en celular
+          y el cuarto (el ojo) se cortaba. Menos padding y gap hasta sm. */}
+      <div className="flex items-center gap-1 mb-8 sm:gap-2">
         {STEPS.map((step, index) => (
-          <div key={step.id} className="flex items-center gap-2 flex-1">
+          <div key={step.id} className="flex min-w-0 flex-1 items-center gap-1 sm:gap-2">
             <div
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition ${
+              className={`flex shrink-0 items-center gap-2 px-2.5 py-2 rounded-xl text-sm font-semibold transition sm:px-4 ${
                 currentStep === step.id
                   ? "bg-[#1e3a8a] text-white shadow-sm"
                   : currentStep > step.id
@@ -285,7 +294,7 @@ export function ProjectEditPage() {
       </div>
 
       {/* ── Form Steps ─────────────────────────────────────────────────── */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6 lg:p-8">
+      <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6 lg:p-8">
         {/* Step 1: Detalles del Proyecto */}
         {currentStep === 1 && (
           <div className="space-y-6">
@@ -298,7 +307,7 @@ export function ProjectEditPage() {
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="Ej: Desarrollo de plataforma e-commerce"
-                className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-[#1e3a8a] focus:ring-2 focus:ring-blue-100 transition"
+                className="w-full min-w-0 px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-[#1e3a8a] focus:ring-2 focus:ring-blue-100 transition"
               />
               <p className="text-xs text-slate-400 mt-1.5">
                 {title.length}/150 caracteres
@@ -314,7 +323,7 @@ export function ProjectEditPage() {
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Describe detalladamente el proyecto, objetivos, entregables..."
                 rows={6}
-                className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-[#1e3a8a] focus:ring-2 focus:ring-blue-100 transition resize-none"
+                className="w-full min-w-0 px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-[#1e3a8a] focus:ring-2 focus:ring-blue-100 transition resize-none"
               />
               <p className="text-xs text-slate-400 mt-1.5">
                 {description.length}/5000 caracteres
@@ -331,7 +340,7 @@ export function ProjectEditPage() {
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
                   placeholder="Ej: Desarrollo Web"
-                  className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-[#1e3a8a] focus:ring-2 focus:ring-blue-100 transition"
+                  className="w-full min-w-0 px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-[#1e3a8a] focus:ring-2 focus:ring-blue-100 transition"
                 />
               </div>
               <div>
@@ -343,7 +352,7 @@ export function ProjectEditPage() {
                   value={subcategory}
                   onChange={(e) => setSubcategory(e.target.value)}
                   placeholder="Ej: E-commerce"
-                  className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-[#1e3a8a] focus:ring-2 focus:ring-blue-100 transition"
+                  className="w-full min-w-0 px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-[#1e3a8a] focus:ring-2 focus:ring-blue-100 transition"
                 />
               </div>
             </div>
@@ -361,7 +370,7 @@ export function ProjectEditPage() {
                 <select
                   value={currency}
                   onChange={(e) => setCurrency(e.target.value)}
-                  className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-[#1e3a8a] focus:ring-2 focus:ring-blue-100 transition"
+                  className="w-full min-w-0 px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-[#1e3a8a] focus:ring-2 focus:ring-blue-100 transition"
                 >
                   {CURRENCIES.map((c) => (
                     <option key={c.value} value={c.value}>
@@ -377,7 +386,7 @@ export function ProjectEditPage() {
                 <select
                   value={language}
                   onChange={(e) => setLanguage(e.target.value)}
-                  className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-[#1e3a8a] focus:ring-2 focus:ring-blue-100 transition"
+                  className="w-full min-w-0 px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-[#1e3a8a] focus:ring-2 focus:ring-blue-100 transition"
                 >
                   {LANGUAGES.map((l) => (
                     <option key={l.value} value={l.value}>
@@ -422,7 +431,7 @@ export function ProjectEditPage() {
                     value={minBudget}
                     onChange={(e) => setMinBudget(e.target.value)}
                     placeholder="500"
-                    className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-[#1e3a8a] focus:ring-2 focus:ring-blue-100 transition"
+                    className="w-full min-w-0 px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-[#1e3a8a] focus:ring-2 focus:ring-blue-100 transition"
                   />
                 </div>
                 <div>
@@ -434,7 +443,7 @@ export function ProjectEditPage() {
                     value={maxBudget}
                     onChange={(e) => setMaxBudget(e.target.value)}
                     placeholder="5000"
-                    className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-[#1e3a8a] focus:ring-2 focus:ring-blue-100 transition"
+                    className="w-full min-w-0 px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-[#1e3a8a] focus:ring-2 focus:ring-blue-100 transition"
                   />
                 </div>
               </div>
@@ -451,7 +460,7 @@ export function ProjectEditPage() {
                     value={hourlyRateMin}
                     onChange={(e) => setHourlyRateMin(e.target.value)}
                     placeholder="15"
-                    className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-[#1e3a8a] focus:ring-2 focus:ring-blue-100 transition"
+                    className="w-full min-w-0 px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-[#1e3a8a] focus:ring-2 focus:ring-blue-100 transition"
                   />
                 </div>
                 <div>
@@ -463,7 +472,7 @@ export function ProjectEditPage() {
                     value={hourlyRateMax}
                     onChange={(e) => setHourlyRateMax(e.target.value)}
                     placeholder="50"
-                    className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-[#1e3a8a] focus:ring-2 focus:ring-blue-100 transition"
+                    className="w-full min-w-0 px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-[#1e3a8a] focus:ring-2 focus:ring-blue-100 transition"
                   />
                 </div>
               </div>
@@ -478,7 +487,7 @@ export function ProjectEditPage() {
                 value={budget}
                 onChange={(e) => setBudget(e.target.value)}
                 placeholder="2500"
-                className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-[#1e3a8a] focus:ring-2 focus:ring-blue-100 transition"
+                className="w-full min-w-0 px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-[#1e3a8a] focus:ring-2 focus:ring-blue-100 transition"
               />
             </div>
 
@@ -491,7 +500,7 @@ export function ProjectEditPage() {
                 value={estimatedDays}
                 onChange={(e) => setEstimatedDays(e.target.value)}
                 placeholder="30"
-                className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-[#1e3a8a] focus:ring-2 focus:ring-blue-100 transition"
+                className="w-full min-w-0 px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-[#1e3a8a] focus:ring-2 focus:ring-blue-100 transition"
               />
             </div>
           </div>
@@ -551,6 +560,9 @@ export function ProjectEditPage() {
               <label className="block text-sm font-semibold text-slate-700 mb-1.5">
                 Habilidades Requeridas
               </label>
+              {/* RESPONSIVE: el input sin min-w-0 no se encogía dentro del flex
+                  (un input tiene un ancho mínimo propio): empujaba el botón "+"
+                  fuera de la tarjeta y ensanchaba toda la página. */}
               <div className="flex items-center gap-2 mb-3">
                 <input
                   type="text"
@@ -558,13 +570,14 @@ export function ProjectEditPage() {
                   onChange={(e) => setSkillInput(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addSkill())}
                   placeholder="Ej: React, Node.js, Python..."
-                  className="flex-1 px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-[#1e3a8a] focus:ring-2 focus:ring-blue-100 transition"
+                  className="min-w-0 flex-1 px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-[#1e3a8a] focus:ring-2 focus:ring-blue-100 transition"
                 />
                 <button
                   type="button"
                   onClick={addSkill}
                   disabled={!skillInput.trim()}
-                  className="px-4 py-3 bg-[#1e3a8a] text-white rounded-xl hover:bg-[#1e3a8a]/90 transition disabled:opacity-40"
+                  aria-label="Agregar habilidad"
+                  className="shrink-0 px-4 py-3 bg-[#1e3a8a] text-white rounded-xl hover:bg-[#1e3a8a]/90 transition disabled:opacity-40"
                 >
                   <Plus className="w-4 h-4" />
                 </button>
@@ -573,13 +586,13 @@ export function ProjectEditPage() {
                 {skills.map((skill) => (
                   <span
                     key={skill}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#0d9488]/10 text-[#0d9488] rounded-lg text-sm font-medium"
+                    className="inline-flex max-w-full items-center gap-1.5 px-3 py-1.5 bg-[#0d9488]/10 text-[#0d9488] rounded-lg text-sm font-medium"
                   >
-                    {skill}
+                    <span className="min-w-0 break-all">{skill}</span>
                     <button
                       type="button"
                       onClick={() => removeSkill(skill)}
-                      className="hover:text-red-500 transition"
+                      className="shrink-0 hover:text-red-500 transition"
                     >
                       <X className="w-3.5 h-3.5" />
                     </button>
@@ -595,7 +608,7 @@ export function ProjectEditPage() {
           <div className="space-y-6">
             <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
               <AlertCircle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
-              <div>
+              <div className="min-w-0">
                 <p className="text-sm font-semibold text-amber-800">Revisa los cambios antes de guardar</p>
                 <p className="text-xs text-amber-600 mt-0.5">
                   Una vez guardados, los cambios se aplicarán inmediatamente al proyecto.
@@ -605,25 +618,25 @@ export function ProjectEditPage() {
 
             <div className="space-y-4">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div>
+                <div className="min-w-0">
                   <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Título</p>
-                  <p className="text-sm font-medium text-slate-900 mt-1">{title}</p>
+                  <p className="break-words text-sm font-medium text-slate-900 mt-1">{title}</p>
                 </div>
-                <div>
+                <div className="min-w-0">
                   <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Categoría</p>
-                  <p className="text-sm font-medium text-slate-900 mt-1">{category}{subcategory ? ` / ${subcategory}` : ""}</p>
+                  <p className="break-words text-sm font-medium text-slate-900 mt-1">{category}{subcategory ? ` / ${subcategory}` : ""}</p>
                 </div>
               </div>
 
               <div>
                 <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Descripción</p>
-                <p className="text-sm text-slate-700 mt-1 line-clamp-3">{description}</p>
+                <p className="break-words text-sm text-slate-700 mt-1 line-clamp-3">{description}</p>
               </div>
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                <div>
+                <div className="min-w-0">
                   <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Presupuesto</p>
-                  <p className="text-sm font-semibold text-emerald-600 mt-1">
+                  <p className="break-words text-sm font-semibold text-emerald-600 mt-1">
                     {budgetType === "FIXED"
                       ? minBudget || maxBudget
                         ? `${currencySymbol} ${Number(minBudget || 0).toLocaleString("es-PE")} - ${currencySymbol} ${Number(maxBudget || 0).toLocaleString("es-PE")}`
@@ -646,7 +659,7 @@ export function ProjectEditPage() {
                   <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Habilidades</p>
                   <div className="flex flex-wrap gap-1.5">
                     {skills.map((skill) => (
-                      <span key={skill} className="px-2.5 py-1 bg-slate-100 text-slate-600 rounded-lg text-xs font-medium">
+                      <span key={skill} className="max-w-full break-all px-2.5 py-1 bg-slate-100 text-slate-600 rounded-lg text-xs font-medium">
                         {skill}
                       </span>
                     ))}
@@ -658,12 +671,12 @@ export function ProjectEditPage() {
         )}
 
         {/* ── Navigation Buttons ──────────────────────────────────────────── */}
-        <div className="flex items-center justify-between mt-8 pt-6 border-t border-slate-200">
+        <div className="flex items-center justify-between gap-3 mt-8 pt-6 border-t border-slate-200">
           <button
             type="button"
             onClick={() => setCurrentStep((prev) => Math.max(1, prev - 1))}
             disabled={currentStep === 1}
-            className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition disabled:opacity-40"
+            className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition disabled:opacity-40 sm:px-5"
           >
             <ChevronLeft className="w-4 h-4" />
             Anterior
@@ -674,7 +687,7 @@ export function ProjectEditPage() {
               type="button"
               onClick={() => setCurrentStep((prev) => Math.min(STEPS.length, prev + 1))}
               disabled={!canGoNext}
-              className="inline-flex items-center gap-1.5 px-6 py-2.5 rounded-xl bg-[#1e3a8a] text-sm font-bold text-white hover:bg-[#1e3a8a]/90 transition disabled:opacity-40 shadow-sm"
+              className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-[#1e3a8a] text-sm font-bold text-white hover:bg-[#1e3a8a]/90 transition disabled:opacity-40 shadow-sm sm:px-6"
             >
               Siguiente
               <ChevronRight className="w-4 h-4" />
@@ -684,7 +697,7 @@ export function ProjectEditPage() {
               type="button"
               onClick={handleSubmit}
               disabled={updateMutation.isPending}
-              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-emerald-600 text-sm font-bold text-white hover:bg-emerald-700 transition disabled:opacity-40 shadow-sm"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 text-sm font-bold text-white hover:bg-emerald-700 transition disabled:opacity-40 shadow-sm sm:px-6"
             >
               {updateMutation.isPending ? (
                 <Loader2 className="w-4 h-4 animate-spin" />

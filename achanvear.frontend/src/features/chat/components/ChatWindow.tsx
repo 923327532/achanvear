@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import { MoreVertical, Trash2, MessageSquare, Info, Clock } from "lucide-react";
+import { MoreVertical, Trash2, MessageSquare, Info, Clock, ArrowLeft } from "lucide-react";
 import { useMessages, useSendMessage, useDeleteMessage, useDeleteConversation } from "../hooks/useChat";
 
 import { MessageBubble } from "./MessageBubble";
@@ -15,6 +15,9 @@ interface Props {
   conversation: Conversation | null;
   onConversationDeleted: () => void;
   onToggleInfoPanel?: () => void;
+  // RESPONSIVE: en celular el chat reemplaza a la lista; este botón (solo
+  // visible hasta md) devuelve a la lista de conversaciones.
+  onBack?: () => void;
 }
 
 const AVATAR_COLORS = [
@@ -30,13 +33,20 @@ function getAvatarColor(name: string) {
   return AVATAR_COLORS[name.charCodeAt(0) % AVATAR_COLORS.length];
 }
 
+// FIX: "Hoy"/"Ayer" se calculaba con horas transcurridas (diff / 24h): un
+// mensaje de ayer a las 11pm visto hoy a la 1am daba "Hoy", y uno con sentAt
+// apenas adelantado respecto al reloj del navegador caía en la fecha larga.
+// Además los mensajes se agrupan por día calendario, así que el rótulo tenía
+// que usar el mismo criterio. Ahora se comparan los días de calendario.
 function formatDate(dateStr: string) {
   const date = new Date(dateStr);
   const now = new Date();
-  const diff = now.getTime() - date.getTime();
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
 
-  if (days === 0) return "Hoy";
+  const dateDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const nowDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const days = Math.round((nowDay.getTime() - dateDay.getTime()) / (1000 * 60 * 60 * 24));
+
+  if (days <= 0) return "Hoy";
   if (days === 1) return "Ayer";
   return date.toLocaleDateString("es-PE", {
     day: "numeric",
@@ -55,7 +65,7 @@ function DateDivider({ date }: { date: string }) {
   );
 }
 
-export function ChatWindow({ conversation, onConversationDeleted, onToggleInfoPanel }: Props) {
+export function ChatWindow({ conversation, onConversationDeleted, onToggleInfoPanel, onBack }: Props) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const queryClient = useQueryClient();
@@ -121,7 +131,7 @@ export function ChatWindow({ conversation, onConversationDeleted, onToggleInfoPa
   // Estado vacío — sin conversación seleccionada
   if (!conversation) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center bg-gradient-to-b from-[#F8FAFC] to-[#F1F5F9] text-center px-8">
+      <div className="flex-1 flex flex-col items-center justify-center bg-gradient-to-b from-[#F8FAFC] to-[#F1F5F9] text-center px-4 sm:px-8">
         <div className="w-20 h-20 bg-white border border-[#E2E8F0] rounded-2xl flex items-center justify-center mb-5 shadow-sm">
           <MessageSquare className="w-9 h-9 text-[#94A3B8]" />
         </div>
@@ -138,16 +148,30 @@ export function ChatWindow({ conversation, onConversationDeleted, onToggleInfoPa
   const isCompany = conversation.participantRole === "COMPANY";
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-      {/* ── Header Profesional ── */}
-      <div className="bg-white border-b border-[#E5E7EB] px-4 py-3 flex items-center gap-3 flex-shrink-0" style={{ minHeight: "72px" }}>
+    <div className="flex-1 flex flex-col min-h-0 min-w-0 overflow-hidden">
+      {/* ── Header Profesional ──
+          RESPONSIVE: avatar, nombre con etiqueta, "Último mensaje", info y menú
+          competían por ~260px. En celular: menos padding, botón de volver a la
+          lista, etiqueta debajo del nombre cuando no cabe, y la línea "Último
+          mensaje" solo desde sm. */}
+      <div className="bg-white border-b border-[#E5E7EB] px-2 py-2.5 flex items-center gap-2 flex-shrink-0 min-h-[64px] sm:px-4 sm:gap-3 sm:min-h-[72px]">
+        {onBack && (
+          <button
+            type="button"
+            onClick={onBack}
+            aria-label="Volver a mensajes"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[#64748B] transition-all hover:bg-[#F8FAFC] hover:text-[#2563EB] md:hidden"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+        )}
         <div className={`w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center text-white text-sm font-bold ${getAvatarColor(conversation.participantName)}`}>
           {getInitials(conversation.participantName)}
         </div>
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <p className="text-sm font-semibold text-[#0F172A] truncate">{conversation.participantName}</p>
-            <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+            <p className="min-w-0 max-w-full truncate text-sm font-semibold text-[#0F172A]">{conversation.participantName}</p>
+            <span className={`shrink-0 whitespace-nowrap text-[10px] font-medium px-1.5 py-0.5 rounded-full ${
               isCompany
                 ? "bg-[#DBEAFE] text-[#1D4ED8]"
                 : "bg-[#E0F2FE] text-[#0369A1]"
@@ -155,7 +179,7 @@ export function ChatWindow({ conversation, onConversationDeleted, onToggleInfoPa
               {isCompany ? "Empresa verificada" : "Freelancer"}
             </span>
           </div>
-          <div className="flex items-center gap-1.5 mt-0.5">
+          <div className="mt-0.5 hidden items-center gap-1.5 sm:flex">
             <span className="flex items-center gap-1 text-[11px] text-[#64748B]">
               <Clock className="w-3 h-3" />
               {conversation.lastMessageAt
@@ -168,11 +192,12 @@ export function ChatWindow({ conversation, onConversationDeleted, onToggleInfoPa
         {/* Acciones del header — se quitaron "Llamada de voz" y "Videollamada":
             eran botones decorativos sin onClick ni funcionalidad real detrás,
             y no tienen sentido en un chat de texto como este. */}
-        <div className="flex items-center gap-1">
+        <div className="flex shrink-0 items-center gap-1">
           <button
             onClick={onToggleInfoPanel}
             className="w-8 h-8 flex items-center justify-center rounded-full text-[#64748B] hover:text-[#2563EB] hover:bg-[#F8FAFC] transition-all"
             title="Información"
+            aria-label="Información"
           >
             <Info className="w-4 h-4" />
           </button>
@@ -182,6 +207,7 @@ export function ChatWindow({ conversation, onConversationDeleted, onToggleInfoPa
             <button
               onClick={(e) => { e.stopPropagation(); setMenuOpen((v) => !v); }}
               className="w-8 h-8 flex items-center justify-center rounded-full text-[#64748B] hover:text-[#0F172A] hover:bg-[#F8FAFC] transition-all"
+              aria-label="Más opciones"
             >
               <MoreVertical className="w-4 h-4" />
             </button>
@@ -204,7 +230,7 @@ export function ChatWindow({ conversation, onConversationDeleted, onToggleInfoPa
 
       {/* ── Messages con fondo profesional ── */}
       <div
-        className="flex-1 min-h-0 overflow-y-auto px-4 py-3 space-y-1"
+        className="flex-1 min-h-0 overflow-y-auto px-3 py-3 space-y-1 sm:px-4"
         style={{
           background: "linear-gradient(180deg, #F8FAFC 0%, #F1F5F9 100%)",
           backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'60\' height=\'60\' viewBox=\'0 0 60 60\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'none\' fill-rule=\'evenodd\'%3E%3Cg fill=\'%2394A3B8\' fill-opacity=\'0.03\'%3E%3Cpath d=\'M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E"), linear-gradient(180deg, #F8FAFC 0%, #F1F5F9 100%)',

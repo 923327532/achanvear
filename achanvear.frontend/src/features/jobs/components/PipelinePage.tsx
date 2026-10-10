@@ -82,6 +82,30 @@ function getStatusLabel(status: string) {
   }
 }
 
+// Mismas clases que antes vivían inline en la tabla; se extraen para que la
+// tabla (desktop) y las tarjetas (celular/tablet) usen exactamente la misma
+// lógica de colores.
+function getStatusBadgeClass(status: string) {
+  if (status === "SUBMITTED") return "bg-blue-50 text-blue-700 border border-blue-200";
+  if (status === "IN_REVIEW") return "bg-amber-50 text-amber-700 border border-amber-200";
+  if (status === "SHORTLISTED" || status === "HIRED") return "bg-emerald-50 text-emerald-700 border border-emerald-200";
+  return "bg-slate-50 text-slate-600 border border-slate-200";
+}
+
+function getScoreBarColor(score: number | null) {
+  if (score == null) return "bg-slate-300";
+  if (score >= 80) return "bg-emerald-500";
+  if (score >= 60) return "bg-amber-500";
+  return "bg-red-500";
+}
+
+function getScoreTextColor(score: number | null) {
+  if (score == null) return "text-slate-400";
+  if (score >= 80) return "text-emerald-700";
+  if (score >= 60) return "text-amber-700";
+  return "text-red-700";
+}
+
 function formatDate(dateStr?: string) {
   if (!dateStr) return "";
   const date = new Date(dateStr);
@@ -110,13 +134,13 @@ function PipelineColumn({
   onSelectCandidate: (candidate: CandidateData) => void;
 }) {
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col">
+    <div className="min-w-0 bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col">
       <div className="p-4 border-b border-slate-100">
         <div className="flex items-center gap-3">
-          <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${iconColor}`}>
+          <div className={`h-10 w-10 shrink-0 rounded-xl flex items-center justify-center ${iconColor}`}>
             <Icon className="w-5 h-5 text-white" strokeWidth={1.5} />
           </div>
-          <div>
+          <div className="min-w-0">
             <h3 className="text-sm font-bold text-slate-900">{title}</h3>
             <p className="text-xs text-slate-500">{description}</p>
           </div>
@@ -157,18 +181,13 @@ function PipelineColumn({
                 </div>
                 <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
                   <div
-                    className={`h-full rounded-full transition-all ${
-                      candidate.score == null ? "bg-slate-300" :
-                        candidate.score >= 80 ? "bg-emerald-500" :
-                        candidate.score >= 60 ? "bg-amber-500" :
-                        "bg-red-500"
-                      }`}
-                      style={{ width: `${candidate.score ?? 0}%` }}
+                    className={`h-full rounded-full transition-all ${getScoreBarColor(candidate.score)}`}
+                    style={{ width: `${candidate.score ?? 0}%` }}
                   />
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 mt-2 text-xs text-slate-400">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-2 text-xs text-slate-400">
                 {candidate.location && (
                   <span className="flex items-center gap-1">
                     <MapPin className="w-3 h-3" />
@@ -204,6 +223,74 @@ function PipelineColumn({
         )}
       </div>
     </div>
+  );
+}
+
+// ─── Tarjeta de candidato para la vista "Tabla" en pantallas chicas ───────────
+// RESPONSIVE: la tabla tiene 7 columnas (~900px). Por debajo de xl se muestra
+// esta tarjeta, con los mismos datos, para no depender de scroll horizontal.
+
+function CandidateListCard({
+  candidate,
+  onSelect,
+}: {
+  candidate: CandidateData;
+  onSelect: (candidate: CandidateData) => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(candidate)}
+      className="w-full min-w-0 text-left bg-white border border-slate-200 rounded-xl p-3 shadow-sm hover:border-slate-300 hover:shadow-md transition-all"
+    >
+      <div className="flex items-center gap-3">
+        <div className={`h-9 w-9 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0 ${getAvatarColor(candidate.name)}`}>
+          {getInitials(candidate.name)}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold text-slate-900 truncate">{candidate.name}</p>
+          <p className="text-xs text-slate-500 truncate">{candidate.title}</p>
+        </div>
+        <Eye className="w-4 h-4 shrink-0 text-slate-400" strokeWidth={1.5} />
+      </div>
+
+      <div className="mt-3">
+        <span className={`inline-flex max-w-full items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeClass(candidate.status)}`}>
+          {getStatusLabel(candidate.status)}{candidate.screeningResult === true ? " · IA recomienda" : ""}
+        </span>
+      </div>
+
+      <div className="mt-3">
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-xs text-slate-500">Score IA</span>
+          <span className={`text-xs font-bold ${getScoreTextColor(candidate.score)}`}>
+            {candidate.score == null ? "Pendiente" : `${candidate.score}/100`}
+          </span>
+        </div>
+        <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+          <div
+            className={`h-full rounded-full ${getScoreBarColor(candidate.score)}`}
+            style={{ width: `${candidate.score ?? 0}%` }}
+          />
+        </div>
+      </div>
+
+      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400">
+        {candidate.location && (
+          <span className="flex items-center gap-1">
+            <MapPin className="w-3 h-3" />
+            {candidate.location}
+          </span>
+        )}
+        {candidate.experience && (
+          <span className="flex items-center gap-1">
+            <Briefcase className="w-3 h-3" />
+            {candidate.experience}
+          </span>
+        )}
+        {candidate.appliedAt && <span>{formatDate(candidate.appliedAt)}</span>}
+      </div>
+    </button>
   );
 }
 
@@ -244,10 +331,14 @@ export function PipelinePage() {
       candidateUserId: app.candidateUserId || "",
       name: app.candidateName || "Candidato",
       email: app.candidateEmail || "",
-      title: app.candidateTitle || "Postulante",
-      location: app.candidateLocation || "",
-      experience: app.candidateExperience || "",
-      education: app.candidateEducation || "",
+      // FIX (pendiente front #1): GET /jobs/{id}/applicants NO envía candidateTitle, candidateLocation,
+      // candidateExperience ni candidateEducation (verificado en el contrato de Swagger). Antes se leían
+      // de app.* y TypeScript marcaba 4 errores. Se dejan valores por defecto: la UI ya oculta ubicación y
+      // experiencia cuando están vacías. Si el backend los agrega después, basta con volver a leerlos aquí.
+      title: "Postulante",
+      location: "",
+      experience: "",
+      education: "",
       score: app.screeningScore ?? null,
       status: app.status || "SUBMITTED",
       currentStage: app.currentStage || "PENDING",
@@ -305,31 +396,32 @@ export function PipelinePage() {
 
   return (
     <div className="space-y-6 p-4 sm:p-6 lg:p-8">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="flex items-center gap-3">
-            {/* FIX: antes regresaba a "/company/jobs" (Mis Publicaciones).
-                Ahora regresa al selector de Pipeline (/company/pipeline),
-                que es de donde realmente se navega a esta pantalla.
-                FIX build: <a> normal dispara el error de ESLint
-                no-html-link-for-pages (fuerza recarga completa en vez de
-                navegación de Next.js) — se usa <Link> en su lugar. */}
-            <Link
-              href="/company/pipeline"
-              className="p-2 text-slate-400 hover:text-[#1e3a8a] hover:bg-slate-100 rounded-lg transition"
-            >
-              <ArrowLeft className="w-5 h-5" strokeWidth={1.5} />
-            </Link>
-            <div>
-              <h1 className="text-2xl font-bold text-[#1e3a8a]">Pipeline de Selección</h1>
-              <p className="text-sm text-slate-500 mt-1">
-                {job?.title || "Vacante"} &bull; {allCandidates.length} postulaciones totales
-              </p>
-            </div>
+      {/* Header
+          RESPONSIVE: título + (toggle Kanban/Tabla + "Ver Todas las
+          Vacantes") en una sola fila se salían de la pantalla. Se apilan
+          hasta lg, y el grupo de la derecha puede pasar a otra línea. */}
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex min-w-0 items-start gap-3">
+          {/* FIX: antes regresaba a "/company/jobs" (Mis Publicaciones).
+              Ahora regresa al selector de Pipeline (/company/pipeline),
+              que es de donde realmente se navega a esta pantalla.
+              FIX build: <a> normal dispara el error de ESLint
+              no-html-link-for-pages (fuerza recarga completa en vez de
+              navegación de Next.js) — se usa <Link> en su lugar. */}
+          <Link
+            href="/company/pipeline"
+            className="shrink-0 p-2 text-slate-400 hover:text-[#1e3a8a] hover:bg-slate-100 rounded-lg transition"
+          >
+            <ArrowLeft className="w-5 h-5" strokeWidth={1.5} />
+          </Link>
+          <div className="min-w-0">
+            <h1 className="text-2xl font-bold text-[#1e3a8a]">Pipeline de Selección</h1>
+            <p className="text-sm text-slate-500 mt-1 break-words">
+              {job?.title || "Vacante"} &bull; {allCandidates.length} postulaciones totales
+            </p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           {/* Toggle de vista: Kanban / Tabla */}
           <div className="flex items-center bg-white border border-slate-200 rounded-xl p-0.5 shadow-sm">
             <button
@@ -367,9 +459,11 @@ export function PipelinePage() {
         </div>
       </div>
 
-      {/* Filtro Score IA */}
+      {/* Filtro Score IA
+          RESPONSIVE: etiqueta + slider + valor en una fila dejaban el slider
+          casi sin ancho. En celular el slider pasa a su propia línea. */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
           <div className="flex items-center gap-2 text-sm font-medium text-slate-700">
             <SlidersHorizontal className="w-4 h-4" strokeWidth={1.5} />
             Score mínimo:
@@ -380,9 +474,9 @@ export function PipelinePage() {
             max={100}
             value={minScore}
             onChange={(e) => setMinScore(Number(e.target.value))}
-            className="flex-1 max-w-xs h-2 bg-slate-200 rounded-full appearance-none cursor-pointer accent-[#1e3a8a]"
+            className="order-last w-full h-2 bg-slate-200 rounded-full appearance-none cursor-pointer accent-[#1e3a8a] sm:order-none sm:w-auto sm:flex-1 sm:max-w-xs"
           />
-          <span className="text-sm font-bold text-purple-700 min-w-[3rem] text-right">{minScore}</span>
+          <span className="ml-auto text-sm font-bold text-purple-700 min-w-[3rem] text-right sm:ml-0">{minScore}</span>
         </div>
       </div>
 
@@ -430,30 +524,42 @@ export function PipelinePage() {
             onSelectCandidate={setSelectedCandidate}
           />
         </div>
+      ) : filteredCandidates.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm py-12 text-center">
+          <p className="text-sm text-slate-400">No se encontraron candidatos con el filtro actual</p>
+        </div>
       ) : (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-slate-100 bg-slate-50/50">
-                  <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider py-3 px-4">Candidato</th>
-                  <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider py-3 px-4">Etapa</th>
-                  <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider py-3 px-4">Score IA</th>
-                  <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider py-3 px-4">Ubicación</th>
-                  <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider py-3 px-4">Experiencia</th>
-                  <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider py-3 px-4">Postulado</th>
-                  <th className="text-right text-xs font-semibold text-slate-500 uppercase tracking-wider py-3 px-4">Acción</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50">
-                {filteredCandidates.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="text-center py-12">
-                      <p className="text-sm text-slate-400">No se encontraron candidatos con el filtro actual</p>
-                    </td>
+        <>
+          {/* Tarjetas: por debajo de xl (1280px) */}
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:hidden">
+            {filteredCandidates.map((candidate) => (
+              <CandidateListCard
+                key={candidate.id}
+                candidate={candidate}
+                onSelect={setSelectedCandidate}
+              />
+            ))}
+          </div>
+
+          {/* Tabla: desde xl. Con el sidebar de 260px visible desde lg, antes
+              de xl quedan <700px para 7 columnas (~900px) y la tabla
+              necesitaba scroll horizontal. */}
+          <div className="hidden bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden xl:block">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-slate-100 bg-slate-50/50">
+                    <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider py-3 px-4">Candidato</th>
+                    <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider py-3 px-4">Etapa</th>
+                    <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider py-3 px-4">Score IA</th>
+                    <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider py-3 px-4">Ubicación</th>
+                    <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider py-3 px-4">Experiencia</th>
+                    <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider py-3 px-4">Postulado</th>
+                    <th className="text-right text-xs font-semibold text-slate-500 uppercase tracking-wider py-3 px-4">Acción</th>
                   </tr>
-                ) : (
-                  filteredCandidates.map((candidate) => (
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {filteredCandidates.map((candidate) => (
                     <tr
                       key={candidate.id}
                       className="group hover:bg-slate-50/50 transition-colors cursor-pointer"
@@ -471,12 +577,7 @@ export function PipelinePage() {
                         </div>
                       </td>
                       <td className="py-3 px-4">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          candidate.status === "SUBMITTED" ? "bg-blue-50 text-blue-700 border border-blue-200" :
-                          candidate.status === "IN_REVIEW" ? "bg-amber-50 text-amber-700 border border-amber-200" :
-                          candidate.status === "SHORTLISTED" || candidate.status === "HIRED" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" :
-                          "bg-slate-50 text-slate-600 border border-slate-200"
-                        }`}>
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeClass(candidate.status)}`}>
                           {getStatusLabel(candidate.status)}{candidate.screeningResult === true ? " · IA recomienda" : ""}
                         </span>
                       </td>
@@ -485,22 +586,12 @@ export function PipelinePage() {
                           <div className="flex-1 max-w-[80px]">
                             <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
                               <div
-                                className={`h-full rounded-full ${
-                                  candidate.score == null ? "bg-slate-300" :
-                                  candidate.score >= 80 ? "bg-emerald-500" :
-                                  candidate.score >= 60 ? "bg-amber-500" :
-                                  "bg-red-500"
-                                }`}
+                                className={`h-full rounded-full ${getScoreBarColor(candidate.score)}`}
                                 style={{ width: `${candidate.score ?? 0}%` }}
                               />
                             </div>
                           </div>
-                          <span className={`text-xs font-bold ${
-                            candidate.score == null ? "text-slate-400" :
-                            candidate.score >= 80 ? "text-emerald-700" :
-                            candidate.score >= 60 ? "text-amber-700" :
-                            "text-red-700"
-                          }`}>
+                          <span className={`text-xs font-bold ${getScoreTextColor(candidate.score)}`}>
                             {candidate.score ?? "—"}
                           </span>
                         </div>
@@ -524,12 +615,12 @@ export function PipelinePage() {
                         </button>
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
+        </>
       )}
 
       {/* Drawer de candidato */}

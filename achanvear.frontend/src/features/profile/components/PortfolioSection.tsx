@@ -52,19 +52,21 @@ export function PortfolioSection({ profile }: Props) {
     setItems(items.map((item, idx) => (idx === i ? { ...item, [field]: value } : item)));
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-5">
-      <div className="flex items-center justify-between mb-5">
-        <h2 className="text-base font-bold text-[#1B3A6B]">Portafolio y Enlaces</h2>
+    // RESPONSIVE: p-4 en celular, p-6 desde sm
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-6 mb-5">
+      {/* RESPONSIVE: flex-wrap + gap; "Cancelar" y "Guardar" bajan de línea si no caben (antes "Guardar" se cortaba) */}
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
+        <h2 className="min-w-0 text-base font-bold text-[#1B3A6B]">Portafolio y Enlaces</h2>
         {!isEditing ? (
           <button
             onClick={() => setIsEditing(true)}
             disabled={!profileId}
-            className="flex items-center gap-1.5 text-xs font-medium text-gray-500 border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-40"
+            className="flex flex-shrink-0 items-center gap-1.5 text-xs font-medium text-gray-500 border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-40"
           >
             <Pencil className="w-3.5 h-3.5" /> Editar
           </button>
         ) : (
-          <div className="flex items-center gap-2">
+          <div className="flex flex-shrink-0 items-center gap-2">
             <button onClick={handleCancel} className="flex items-center gap-1 text-xs text-gray-500 border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-50">
               <X className="w-3.5 h-3.5" /> Cancelar
             </button>
@@ -81,13 +83,14 @@ export function PortfolioSection({ profile }: Props) {
       </div>
 
       {!isEditing ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        // RESPONSIVE: 2 columnas solo desde xl (el sidebar deja ~700px a 1024px)
+        <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
           {items.map((item, i) => {
             const Icon  = getLinkIcon(item.projectUrl);
             const label = getLinkLabel(item.projectUrl);
             return (
               <a key={i} href={item.projectUrl} target="_blank" rel="noopener noreferrer"
-                className="flex items-center justify-between p-4 border border-gray-100 rounded-xl hover:border-[#0EA5A0]/30 hover:bg-teal-50/30 transition-all"
+                className="flex min-w-0 items-center justify-between gap-2 p-3 sm:p-4 border border-gray-100 rounded-xl hover:border-[#0EA5A0]/30 hover:bg-teal-50/30 transition-all"
               >
                 <div className="flex items-center gap-3 min-w-0">
                   <LinkIcon className="w-4 h-4 text-gray-400 flex-shrink-0" />
@@ -96,7 +99,7 @@ export function PortfolioSection({ profile }: Props) {
                     <p className="text-xs text-gray-400 truncate">{item.projectUrl}</p>
                   </div>
                 </div>
-                <span className="flex items-center gap-1 text-xs font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full flex-shrink-0 ml-2">
+                <span className="flex items-center gap-1 text-xs font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full flex-shrink-0">
                   <Icon className="w-3 h-3" /> {label}
                 </span>
               </a>
@@ -117,21 +120,21 @@ export function PortfolioSection({ profile }: Props) {
             <div key={i} className="border border-gray-100 rounded-xl p-4 space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-medium text-gray-500">Proyecto {i + 1}</span>
-                <button onClick={() => removeItem(i)} className="p-1 text-red-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                <button onClick={() => removeItem(i)} aria-label="Quitar proyecto" className="p-1 text-red-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
               </div>
               <input value={item.title} onChange={(e) => updateItem(i, "title", e.target.value)}
                 placeholder="Nombre del proyecto"
-                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0EA5A0]/30 focus:border-[#0EA5A0]"
+                className="w-full min-w-0 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0EA5A0]/30 focus:border-[#0EA5A0]"
               />
               <input value={item.projectUrl} onChange={(e) => updateItem(i, "projectUrl", e.target.value)}
                 placeholder="https://github.com/usuario/proyecto"
-                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0EA5A0]/30 focus:border-[#0EA5A0]"
+                className="w-full min-w-0 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0EA5A0]/30 focus:border-[#0EA5A0]"
               />
               <textarea value={item.description} onChange={(e) => updateItem(i, "description", e.target.value)}
                 placeholder="Descripción breve del proyecto" rows={2}
-                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0EA5A0]/30 focus:border-[#0EA5A0] resize-none"
+                className="w-full min-w-0 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0EA5A0]/30 focus:border-[#0EA5A0] resize-none"
               />
             </div>
           ))}

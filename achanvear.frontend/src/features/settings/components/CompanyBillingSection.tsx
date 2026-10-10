@@ -113,7 +113,7 @@ function PlanCard({
           ? "Plan ya utilizado. Una vez que cambias a un plan de pago no puedes volver al plan Gratis."
           : undefined
       }
-      className={`relative flex h-full flex-col overflow-hidden rounded-xl border bg-white p-4 text-left shadow-sm transition ${
+      className={`relative flex h-full min-w-0 flex-col overflow-hidden rounded-xl border bg-white p-4 text-left shadow-sm transition ${
         isCurrent
           ? "border-emerald-500 ring-2 ring-emerald-400/60 shadow-lg"
           : selected
@@ -161,12 +161,16 @@ function PlanCard({
         <h3 className="text-base font-bold text-slate-950">{plan.displayName}</h3>
         <p className="mt-1 line-clamp-2 min-h-[36px] text-xs leading-relaxed text-slate-500">{plan.description}</p>
 
-        <div className="my-4 grid grid-cols-[1fr_auto] items-end gap-3">
+        {/* RESPONSIVE: precio y caja "Empleos" en una grilla de dos columnas
+            dejaban al precio ~75px cuando la caja decía "Ilimitadas" ("S/ 299"
+            se partía). Con flex-wrap, si no caben juntos la caja baja a su
+            propia línea. */}
+        <div className="my-4 flex flex-wrap items-end justify-between gap-x-3 gap-y-3">
           <div>
             {isFree ? (
               <p className="text-2xl font-bold text-emerald-600">Gratis</p>
             ) : (
-              <div className="flex items-end gap-1">
+              <div className="flex items-end gap-1 whitespace-nowrap">
                 <p className="text-2xl font-bold text-slate-950">S/ {plan.monthlyPrice}</p>
                 <p className="pb-0.5 text-xs text-slate-500">/mes</p>
               </div>
@@ -228,7 +232,7 @@ function PackageCard({
     <button
       type="button"
       onClick={onSelect}
-      className={`relative flex h-full flex-col rounded-xl border bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
+      className={`relative flex h-full min-w-0 flex-col rounded-xl border bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
         selected ? "border-[#1B3A6B] shadow-md ring-2 ring-blue-100" : "border-slate-200"
       }`}
     >
@@ -244,7 +248,7 @@ function PackageCard({
       <p className="mt-1 line-clamp-2 min-h-[34px] text-xs leading-relaxed text-slate-500">{pkg.description}</p>
 
       <div className="my-4 rounded-lg border border-slate-100 bg-[#F7FAFC] p-3">
-        <div className="flex items-end justify-between gap-3">
+        <div className="flex flex-wrap items-end justify-between gap-x-3 gap-y-2">
           <div>
             <p className="text-3xl font-bold text-[#1B3A6B]">{pkg.credits}</p>
             <p className="text-xs font-medium text-slate-500">empleos</p>
@@ -400,8 +404,8 @@ export function CompanyBillingSection() {
   return (
     <div className="space-y-6">
       {showChargeModal && (selectedPlanData || selectedPackageData) && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-lg rounded-xl border border-slate-200 bg-white p-6 shadow-xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-3 sm:p-4">
+          <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl border border-slate-200 bg-white p-4 shadow-xl sm:p-6">
             <h3 className="text-lg font-bold text-slate-950">
               Pago de {selectedPlanData ? `tu plan ${selectedPlanData.displayName}` : selectedPackageData?.name}
             </h3>
@@ -432,9 +436,15 @@ export function CompanyBillingSection() {
         </div>
       )}
 
+      {/* RESPONSIVE (causa raíz del contenido cortado): esta grilla y las
+          siguientes solo definían columnas desde lg (o md/xl). En celular la
+          columna implícita toma el ancho de su contenido más ancho, y textos
+          con `truncate` (que no se parten) la hacían más ancha que la pantalla;
+          el overflow-hidden de la tarjeta recortaba lo que sobraba. Con
+          grid-cols-1 la columna es minmax(0,1fr) y puede encogerse. */}
       <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-        <div className="grid gap-0 lg:grid-cols-[minmax(0,1.25fr)_minmax(320px,0.75fr)]">
-          <div className="p-6">
+        <div className="grid grid-cols-1 gap-0 lg:grid-cols-[minmax(0,1.25fr)_minmax(320px,0.75fr)]">
+          <div className="min-w-0 p-4 sm:p-6">
             <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
               <Sparkles className="h-3.5 w-3.5" />
               Planes, publicaciones y beneficios
@@ -444,7 +454,7 @@ export function CompanyBillingSection() {
               Empiezas gratis con {FREE_JOB_LIMIT} empleos. Cuando necesites publicar mas, compra paquetes de empleos sin mensualidad
               o activa un plan mensual con mas capacidad e invitaciones directas.
             </p>
-            <div className="mt-6 grid gap-3 sm:grid-cols-3">
+            <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div className="rounded-lg bg-slate-50 p-4">
                 <p className="text-xs font-medium text-slate-500">Plan actual</p>
                 <p className="mt-1 text-lg font-bold text-slate-950">{currentPlanType}</p>
@@ -459,12 +469,12 @@ export function CompanyBillingSection() {
               </div>
             </div>
           </div>
-          <div className="border-t border-slate-200 bg-slate-950 p-6 text-white lg:border-l lg:border-t-0">
+          <div className="min-w-0 border-t border-slate-200 bg-slate-950 p-4 text-white sm:p-6 lg:border-l lg:border-t-0">
             <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-white/10">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-white/10">
                 <Wallet className="h-5 w-5" />
               </div>
-              <div>
+              <div className="min-w-0">
                 <p className="text-sm text-white/60">Balance operativo</p>
                 <p className="text-2xl font-bold">{isLoadingWallet ? "..." : formatMoney(wallet?.balance)}</p>
               </div>
@@ -495,7 +505,7 @@ export function CompanyBillingSection() {
               </div>
               <span className="text-xs font-medium text-slate-400">Pago mensual via checkout</span>
             </div>
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
               {activePlans.map((plan) => (
                 <PlanCard
                   key={plan.planType}
@@ -522,7 +532,7 @@ export function CompanyBillingSection() {
                 No hay paquetes activos disponibles.
               </div>
             ) : (
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
                 {activePackages.map((pkg) => (
                   <PackageCard
                     key={pkg.id}
@@ -542,9 +552,9 @@ export function CompanyBillingSection() {
                 : "border-slate-200"
             }`}
           >
-            <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_minmax(360px,0.82fr)]">
+            <div className="grid grid-cols-1 gap-0 lg:grid-cols-[minmax(0,1fr)_minmax(360px,0.82fr)]">
               {/* Resumen de la seleccion */}
-              <div className="bg-white p-6">
+              <div className="min-w-0 bg-white p-4 sm:p-6">
                 <span
                   className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${
                     selectedPlanData || selectedPackageData
@@ -568,29 +578,29 @@ export function CompanyBillingSection() {
                   Confirma tu seleccion y paga con un metodo guardado o con uno nuevo a traves de Culqi.
                 </p>
 
-                <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                  <div className="rounded-lg border border-slate-100 bg-slate-50 p-4">
+                <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="min-w-0 rounded-lg border border-slate-100 bg-slate-50 p-4">
                     <p className="text-xs font-medium text-slate-500">Seleccion</p>
                     <p className="mt-1 truncate text-sm font-bold text-slate-950">{selectedLabel}</p>
                   </div>
-                  <div className="rounded-lg border border-slate-100 bg-slate-50 p-4">
+                  <div className="min-w-0 rounded-lg border border-slate-100 bg-slate-50 p-4">
                     <p className="text-xs font-medium text-slate-500">Total a pagar</p>
                     <p className="mt-1 text-lg font-bold text-[#1B3A6B]">{formatMoney(selectedPrice)}</p>
                   </div>
                 </div>
 
-                <div className="mt-4 rounded-lg border border-slate-100 bg-[#F7FAFC] p-4">
+                <div className="mt-4 min-w-0 rounded-lg border border-slate-100 bg-[#F7FAFC] p-4">
                   <p className="text-xs font-medium text-slate-500">Método de pago</p>
                   <p className="mt-1 truncate text-sm font-bold text-slate-950">{payMethodLabel}</p>
                 </div>
               </div>
 
-              <div className="border-t border-slate-200 bg-slate-50 p-6 lg:border-l lg:border-t-0">
+              <div className="min-w-0 border-t border-slate-200 bg-slate-50 p-4 sm:p-6 lg:border-l lg:border-t-0">
                 <div className="flex items-center gap-2">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#1B3A6B] text-white">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#1B3A6B] text-white">
                     <CreditCard className="h-4 w-4" />
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <p className="text-sm font-semibold text-slate-950">Metodo de pago</p>
                     <p className="text-xs text-slate-500">Elige como quieres pagar</p>
                   </div>
@@ -677,9 +687,9 @@ export function CompanyBillingSection() {
                       <button
                         type="button"
                         onClick={() => setShowNewMethod(true)}
-                        className="flex w-full items-center justify-center gap-2 rounded-lg border border-[#0EA5A0] px-4 py-2.5 text-sm font-semibold text-[#0EA5A0] transition hover:bg-[#0EA5A0]/5"
+                        className="flex w-full items-center justify-center gap-2 rounded-lg border border-[#0EA5A0] px-4 py-2.5 text-center text-sm font-semibold text-[#0EA5A0] transition hover:bg-[#0EA5A0]/5"
                       >
-                        <Plus className="h-4 w-4" />
+                        <Plus className="h-4 w-4 shrink-0" />
                         Agregar tarjeta con Culqi
                       </button>
                     )}
@@ -688,7 +698,7 @@ export function CompanyBillingSection() {
 
                 <div className="mt-5 rounded-lg border border-slate-200 bg-white p-4">
                   <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-                    <Mail className="h-4 w-4 text-slate-400" />
+                    <Mail className="h-4 w-4 shrink-0 text-slate-400" />
                     Correo de facturacion
                   </label>
                   <input
@@ -696,24 +706,24 @@ export function CompanyBillingSection() {
                     onChange={(event) => setBillingEmail(event.target.value)}
                     type="email"
                     placeholder="facturacion@empresa.com"
-                    className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none transition focus:border-[#0EA5A0] focus:ring-2 focus:ring-[#0EA5A0]/20"
+                    className="mt-2 w-full min-w-0 rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none transition focus:border-[#0EA5A0] focus:ring-2 focus:ring-[#0EA5A0]/20"
                   />
                   <p className="mt-2 text-xs leading-relaxed text-slate-400">
                     Enviaremos la ficha de pago a este correo por Brevo.
                   </p>
 
-                  {error && <p className="mt-2 text-xs font-medium text-red-600">{error}</p>}
+                  {error && <p className="mt-2 break-words text-xs font-medium text-red-600">{error}</p>}
 
                   <button
                     type="button"
                     onClick={handleCheckout}
                     disabled={(!selectedPlanData && !selectedPackageData) || isSubscribing || isChargingPackage}
-                    className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-[#1B3A6B] via-[#135e7a] to-[#0EA5A0] px-4 py-2.5 text-sm font-semibold text-white transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-[#1B3A6B] via-[#135e7a] to-[#0EA5A0] px-4 py-2.5 text-center text-sm font-semibold text-white transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {isSubscribing || isChargingPackage ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
                     ) : (
-                      <CreditCard className="h-4 w-4" />
+                      <CreditCard className="h-4 w-4 shrink-0" />
                     )}
                     {isSubscribing || isChargingPackage
                       ? "Procesando pago..."
@@ -740,10 +750,10 @@ export function CompanyBillingSection() {
         </div>
       )}
 
-      <section className="rounded-xl border border-blue-100 bg-blue-50 p-5">
+      <section className="rounded-xl border border-blue-100 bg-blue-50 p-4 sm:p-5">
         <div className="flex gap-3">
           <Zap className="mt-0.5 h-5 w-5 shrink-0 text-blue-700" />
-          <div>
+          <div className="min-w-0">
             <h3 className="font-bold text-blue-950">Como funciona la version gratis</h3>
             <p className="mt-1 text-sm leading-relaxed text-blue-800">
               Una empresa puede registrarse gratis y usar el plan FREE. Actualmente el backend permite {FREE_JOB_LIMIT}

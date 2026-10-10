@@ -8,6 +8,8 @@ import {
 import type { CvGeneratedResponse } from "../types/cv.types";
 import html2pdf from "html2pdf.js";
 import { toProfileImageUrl } from "@/lib/mediaUrls";
+// FIX (pendiente front #5): API_BASE_URL se usaba (carga de la foto por photo-proxy) sin importarse. Se exporta desde @/lib/constants.
+import { API_BASE_URL } from "@/lib/constants";
 
 
 
@@ -226,23 +228,23 @@ function SectionCard({ title, icon, defaultOpen = true, children }: { title: str
   const [open, setOpen] = useState(defaultOpen);
   return (
     <div className="border border-gray-200 rounded-xl overflow-hidden">
-      <button onClick={() => setOpen(!open)} className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors">
-        <div className="flex items-center gap-2">{icon}<span className="text-sm font-semibold text-gray-800">{title}</span></div>
-        {open ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+      <button onClick={() => setOpen(!open)} className="w-full flex items-center justify-between gap-2 px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors">
+        <div className="flex min-w-0 items-center gap-2">{icon}<span className="text-sm font-semibold text-gray-800">{title}</span></div>
+        {open ? <ChevronUp className="w-4 h-4 flex-shrink-0 text-gray-400" /> : <ChevronDown className="w-4 h-4 flex-shrink-0 text-gray-400" />}
       </button>
-      {open && <div className="p-4">{children}</div>}
+      {open && <div className="p-3 sm:p-4">{children}</div>}
     </div>
   );
 }
 
 function FormField({ label, value, onChange, placeholder = "", rows }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; rows?: number }) {
   return (
-    <div className="mb-3">
+    <div className="mb-3 min-w-0">
       <label className="block text-xs font-medium text-gray-600 mb-1">{label}</label>
       {rows ? (
-        <textarea value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} rows={rows} className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 resize-none" />
+        <textarea value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} rows={rows} className="w-full min-w-0 px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 resize-none" />
       ) : (
-        <input type="text" value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500" />
+        <input type="text" value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="w-full min-w-0 px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500" />
       )}
     </div>
   );
@@ -268,14 +270,14 @@ function DateField({ label, value, onChange, placeholder = "" }: { label: string
   };
 
   return (
-    <div className="mb-3">
+    <div className="mb-3 min-w-0">
       <label className="block text-xs font-medium text-gray-600 mb-1">{label}</label>
       <div className="relative">
         <input
           type="date"
           value={toInputValue(value)}
           onChange={(e) => onChange(fromInputValue(e.target.value))}
-          className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
+          className="w-full min-w-0 px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
         />
       </div>
     </div>
@@ -291,9 +293,9 @@ function BulletEditor({ bullets, onChange }: { bullets: string[]; onChange: (b: 
       <label className="block text-xs font-medium text-gray-600">Logros / Responsabilidades</label>
       {bullets.map((b, i) => (
         <div key={i} className="flex items-center gap-2">
-          <span className="text-xs text-gray-400 w-4">•</span>
-          <input value={b} onChange={(e) => { const n = [...bullets]; n[i] = e.target.value; onChange(n); }} placeholder="Describe un logro o responsabilidad..." className="flex-1 px-2 py-1.5 rounded-lg border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500" />
-          <button onClick={() => onChange(bullets.filter((_, idx) => idx !== i))} className="text-red-400 hover:text-red-600 p-1"><X className="w-3 h-3" /></button>
+          <span className="text-xs text-gray-400 w-4 flex-shrink-0">•</span>
+          <input value={b} onChange={(e) => { const n = [...bullets]; n[i] = e.target.value; onChange(n); }} placeholder="Describe un logro o responsabilidad..." className="min-w-0 flex-1 px-2 py-1.5 rounded-lg border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500" />
+          <button onClick={() => onChange(bullets.filter((_, idx) => idx !== i))} aria-label="Quitar logro" className="flex-shrink-0 text-red-400 hover:text-red-600 p-1"><X className="w-3 h-3" /></button>
         </div>
       ))}
       <button onClick={() => onChange([...bullets, ""])} className="inline-flex items-center gap-1 text-xs text-purple-600 hover:text-purple-800 font-medium"><Plus className="w-3 h-3" /> Agregar logro</button>
@@ -384,7 +386,6 @@ export function CvBuilder({ isOpen, onClose, initialCv, isLoading, onRegenerateS
   useEffect(() => {
     if (initialCv) {
       const data = cvToFormData(initialCv);
-      // Mantener la foto actual si ya existe (no sobrescribir con vacío)
       if (formData.header.profilePhotoUrl) data.header.profilePhotoUrl = formData.header.profilePhotoUrl;
       setFormData(data);
     }
@@ -484,18 +485,17 @@ export function CvBuilder({ isOpen, onClose, initialCv, isLoading, onRegenerateS
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
       <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-6xl mx-4 max-h-[95vh] flex flex-col">
 
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center"><FileText className="w-5 h-5 text-purple-600" /></div>
-            <div><h3 className="text-sm font-bold text-gray-900">Constructor de CV</h3><p className="text-xs text-gray-400">Edita y personaliza tu currículum vitae</p></div>
+        <div className="flex flex-wrap items-center justify-between gap-3 px-4 sm:px-6 py-4 border-b border-gray-100 flex-shrink-0">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="w-10 h-10 flex-shrink-0 rounded-xl bg-purple-50 flex items-center justify-center"><FileText className="w-5 h-5 text-purple-600" /></div>
+            <div className="min-w-0"><h3 className="text-sm font-bold text-gray-900">Constructor de CV</h3><p className="text-xs text-gray-400">Edita y personaliza tu currículum vitae</p></div>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="flex bg-gray-100 rounded-lg p-0.5 mr-2">
-              <button onClick={() => setActiveTab("edit")} className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${activeTab === "edit" ? "bg-white shadow-sm text-gray-800" : "text-gray-500 hover:text-gray-700"}`}>Editar</button>
-              <button onClick={() => setActiveTab("preview")} className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${activeTab === "preview" ? "bg-white shadow-sm text-gray-800" : "text-gray-500 hover:text-gray-700"}`}><Eye className="w-3 h-3 inline mr-1" />Vista previa</button>
+          <div className="flex flex-shrink-0 items-center gap-2">
+            <div className="flex bg-gray-100 rounded-lg p-0.5 sm:mr-2">
+              <button onClick={() => setActiveTab("edit")} className={`whitespace-nowrap px-3 py-1.5 text-xs font-medium rounded-md transition-all ${activeTab === "edit" ? "bg-white shadow-sm text-gray-800" : "text-gray-500 hover:text-gray-700"}`}>Editar</button>
+              <button onClick={() => setActiveTab("preview")} className={`whitespace-nowrap px-3 py-1.5 text-xs font-medium rounded-md transition-all ${activeTab === "preview" ? "bg-white shadow-sm text-gray-800" : "text-gray-500 hover:text-gray-700"}`}><Eye className="w-3 h-3 inline mr-1" />Vista previa</button>
             </div>
-            <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"><X className="w-4 h-4" /></button>
+            <button onClick={onClose} aria-label="Cerrar" className="w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"><X className="w-4 h-4" /></button>
           </div>
         </div>
 
@@ -506,10 +506,10 @@ export function CvBuilder({ isOpen, onClose, initialCv, isLoading, onRegenerateS
           {isLoading ? (
             <div className="flex flex-col items-center justify-center py-20"><Loader2 className="w-10 h-10 animate-spin text-purple-600 mb-4" /><p className="text-sm text-gray-500">Generando tu CV con IA...</p><p className="text-xs text-gray-400 mt-1">Esto puede tomar unos segundos</p></div>
           ) : activeTab === "edit" ? (
-            <div className="p-6 space-y-4 max-w-3xl mx-auto">
+            <div className="p-3 sm:p-6 space-y-4 max-w-3xl mx-auto">
               {/* Datos Personales */}
               <SectionCard title="Datos Personales" icon={<FileText className="w-4 h-4 text-blue-600" />}>
-                <div className="grid grid-cols-2 gap-x-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4">
                   <FormField label="Nombre completo" value={formData.header.fullName} onChange={(v) => updHeader("fullName", v)} placeholder="Ej: Juan Pérez García" />
                   <FormField label="Rol / Título" value={formData.header.role} onChange={(v) => updHeader("role", v)} placeholder="Ej: Analista de datos" />
 
@@ -525,11 +525,11 @@ export function CvBuilder({ isOpen, onClose, initialCv, isLoading, onRegenerateS
                   <label className="block text-xs font-medium text-gray-600 mb-2">Foto para CV (opcional)</label>
                   {formData.header.profilePhotoUrl ? (
                     <div className="flex items-center gap-3">
-                      <img src={formData.header.profilePhotoUrl} alt="Foto CV" className="w-12 h-12 rounded-full object-cover border border-gray-200" />
+                      <img src={formData.header.profilePhotoUrl} alt="Foto CV" className="w-12 h-12 flex-shrink-0 rounded-full object-cover border border-gray-200" />
                       <div className="flex-1 min-w-0">
                         <p className="text-xs text-gray-500 truncate">Foto cargada</p>
                       </div>
-                      <button onClick={() => updHeader("profilePhotoUrl", "")} className="text-red-400 hover:text-red-600 p-1"><Trash2 className="w-3.5 h-3.5" /></button>
+                      <button onClick={() => updHeader("profilePhotoUrl", "")} aria-label="Quitar foto" className="flex-shrink-0 text-red-400 hover:text-red-600 p-1"><Trash2 className="w-3.5 h-3.5" /></button>
                     </div>
                   ) : (
                     <label className="border-2 border-dashed border-gray-200 rounded-lg p-4 text-center cursor-pointer hover:border-purple-500/40 hover:bg-purple-50/30 transition-all block">
@@ -559,12 +559,12 @@ export function CvBuilder({ isOpen, onClose, initialCv, isLoading, onRegenerateS
               <SectionCard title="Experiencia Laboral" icon={<FileText className="w-4 h-4 text-orange-600" />}>
                 {formData.experiences.map(exp => (
                   <div key={exp.id} className="border border-gray-100 rounded-lg p-3 mb-3 bg-gray-50/50">
-                    <div className="flex justify-between items-start mb-2"><span className="text-xs font-semibold text-gray-700">Experiencia</span><button onClick={() => delExp(exp.id)} className="text-red-400 hover:text-red-600 p-1"><Trash2 className="w-3.5 h-3.5" /></button></div>
-                    <div className="grid grid-cols-2 gap-x-3">
+                    <div className="flex justify-between items-start mb-2"><span className="text-xs font-semibold text-gray-700">Experiencia</span><button onClick={() => delExp(exp.id)} aria-label="Quitar experiencia" className="text-red-400 hover:text-red-600 p-1"><Trash2 className="w-3.5 h-3.5" /></button></div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3">
                       <FormField label="Cargo" value={exp.position} onChange={(v) => updExp(exp.id, "position", v)} placeholder="Ej: Jefe de Ventas" />
                       <FormField label="Empresa / Institución" value={exp.company} onChange={(v) => updExp(exp.id, "company", v)} placeholder="Ej: Mercado Libre" />
                       <FormField label="Ubicación" value={exp.location} onChange={(v) => updExp(exp.id, "location", v)} placeholder="Ej: Lima, Perú" />
-                      <div className="grid grid-cols-2 gap-2"><DateField label="Fecha inicio" value={exp.startDate} onChange={(v) => updExp(exp.id, "startDate", v)} placeholder="Ene 2020" /><DateField label="Fecha fin" value={exp.endDate} onChange={(v) => updExp(exp.id, "endDate", v)} placeholder="Actual" /></div>
+                      <div className="grid grid-cols-1 gap-x-2 min-[420px]:grid-cols-2"><DateField label="Fecha inicio" value={exp.startDate} onChange={(v) => updExp(exp.id, "startDate", v)} placeholder="Ene 2020" /><DateField label="Fecha fin" value={exp.endDate} onChange={(v) => updExp(exp.id, "endDate", v)} placeholder="Actual" /></div>
                     </div>
                     <BulletEditor bullets={exp.bullets} onChange={(b) => updExp(exp.id, "bullets", b)} />
                   </div>
@@ -576,12 +576,12 @@ export function CvBuilder({ isOpen, onClose, initialCv, isLoading, onRegenerateS
               <SectionCard title="Educación" icon={<FileText className="w-4 h-4 text-cyan-600" />}>
                 {formData.education.map(edu => (
                   <div key={edu.id} className="border border-gray-100 rounded-lg p-3 mb-3 bg-gray-50/50">
-                    <div className="flex justify-between items-start mb-2"><span className="text-xs font-semibold text-gray-700">Educación</span><button onClick={() => delEdu(edu.id)} className="text-red-400 hover:text-red-600 p-1"><Trash2 className="w-3.5 h-3.5" /></button></div>
-                    <div className="grid grid-cols-2 gap-x-3">
+                    <div className="flex justify-between items-start mb-2"><span className="text-xs font-semibold text-gray-700">Educación</span><button onClick={() => delEdu(edu.id)} aria-label="Quitar educación" className="text-red-400 hover:text-red-600 p-1"><Trash2 className="w-3.5 h-3.5" /></button></div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3">
                       <FormField label="Institución" value={edu.institution} onChange={(v) => updEdu(edu.id, "institution", v)} placeholder="Ej: Universidad Nacional Mayor de San Marcos" />
                       <FormField label="Programa / Carrera" value={edu.program} onChange={(v) => updEdu(edu.id, "program", v)} placeholder="Ej: Administración de Empresas" />
                       <FormField label="Ubicación" value={edu.location} onChange={(v) => updEdu(edu.id, "location", v)} placeholder="Ej: Lima, Perú" />
-                      <div className="grid grid-cols-2 gap-2"><DateField label="Fecha inicio" value={edu.startDate} onChange={(v) => updEdu(edu.id, "startDate", v)} placeholder="Mar 2016" /><DateField label="Fecha fin" value={edu.endDate} onChange={(v) => updEdu(edu.id, "endDate", v)} placeholder="Dic 2020" /></div>
+                      <div className="grid grid-cols-1 gap-x-2 min-[420px]:grid-cols-2"><DateField label="Fecha inicio" value={edu.startDate} onChange={(v) => updEdu(edu.id, "startDate", v)} placeholder="Mar 2016" /><DateField label="Fecha fin" value={edu.endDate} onChange={(v) => updEdu(edu.id, "endDate", v)} placeholder="Dic 2020" /></div>
                     </div>
                   </div>
                 ))}
@@ -592,7 +592,7 @@ export function CvBuilder({ isOpen, onClose, initialCv, isLoading, onRegenerateS
               <SectionCard title="Proyectos" icon={<FileText className="w-4 h-4 text-pink-600" />}>
                 {formData.projects.map(proj => (
                   <div key={proj.id} className="border border-gray-100 rounded-lg p-3 mb-3 bg-gray-50/50">
-                    <div className="flex justify-between items-start mb-2"><span className="text-xs font-semibold text-gray-700">Proyecto</span><button onClick={() => delProj(proj.id)} className="text-red-400 hover:text-red-600 p-1"><Trash2 className="w-3.5 h-3.5" /></button></div>
+                    <div className="flex justify-between items-start mb-2"><span className="text-xs font-semibold text-gray-700">Proyecto</span><button onClick={() => delProj(proj.id)} aria-label="Quitar proyecto" className="text-red-400 hover:text-red-600 p-1"><Trash2 className="w-3.5 h-3.5" /></button></div>
                     <FormField label="Nombre del proyecto" value={proj.name} onChange={(v) => updProj(proj.id, "name", v)} placeholder="Ej: Campaña de Marketing Digital" />
                     <FormField label="Descripción" value={proj.description} onChange={(v) => updProj(proj.id, "description", v)} placeholder="Breve descripción..." rows={2} />
                     <FormField label="Herramientas / Tecnologías" value={proj.technologies} onChange={(v) => updProj(proj.id, "technologies", v)} placeholder="Excel, Power BI, Salesforce" />
@@ -606,8 +606,8 @@ export function CvBuilder({ isOpen, onClose, initialCv, isLoading, onRegenerateS
               <SectionCard title="Certificaciones" icon={<FileText className="w-4 h-4 text-amber-600" />}>
                 {formData.certifications.map(cert => (
                   <div key={cert.id} className="border border-gray-100 rounded-lg p-3 mb-3 bg-gray-50/50">
-                    <div className="flex justify-between items-start mb-2"><span className="text-xs font-semibold text-gray-700">Certificación</span><button onClick={() => delCert(cert.id)} className="text-red-400 hover:text-red-600 p-1"><Trash2 className="w-3.5 h-3.5" /></button></div>
-                    <div className="grid grid-cols-3 gap-x-3">
+                    <div className="flex justify-between items-start mb-2"><span className="text-xs font-semibold text-gray-700">Certificación</span><button onClick={() => delCert(cert.id)} aria-label="Quitar certificación" className="text-red-400 hover:text-red-600 p-1"><Trash2 className="w-3.5 h-3.5" /></button></div>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-3">
                       <FormField label="Nombre" value={cert.name} onChange={(v) => updCert(cert.id, "name", v)} placeholder="Ej: Certificación en Gestión de Proyectos" />
                       <FormField label="Emisor" value={cert.issuer} onChange={(v) => updCert(cert.id, "issuer", v)} placeholder="Ej: PMI" />
                       <FormField label="Año" value={cert.year} onChange={(v) => updCert(cert.id, "year", v)} placeholder="2023" />
@@ -619,7 +619,7 @@ export function CvBuilder({ isOpen, onClose, initialCv, isLoading, onRegenerateS
 
               {/* Habilidades */}
               <SectionCard title="Habilidades" icon={<FileText className="w-4 h-4 text-indigo-600" />}>
-                <div className="grid grid-cols-2 gap-x-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4">
                   <FormField label="Habilidades técnicas" value={formData.skills.programmingLanguages} onChange={(v) => updSkills("programmingLanguages", v)} placeholder="Excel, Power BI, SAP" />
                   <FormField label="Metodologías" value={formData.skills.frameworks} onChange={(v) => updSkills("frameworks", v)} placeholder="PMP, Scrum, Six Sigma" />
                   <FormField label="Herramientas" value={formData.skills.tools} onChange={(v) => updSkills("tools", v)} placeholder="Office 365, Salesforce, Tableau" />
@@ -631,8 +631,8 @@ export function CvBuilder({ isOpen, onClose, initialCv, isLoading, onRegenerateS
               <SectionCard title="Idiomas" icon={<FileText className="w-4 h-4 text-teal-600" />}>
                 {formData.languages.map(lang => (
                   <div key={lang.id} className="border border-gray-100 rounded-lg p-3 mb-3 bg-gray-50/50">
-                    <div className="flex justify-between items-start mb-2"><span className="text-xs font-semibold text-gray-700">Idioma</span><button onClick={() => delLang(lang.id)} className="text-red-400 hover:text-red-600 p-1"><Trash2 className="w-3.5 h-3.5" /></button></div>
-                    <div className="grid grid-cols-2 gap-x-3">
+                    <div className="flex justify-between items-start mb-2"><span className="text-xs font-semibold text-gray-700">Idioma</span><button onClick={() => delLang(lang.id)} aria-label="Quitar idioma" className="text-red-400 hover:text-red-600 p-1"><Trash2 className="w-3.5 h-3.5" /></button></div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3">
                       <FormField label="Idioma" value={lang.language} onChange={(v) => updLang(lang.id, "language", v)} placeholder="Inglés" />
                       <FormField label="Nivel" value={lang.level} onChange={(v) => updLang(lang.id, "level", v)} placeholder="Avanzado / B2" />
                     </div>
@@ -644,7 +644,7 @@ export function CvBuilder({ isOpen, onClose, initialCv, isLoading, onRegenerateS
               {/* Regenerar sección con IA */}
               <SectionCard title="Regenerar sección con IA" icon={<Sparkles className="w-4 h-4 text-purple-600" />} defaultOpen={false}>
                 <div className="space-y-3">
-                  <select value={regSection} onChange={(e) => setRegSection(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500">
+                  <select value={regSection} onChange={(e) => setRegSection(e.target.value)} className="w-full min-w-0 px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500">
                     <option value="">Selecciona una sección</option>
                     <option value="professionalSummary">Perfil Profesional</option>
                     <option value="workExperience">Experiencia Laboral</option>
@@ -654,8 +654,8 @@ export function CvBuilder({ isOpen, onClose, initialCv, isLoading, onRegenerateS
                     <option value="certifications">Certificaciones</option>
                     <option value="languages">Idiomas</option>
                   </select>
-                  <textarea value={regInstruction} onChange={(e) => setRegInstruction(e.target.value)} placeholder="Ej: Hazlo más orientado a resultados con métricas..." className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 resize-none" rows={3} />
-                  <button onClick={handleRegen} disabled={!regSection || !regInstruction.trim() || isRegenerating} className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-purple-600 text-white text-sm font-semibold hover:bg-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                  <textarea value={regInstruction} onChange={(e) => setRegInstruction(e.target.value)} placeholder="Ej: Hazlo más orientado a resultados con métricas..." className="w-full min-w-0 px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 resize-none" rows={3} />
+                  <button onClick={handleRegen} disabled={!regSection || !regInstruction.trim() || isRegenerating} className="inline-flex w-full sm:w-auto items-center justify-center gap-2 px-4 py-2 rounded-xl bg-purple-600 text-white text-sm font-semibold hover:bg-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
                     {isRegenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
                     Regenerar sección
                   </button>
@@ -664,8 +664,10 @@ export function CvBuilder({ isOpen, onClose, initialCv, isLoading, onRegenerateS
             </div>
           ) : null}
           {/* Vista Previa - siempre renderizada pero oculta cuando no está activa */}
-          <div className={`p-6 flex justify-center ${activeTab === "preview" ? "" : "hidden"}`}>
-            <div ref={previewRef} className="w-[21cm] shadow-lg">
+          {/* RESPONSIVE: el CV mantiene su ancho real de hoja A4 (21cm) para que la vista previa sea fiel.
+              En pantallas angostas el contenedor tiene scroll horizontal en vez de desbordar el modal. */}
+          <div className={`overflow-x-auto p-2 sm:p-6 ${activeTab === "preview" ? "" : "hidden"}`}>
+            <div ref={previewRef} className="mx-auto w-[21cm] flex-shrink-0 shadow-lg">
               <CvPreview data={formData} />
             </div>
           </div>
@@ -678,12 +680,12 @@ export function CvBuilder({ isOpen, onClose, initialCv, isLoading, onRegenerateS
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100 bg-gray-50/50 flex-shrink-0">
+        <div className="flex items-center justify-between gap-3 px-4 sm:px-6 py-4 border-t border-gray-100 bg-gray-50/50 flex-shrink-0">
           <div className="flex items-center gap-2">
             <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800 transition-colors">Cerrar</button>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={handleSave} disabled={isSaving} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-green-600 text-white text-sm font-semibold hover:bg-green-700 transition-all shadow-sm disabled:opacity-50">
+            <button onClick={handleSave} disabled={isSaving} className="inline-flex items-center gap-2 whitespace-nowrap px-5 py-2.5 rounded-xl bg-green-600 text-white text-sm font-semibold hover:bg-green-700 transition-all shadow-sm disabled:opacity-50">
               {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
               {isSaving ? "Guardando..." : "Guardar CV"}
             </button>
@@ -694,5 +696,3 @@ export function CvBuilder({ isOpen, onClose, initialCv, isLoading, onRegenerateS
     </div>
   );
 }
-
-

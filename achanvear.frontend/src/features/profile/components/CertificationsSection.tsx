@@ -46,19 +46,21 @@ export function CertificationsSection({ profile }: Props) {
   const removeCert = (i: number) => setItems(items.filter((_, idx) => idx !== i));
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-5">
-      <div className="flex items-center justify-between mb-5">
-        <h2 className="text-base font-bold text-[#1B3A6B]">Certificaciones</h2>
+    // RESPONSIVE: p-4 en celular, p-6 desde sm
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-6 mb-5">
+      {/* RESPONSIVE: flex-wrap + gap; "Cancelar" y "Guardar" bajan de línea si no caben (antes "Guardar" se cortaba) */}
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
+        <h2 className="min-w-0 text-base font-bold text-[#1B3A6B]">Certificaciones</h2>
         {!isEditing ? (
           <button
             onClick={() => setIsEditing(true)}
             disabled={!profileId}
-            className="flex items-center gap-1.5 text-xs font-medium text-gray-500 border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-40"
+            className="flex flex-shrink-0 items-center gap-1.5 text-xs font-medium text-gray-500 border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-40"
           >
             <Plus className="w-3.5 h-3.5" /> Agregar
           </button>
         ) : (
-          <div className="flex items-center gap-2">
+          <div className="flex flex-shrink-0 items-center gap-2">
             <button onClick={handleCancel}
               className="flex items-center gap-1 text-xs text-gray-500 border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-50">
               <X className="w-3.5 h-3.5" /> Cancelar
@@ -88,14 +90,15 @@ export function CertificationsSection({ profile }: Props) {
       ) : (
         <div className="space-y-3">
           {items.map((cert, i) => (
-            <div key={i} className="flex items-start justify-between gap-3 rounded-xl border border-gray-100 bg-slate-50 px-4 py-3.5">
+            <div key={i} className="flex items-start justify-between gap-3 rounded-xl border border-gray-100 bg-slate-50 px-3 py-3.5 sm:px-4">
               <div className="flex items-start gap-3 min-w-0">
                 <div className="w-9 h-9 rounded-xl bg-[#1B3A6B]/10 flex items-center justify-center flex-shrink-0 mt-0.5">
                   <GraduationCap className="w-4 h-4 text-[#1B3A6B]" strokeWidth={1.5} />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold text-slate-800 truncate">{cert.name}</p>
-                  <p className="text-xs text-slate-500 mt-0.5">{cert.issuingOrganization}</p>
+                  {/* RESPONSIVE: el nombre se parte en varias líneas en vez de cortarse con "…" (se veía "Constancia de ...") */}
+                  <p className="text-sm font-semibold text-slate-800 break-words">{cert.name}</p>
+                  <p className="text-xs text-slate-500 mt-0.5 break-words">{cert.issuingOrganization}</p>
                   {cert.credentialUrl && (
                     <a
                       href={cert.credentialUrl}
@@ -110,7 +113,7 @@ export function CertificationsSection({ profile }: Props) {
                 </div>
               </div>
               {isEditing && (
-                <button onClick={() => removeCert(i)}
+                <button onClick={() => removeCert(i)} aria-label="Quitar certificación"
                   className="flex-shrink-0 text-slate-300 hover:text-red-400 transition mt-0.5">
                   <X className="w-4 h-4" />
                 </button>
@@ -128,17 +131,17 @@ export function CertificationsSection({ profile }: Props) {
                 </div>
                 <input type="text" value={newCert.name}
                   onChange={(e) => setNewCert({ ...newCert, name: e.target.value })}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 placeholder-slate-400 outline-none focus:border-[#1B3A6B] bg-white"
+                  className="w-full min-w-0 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 placeholder-slate-400 outline-none focus:border-[#1B3A6B] bg-white"
                   placeholder="Nombre del certificado" />
                 <input type="text" value={newCert.issuingOrganization}
                   onChange={(e) => setNewCert({ ...newCert, issuingOrganization: e.target.value })}
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 placeholder-slate-400 outline-none focus:border-[#1B3A6B] bg-white"
+                  className="w-full min-w-0 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 placeholder-slate-400 outline-none focus:border-[#1B3A6B] bg-white"
                   placeholder="Organización emisora" />
                 <div className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 bg-white">
                   <ExternalLink className="h-3.5 w-3.5 flex-shrink-0 text-slate-400" strokeWidth={1.5} />
                   <input type="url" value={newCert.credentialUrl}
                     onChange={(e) => setNewCert({ ...newCert, credentialUrl: e.target.value })}
-                    className="flex-1 bg-transparent text-sm text-slate-700 placeholder-slate-400 outline-none"
+                    className="min-w-0 flex-1 bg-transparent text-sm text-slate-700 placeholder-slate-400 outline-none"
                     placeholder="https://... (URL de verificación)" />
                 </div>
                 <div className="flex gap-2 pt-1">

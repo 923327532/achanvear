@@ -52,19 +52,22 @@ export function SkillsSection({ profile }: Props) {
     setSkills(skills.map((s, idx) => (idx === i ? { ...s, [field]: value } : s)));
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-5">
-      <div className="flex items-center justify-between mb-5">
-        <h2 className="text-base font-bold text-[#1B3A6B]">Habilidades</h2>
+    // RESPONSIVE: p-4 en celular, p-6 desde sm
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-6 mb-5">
+      {/* RESPONSIVE: flex-wrap + gap; en modo edición "Cancelar" y "Guardar" bajan de línea si no caben junto al título
+          (antes "Guardar" se cortaba por el borde de la tarjeta) */}
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
+        <h2 className="min-w-0 text-base font-bold text-[#1B3A6B]">Habilidades</h2>
         {!isEditing ? (
           <button
             onClick={() => setIsEditing(true)}
             disabled={!profileId}
-            className="flex items-center gap-1.5 text-xs font-medium text-gray-500 border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-40"
+            className="flex flex-shrink-0 items-center gap-1.5 text-xs font-medium text-gray-500 border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-40"
           >
             <Pencil className="w-3.5 h-3.5" /> Editar
           </button>
         ) : (
-          <div className="flex items-center gap-2">
+          <div className="flex flex-shrink-0 items-center gap-2">
             <button
               onClick={handleCancel}
               className="flex items-center gap-1 text-xs text-gray-500 border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-50"
@@ -97,9 +100,9 @@ export function SkillsSection({ profile }: Props) {
       ) : !isEditing ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {skills.map((skill) => (
-            <div key={skill.name} className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-gray-700">{skill.name}</span>
+            <div key={skill.name} className="min-w-0 space-y-1.5">
+              <div className="flex flex-wrap items-center justify-between gap-x-2">
+                <span className="min-w-0 text-sm font-medium text-gray-700 break-words">{skill.name}</span>
                 <span className="text-xs text-gray-400">
                   {SKILL_LEVEL_LABELS[skill.level]} · {skill.yearsOfExperience} años
                 </span>
@@ -115,17 +118,19 @@ export function SkillsSection({ profile }: Props) {
       ) : (
         <div className="space-y-3">
           {skills.map((skill, i) => (
-            <div key={i} className="flex items-center gap-2">
+            // RESPONSIVE: en celular cada habilidad es un bloque con filas que se envuelven
+            // (nombre a ancho completo; nivel, años y eliminar debajo). Antes todo iba en una sola fila y se cortaba.
+            <div key={i} className="flex flex-wrap items-center gap-2 rounded-xl border border-gray-100 p-3 sm:border-0 sm:p-0">
               <input
                 value={skill.name}
                 onChange={(e) => updateSkill(i, "name", e.target.value)}
                 placeholder="Nombre de la habilidad"
-                className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0EA5A0]/30 focus:border-[#0EA5A0]"
+                className="w-full min-w-0 sm:w-auto sm:flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0EA5A0]/30 focus:border-[#0EA5A0]"
               />
               <select
                 value={skill.level}
                 onChange={(e) => updateSkill(i, "level", e.target.value)}
-                className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0EA5A0]/30 focus:border-[#0EA5A0]"
+                className="min-w-0 flex-1 sm:flex-none border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0EA5A0]/30 focus:border-[#0EA5A0]"
               >
                 {LEVELS.map((l) => (
                   <option key={l} value={l}>{SKILL_LEVEL_LABELS[l]}</option>
@@ -137,12 +142,13 @@ export function SkillsSection({ profile }: Props) {
                 onChange={(e) => updateSkill(i, "yearsOfExperience", Number(e.target.value))}
                 min={0}
                 max={30}
-                className="w-16 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0EA5A0]/30 focus:border-[#0EA5A0]"
+                className="w-16 flex-shrink-0 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#0EA5A0]/30 focus:border-[#0EA5A0]"
               />
               <span className="text-xs text-gray-400 whitespace-nowrap">años</span>
               <button
                 onClick={() => removeSkill(i)}
-                className="p-1.5 text-red-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                aria-label="Quitar habilidad"
+                className="ml-auto sm:ml-0 flex-shrink-0 p-1.5 text-red-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
               >
                 <Trash2 className="w-4 h-4" />
               </button>

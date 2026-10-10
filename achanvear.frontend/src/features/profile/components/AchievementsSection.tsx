@@ -63,20 +63,22 @@ export function AchievementsSection({ profile }: Props) {
   const removeItem = (i: number) => setItems(items.filter((_, idx) => idx !== i));
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-5">
-      <div className="flex items-center justify-between mb-5">
-        <h2 className="text-base font-bold text-[#1B3A6B]">Logros Destacados</h2>
+    // RESPONSIVE: p-4 en celular, p-6 desde sm
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-6 mb-5">
+      {/* RESPONSIVE: flex-wrap + gap; "Cancelar" y "Guardar" bajan de línea si no caben (antes "Guardar" se cortaba) */}
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
+        <h2 className="min-w-0 text-base font-bold text-[#1B3A6B]">Logros Destacados</h2>
         {!isEditing ? (
           <button
             onClick={() => setIsEditing(true)}
             disabled={!profileId}
-            className="flex items-center gap-1.5 text-xs font-medium text-gray-500 border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-40"
+            className="flex flex-shrink-0 items-center gap-1.5 text-xs font-medium text-gray-500 border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-40"
           >
             <Pencil className="w-3.5 h-3.5" />
             {items.length === 0 ? "Agregar Logro" : "Editar"}
           </button>
         ) : (
-          <div className="flex items-center gap-2">
+          <div className="flex flex-shrink-0 items-center gap-2">
             <button onClick={handleCancel}
               className="flex items-center gap-1 text-xs text-gray-500 border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-50">
               <X className="w-3.5 h-3.5" /> Cancelar
@@ -105,15 +107,16 @@ export function AchievementsSection({ profile }: Props) {
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          // RESPONSIVE: 2 columnas desde sm, 3 solo desde xl (el sidebar deja ~700px a 1024px)
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {items.map((item, i) => {
               const Icon = getIcon(i);
               return (
-                <div key={i} className={`rounded-xl border border-gray-100 p-4 ${i === 0 ? "bg-amber-50 border-amber-100" : i === 1 ? "bg-blue-50 border-blue-100" : "bg-teal-50 border-teal-100"}`}>
+                <div key={i} className={`min-w-0 rounded-xl border border-gray-100 p-4 ${i === 0 ? "bg-amber-50 border-amber-100" : i === 1 ? "bg-blue-50 border-blue-100" : "bg-teal-50 border-teal-100"}`}>
                   <div className={`w-8 h-8 rounded-lg flex items-center justify-center mb-3 ${getIconColor(i)}`}>
                     <Icon className="w-4 h-4" strokeWidth={1.75} />
                   </div>
-                  <p className="text-sm font-semibold text-slate-800 leading-snug">{item}</p>
+                  <p className="text-sm font-semibold text-slate-800 leading-snug break-words">{item}</p>
                 </div>
               );
             })}
@@ -134,27 +137,29 @@ export function AchievementsSection({ profile }: Props) {
           {items.map((item, i) => (
             <div key={i} className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2.5">
               <Trophy className="h-4 w-4 flex-shrink-0 text-slate-400" strokeWidth={1.5} />
-              <span className="flex-1 text-sm text-slate-700">{item}</span>
-              <button onClick={() => removeItem(i)}
+              <span className="min-w-0 flex-1 text-sm text-slate-700 break-words">{item}</span>
+              <button onClick={() => removeItem(i)} aria-label="Quitar logro"
                 className="flex-shrink-0 text-slate-300 hover:text-red-400 transition">
                 <X className="h-4 w-4" />
               </button>
             </div>
           ))}
+          {/* RESPONSIVE: min-w-0 en el contenedor y el input, y el botón "+" no se encoge
+              (antes el botón quedaba cortado por el borde derecho de la tarjeta) */}
           <div className="flex gap-2">
-            <div className="flex flex-1 items-center gap-2 rounded-xl border border-slate-200 px-3 py-2.5">
+            <div className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-slate-200 px-3 py-2.5">
               <Award className="h-4 w-4 flex-shrink-0 text-slate-400" strokeWidth={1.5} />
               <input
                 type="text"
                 value={newItem}
                 onChange={(e) => setNewItem(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addItem(); } }}
-                className="flex-1 bg-transparent text-sm text-slate-700 placeholder-slate-400 outline-none"
+                className="min-w-0 flex-1 bg-transparent text-sm text-slate-700 placeholder-slate-400 outline-none"
                 placeholder="Ej: Lideré proyecto que aumentó eficiencia en 40%"
               />
             </div>
-            <button onClick={addItem} disabled={!newItem.trim()}
-              className="rounded-xl bg-[#1B3A6B] px-4 text-xs font-semibold text-white hover:bg-[#162f58] disabled:opacity-40 transition">
+            <button onClick={addItem} disabled={!newItem.trim()} aria-label="Agregar logro"
+              className="flex-shrink-0 rounded-xl bg-[#1B3A6B] px-4 text-xs font-semibold text-white hover:bg-[#162f58] disabled:opacity-40 transition">
               <Plus className="h-4 w-4" />
             </button>
           </div>

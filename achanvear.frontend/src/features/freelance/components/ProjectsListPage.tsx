@@ -52,6 +52,13 @@ function formatPublishedDate(dateStr?: string): string {
   return `Publicado ${new Date(dateStr).toLocaleDateString("es-PE")}`;
 }
 
+// RESPONSIVE: botones de acción de la tarjeta de proyecto. En celular son más
+// grandes (más fáciles de tocar) y pueden pasar a otra línea; desde sm vuelven
+// al tamaño compacto original.
+const ACTION_BTN =
+  "inline-flex items-center justify-center gap-1 px-3 py-2 rounded-lg text-xs font-semibold border transition-colors sm:px-2.5 sm:py-1.5 sm:text-[10px]";
+const ACTION_ICON = "h-3.5 w-3.5 sm:h-3 sm:w-3";
+
 // ─── Status Badge ──────────────────────────────────────────────────────────────
 
 function StatusBadge({ status }: { status: string }) {
@@ -119,14 +126,16 @@ function MetricCard({
   bgColor?: string;
   borderColor?: string;
 }) {
+  // RESPONSIVE: padding, número e ícono más chicos en celular (el número era
+  // text-3xl fijo y "S/. 12,500" no cabía en media pantalla).
   return (
-    <div className={`${bgColor} rounded-2xl ${borderColor} shadow-sm p-5 hover:shadow-md transition-shadow relative`}>
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-sm text-slate-500 mb-1">{label}</p>
-          <p className={`text-3xl font-bold ${valueColor}`}>{value}</p>
+    <div className={`${bgColor} min-w-0 rounded-2xl ${borderColor} shadow-sm p-3 sm:p-5 hover:shadow-md transition-shadow relative`}>
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-xs sm:text-sm text-slate-500 mb-1">{label}</p>
+          <p className={`break-words text-xl sm:text-3xl font-bold ${valueColor}`}>{value}</p>
         </div>
-        <Icon className={`w-6 h-6 ${iconColor}`} strokeWidth={1.5} />
+        <Icon className={`w-5 h-5 shrink-0 sm:w-6 sm:h-6 ${iconColor}`} strokeWidth={1.5} />
       </div>
     </div>
   );
@@ -143,6 +152,7 @@ function ProposalCard({
   onSelect: () => void;
   isSelecting: boolean;
 }) {
+  const router = useRouter();
   const freelancerQuery = useQuery({
     queryKey: ["freelancer-profile", proposal.freelancerUserId],
     queryFn: () => profileApi.getProfileById(proposal.freelancerUserId),
@@ -165,21 +175,24 @@ function ProposalCard({
     }
   };
 
+  // Navegación de Next.js (antes window.location.href, que recargaba todo).
   const handleGoToChat = () => {
-    window.location.href = `/company/chat?userId=${proposal.freelancerUserId}`;
+    router.push(`/company/chat?userId=${proposal.freelancerUserId}`);
   };
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-4">
-      <div className="flex items-start justify-between">
-        <div className="flex items-center gap-3">
+    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 sm:p-5 space-y-4">
+      {/* RESPONSIVE: nombre/rating y presupuesto en una fila no cabían a
+          ~280px. Se apilan en celular. */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex min-w-0 items-center gap-3">
           <div className="w-12 h-12 rounded-full bg-[#1e3a8a] flex items-center justify-center text-white font-bold text-sm shrink-0">
             {initials}
           </div>
-          <div>
+          <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <span className="font-semibold text-slate-900">{freelancerName}</span>
-              <Check className="w-4 h-4 text-sky-500" />
+              <span className="min-w-0 break-words font-semibold text-slate-900">{freelancerName}</span>
+              <Check className="w-4 h-4 shrink-0 text-sky-500" />
             </div>
             <div className="flex items-center gap-2 mt-0.5">
               <div className="flex items-center gap-0.5">
@@ -191,11 +204,11 @@ function ProposalCard({
           </div>
         </div>
 
-        <div className="text-right">
+        <div className="sm:text-right">
           <p className="text-lg font-bold text-emerald-600">
             {formatBudget(proposal.proposedBudget)}
           </p>
-          <p className="text-xs text-slate-500 flex items-center gap-1 justify-end mt-0.5">
+          <p className="text-xs text-slate-500 flex items-center gap-1 sm:justify-end mt-0.5">
             <Clock className="w-3 h-3" />
             {proposal.estimatedDays} días
           </p>
@@ -206,7 +219,7 @@ function ProposalCard({
         <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
           Cover Letter
         </p>
-        <p className="text-sm text-slate-600 leading-relaxed">{proposal.coverLetter}</p>
+        <p className="break-words text-sm text-slate-600 leading-relaxed">{proposal.coverLetter}</p>
       </div>
 
       {skills.length > 0 && (
@@ -227,17 +240,19 @@ function ProposalCard({
         </div>
       )}
 
-      <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
+      {/* RESPONSIVE: 3 botones con flex-1 en una fila se salían de la tarjeta.
+          Apilados en celular, en fila desde sm. */}
+      <div className="flex flex-col gap-2 pt-2 border-t border-slate-100 sm:flex-row sm:items-center">
         <button
           onClick={handleGoToChat}
-          className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl border border-slate-200 text-slate-600 text-sm font-medium hover:bg-slate-50 transition"
+          className="w-full flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl border border-slate-200 text-slate-600 text-sm font-medium hover:bg-slate-50 transition sm:w-auto sm:flex-1"
         >
           <MessageCircle className="w-4 h-4" />
           Enviar Mensaje
         </button>
         <button
           onClick={handleViewPortfolio}
-          className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl border border-slate-200 text-slate-600 text-sm font-medium hover:bg-slate-50 transition"
+          className="w-full flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl border border-slate-200 text-slate-600 text-sm font-medium hover:bg-slate-50 transition sm:w-auto sm:flex-1"
         >
           <Eye className="w-4 h-4" />
           Ver Portafolio
@@ -245,7 +260,7 @@ function ProposalCard({
         <button
           onClick={onSelect}
           disabled={isSelecting}
-          className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-[#1e3a8a] text-white text-sm font-semibold hover:bg-[#1e3a8a]/90 transition disabled:opacity-50"
+          className="w-full flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-[#1e3a8a] text-white text-sm font-semibold hover:bg-[#1e3a8a]/90 transition disabled:opacity-50 sm:w-auto sm:flex-1"
         >
           {isSelecting ? (
             <Loader2 className="w-4 h-4 animate-spin" />
@@ -289,21 +304,21 @@ function ProposalsModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
 
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[85vh] overflow-hidden flex flex-col mx-4">
-        <div className="flex items-center justify-between p-6 border-b border-slate-200">
-          <div>
-            <h2 className="text-xl font-bold text-[#0a1628]">Propuestas Recibidas</h2>
-            <p className="text-sm text-slate-500 mt-0.5">{project.title}</p>
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[85vh] overflow-hidden flex flex-col mx-3 sm:mx-4">
+        <div className="flex items-center justify-between gap-3 p-4 sm:p-6 border-b border-slate-200">
+          <div className="min-w-0">
+            <h2 className="text-lg sm:text-xl font-bold text-[#0a1628]">Propuestas Recibidas</h2>
+            <p className="text-sm text-slate-500 mt-0.5 break-words">{project.title}</p>
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-slate-100 rounded-xl transition"
+            className="shrink-0 p-2 hover:bg-slate-100 rounded-xl transition"
           >
             <X className="w-5 h-5 text-slate-400" />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
           {project.proposals.length === 0 ? (
             <div className="text-center py-12">
               <Users className="w-12 h-12 mx-auto text-slate-300 mb-3" />
@@ -374,10 +389,13 @@ function ProjectCard({
   const hasJobs = publishedJobs > 0;
 
   return (
-    <div className="flex flex-col rounded-xl border border-slate-200 bg-white p-4 transition-all hover:shadow-sm w-full">
-      <div className="flex items-start justify-between gap-3 mb-3">
+    <div className="flex flex-col rounded-xl border border-slate-200 bg-white p-4 transition-all hover:shadow-sm w-full min-w-0">
+      {/* RESPONSIVE: título + presupuesto en una fila dejaban el título en
+          ~60px (se partía en 4 líneas). En celular el presupuesto baja a su
+          propia línea, bajo el título y el estado. */}
+      <div className="flex flex-col gap-2 mb-3 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
         <div className="flex items-center gap-2 flex-wrap flex-1 min-w-0">
-          <h3 className="text-base font-bold text-[#0f172a]">{project.title}</h3>
+          <h3 className="min-w-0 break-words text-base font-bold text-[#0f172a]">{project.title}</h3>
           <StatusBadge status={project.status} />
         </div>
         <span className="shrink-0 text-sm font-bold text-emerald-600 whitespace-nowrap">
@@ -391,12 +409,12 @@ function ProjectCard({
         </div>
         <div className="min-w-0">
           {companyName ? (
-            <p className="text-xs font-semibold text-slate-800">{companyName}</p>
+            <p className="break-words text-xs font-semibold text-slate-800">{companyName}</p>
           ) : (
             <p className="text-xs font-medium text-slate-400 italic">Empresa verificada</p>
           )}
           {(hasRating || hasJobs) && (
-            <div className="flex items-center gap-1 mt-0.5">
+            <div className="flex flex-wrap items-center gap-1 mt-0.5">
               {hasRating && (
                 <div className="flex items-center gap-0.5">
                   <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
@@ -412,7 +430,7 @@ function ProjectCard({
         </div>
       </div>
 
-      <p className="text-sm text-slate-500 leading-relaxed line-clamp-2 mb-3">
+      <p className="break-words text-sm text-slate-500 leading-relaxed line-clamp-2 mb-3">
         {project.description}
       </p>
 
@@ -434,7 +452,7 @@ function ProjectCard({
         </div>
       )}
 
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 mb-3">
         <div className="flex items-center gap-1.5 text-xs text-slate-500">
           <Clock className="h-3.5 w-3.5" strokeWidth={1.5} />
           <span>Entrega en {project.estimatedDays} dias</span>
@@ -452,7 +470,9 @@ function ProjectCard({
         </div>
       </div>
 
-      <div className="flex items-center gap-1.5 pt-2 border-t border-slate-100">
+      {/* RESPONSIVE: los botones iban en una sola fila sin salto de línea y
+          "Cancelar" se salía de la tarjeta. Ahora hacen wrap. */}
+      <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-100">
         {project.status === "CANCELLED" ? (
           /* Proyecto cancelado: sin acciones, solo el estado ya visible arriba
              en el badge. Ver/Editar/Pausar/Cancelar no tienen sentido sobre
@@ -467,17 +487,17 @@ function ProjectCard({
             <button
               type="button"
               onClick={() => router.push(`/company/projects/${project.id}`)}
-              className="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-semibold text-slate-600 border border-slate-200 hover:bg-slate-50 transition-colors"
+              className={`${ACTION_BTN} text-slate-600 border-slate-200 hover:bg-slate-50`}
             >
-              <Eye className="h-3 w-3" strokeWidth={1.5} />
+              <Eye className={ACTION_ICON} strokeWidth={1.5} />
               Ver
             </button>
             <button
               type="button"
               onClick={() => router.push(`/company/projects/${project.id}/edit`)}
-              className="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-semibold text-blue-600 border border-blue-200 hover:bg-blue-50 transition-colors"
+              className={`${ACTION_BTN} text-blue-600 border-blue-200 hover:bg-blue-50`}
             >
-              <Edit className="h-3 w-3" strokeWidth={1.5} />
+              <Edit className={ACTION_ICON} strokeWidth={1.5} />
               Editar
             </button>
             {project.status === "PAUSED" ? (
@@ -485,9 +505,9 @@ function ProjectCard({
                 type="button"
                 onClick={() => resumeMutation.mutate()}
                 disabled={resumeMutation.isPending}
-                className="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-semibold text-emerald-600 border border-emerald-200 hover:bg-emerald-50 transition-colors disabled:opacity-50"
+                className={`${ACTION_BTN} text-emerald-600 border-emerald-200 hover:bg-emerald-50 disabled:opacity-50`}
               >
-                <Play className="h-3 w-3" strokeWidth={1.5} />
+                <Play className={ACTION_ICON} strokeWidth={1.5} />
                 Reanudar
               </button>
             ) : (
@@ -495,9 +515,9 @@ function ProjectCard({
                 type="button"
                 onClick={() => pauseMutation.mutate()}
                 disabled={pauseMutation.isPending}
-                className="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-semibold text-amber-600 border border-amber-200 hover:bg-amber-50 transition-colors disabled:opacity-50"
+                className={`${ACTION_BTN} text-amber-600 border-amber-200 hover:bg-amber-50 disabled:opacity-50`}
               >
-                <PauseCircle className="h-3 w-3" strokeWidth={1.5} />
+                <PauseCircle className={ACTION_ICON} strokeWidth={1.5} />
                 Pausar
               </button>
             )}
@@ -508,9 +528,9 @@ function ProjectCard({
               type="button"
               onClick={() => deleteMutation.mutate()}
               disabled={deleteMutation.isPending}
-              className="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-semibold text-red-600 border border-red-200 hover:bg-red-50 transition-colors disabled:opacity-50"
+              className={`${ACTION_BTN} text-red-600 border-red-200 hover:bg-red-50 disabled:opacity-50`}
             >
-              <Trash2 className="h-3 w-3" strokeWidth={1.5} />
+              <Trash2 className={ACTION_ICON} strokeWidth={1.5} />
               Cancelar
             </button>
             {project.status === "OPEN" && (
@@ -519,9 +539,9 @@ function ProjectCard({
                   e.preventDefault();
                   onViewProposals(project);
                 }}
-                className="inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-semibold text-[#0d9488] border border-[#0d9488]/30 hover:bg-[#0d9488]/5 transition-colors ml-auto"
+                className={`${ACTION_BTN} text-[#0d9488] border-[#0d9488]/30 hover:bg-[#0d9488]/5 ml-auto`}
               >
-                <Users className="h-3 w-3" strokeWidth={1.5} />
+                <Users className={ACTION_ICON} strokeWidth={1.5} />
                 Propuestas ({proposalCount})
               </button>
             )}
@@ -560,6 +580,7 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export function ProjectsListPage() {
+  const router = useRouter();
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("");
@@ -624,8 +645,10 @@ export function ProjectsListPage() {
 
   return (
     <div className="space-y-6 p-4 sm:p-6 lg:space-y-8 lg:p-8">
-      <div className="flex items-center justify-between">
-        <div>
+      {/* RESPONSIVE: el botón "Publicar Proyecto" competía con el título por
+          el ancho. Apilados en celular, botón a ancho completo. */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold text-[#0a1628]">Proyectos Freelance</h1>
           <p className="text-sm text-slate-500 mt-1">
             Gestiona tus proyectos y revisa propuestas de freelancers
@@ -633,14 +656,16 @@ export function ProjectsListPage() {
         </div>
         <Link
           href="/company/projects/create"
-          className="inline-flex items-center gap-2 bg-[#1e3a8a] text-white font-semibold px-6 py-3 rounded-xl hover:bg-[#1e3a8a]/90 transition-all shadow-sm"
+          className="inline-flex w-full shrink-0 items-center justify-center gap-2 bg-[#1e3a8a] text-white font-semibold px-6 py-3 rounded-xl hover:bg-[#1e3a8a]/90 transition-all shadow-sm sm:w-auto"
         >
           <Plus className="w-5 h-5" />
           Publicar Proyecto
         </Link>
       </div>
 
-      <div className="grid grid-cols-4 gap-6">
+      {/* RESPONSIVE: grid-cols-4 fijo dejaba cada tarjeta en ~55px (textos
+          cortados). 2x2 en celular, 4 en fila desde lg. */}
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4 lg:gap-6">
         <MetricCard
           icon={Rocket}
           label="Proyectos Activos"
@@ -676,8 +701,10 @@ export function ProjectsListPage() {
         />
       </div>
 
-      <div className="flex items-center gap-3">
-        <div className="relative flex-1 max-w-md">
+      {/* RESPONSIVE: buscador + selector en una fila: el buscador quedaba
+          reducido a un ícono y el selector se salía de la pantalla. */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="relative w-full sm:max-w-md sm:flex-1">
           <Search
             className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"
             strokeWidth={1.5}
@@ -687,14 +714,14 @@ export function ProjectsListPage() {
             value={searchQuery}
             onChange={(e) => handleSearchChange(e.target.value)}
             placeholder="Buscar proyectos..."
-            className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-[#1e3a8a] focus:ring-2 focus:ring-blue-100 transition"
+            className="w-full min-w-0 pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-[#1e3a8a] focus:ring-2 focus:ring-blue-100 transition"
           />
         </div>
 
         <select
           value={statusFilter}
           onChange={(e) => handleStatusChange(e.target.value)}
-          className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-[#1e3a8a] focus:ring-2 focus:ring-blue-100 transition"
+          className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-[#1e3a8a] focus:ring-2 focus:ring-blue-100 transition sm:w-auto"
         >
           <option value="">Todos los estados</option>
           <option value="OPEN">Recibiendo Propuestas</option>
@@ -706,7 +733,7 @@ export function ProjectsListPage() {
 
       {visibleProjects.length === 0 ? (
         <EmptyState
-          onCreate={() => (window.location.href = "/company/projects/create")}
+          onCreate={() => router.push("/company/projects/create")}
         />
       ) : (
         <>
@@ -721,7 +748,7 @@ export function ProjectsListPage() {
           </div>
 
           {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2 pt-4">
+            <div className="flex flex-wrap items-center justify-center gap-2 pt-4">
               <button
                 onClick={() => setCurrentPage((p) => Math.max(0, p - 1))}
                 disabled={currentPage === 0}

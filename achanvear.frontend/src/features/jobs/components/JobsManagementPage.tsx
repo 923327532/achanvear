@@ -2,6 +2,8 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useProtectedRoute } from "@/shared/hooks/useProtectedRoute";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { jobApi } from "../api/jobApi";
@@ -11,7 +13,6 @@ import {
   Plus,
   Search,
   MapPin,
-  Clock,
   Eye,
   Pencil,
   Play,
@@ -132,6 +133,12 @@ function getJobTypeIcon(type?: string) {
   }
 }
 
+// RESPONSIVE: botones de acción. En celular llevan texto y borde (en pantalla
+// táctil no existe el tooltip "title", así que un ícono suelto no dice qué
+// hace). Desde sm vuelven a ser solo ícono, como antes.
+const ACTION_BASE =
+  "inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 transition disabled:opacity-50 sm:gap-0 sm:border-0 sm:p-1.5 sm:font-normal sm:text-slate-400";
+
 // ─── Job Card ──────────────────────────────────────────────────────────────────
 
 function JobCard({
@@ -156,18 +163,22 @@ function JobCard({
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all">
-      <div className="p-6">
-        {/* Fila superior: Info + Acciones */}
-        <div className="flex items-start justify-between gap-4">
+      <div className="p-4 sm:p-6">
+        {/* Fila superior: Info + Acciones
+            RESPONSIVE: en celular se apilan (info arriba, acciones abajo).
+            Antes iban lado a lado y la columna de acciones (shrink-0) dejaba
+            a la info sin ancho: el título quedaba tapado por "Ver Postulantes"
+            y cada dato de la metadata en su propia línea. */}
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           {/* Lado izquierdo - Información */}
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-3 flex-wrap">
-              <h3 className="text-lg font-bold text-slate-900">{job.title}</h3>
+            <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+              <h3 className="min-w-0 break-words text-base sm:text-lg font-bold text-slate-900">{job.title}</h3>
               {getStatusBadge(job.status || "")}
             </div>
 
             {/* Metadata */}
-            <div className="flex items-center gap-3 mt-2 text-sm text-slate-500 flex-wrap">
+            <div className="flex items-center gap-x-3 gap-y-1 mt-2 text-sm text-slate-500 flex-wrap">
               <span className="flex items-center gap-1">
                 <Briefcase className="w-3.5 h-3.5" strokeWidth={1.5} />
                 {getJobTypeIcon(job.type)}
@@ -191,73 +202,84 @@ function JobCard({
           </div>
 
           {/* Lado derecho - Acciones */}
-          <div className="flex flex-col items-end gap-2 shrink-0">
+          <div className="flex flex-col gap-2 sm:items-end sm:shrink-0">
             <button
               onClick={() => onViewApplicants(job.id)}
-              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-[#1e3a8a] bg-blue-50 border border-blue-200 rounded-xl hover:bg-blue-100 transition-all"
+              className="inline-flex w-full items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-[#1e3a8a] bg-blue-50 border border-blue-200 rounded-xl hover:bg-blue-100 transition-all sm:w-auto"
             >
               <Eye className="w-4 h-4" strokeWidth={1.5} />
               Ver Postulantes
             </button>
 
-            <div className="flex items-center gap-1">
-              <a
+            <div className="flex flex-wrap items-center gap-2 sm:justify-end sm:gap-1">
+              <Link
                 href={`/company/jobs/${job.id}/edit`}
-                className="p-1.5 text-slate-400 hover:text-[#1e3a8a] hover:bg-slate-100 rounded-lg transition"
+                className={`${ACTION_BASE} hover:text-[#1e3a8a] hover:bg-slate-100`}
                 title="Editar"
               >
                 <Pencil className="w-4 h-4" strokeWidth={1.5} />
-              </a>
+                <span className="sm:hidden">Editar</span>
+              </Link>
 
               {job.status === "SUSPENDED" && (
                 <button
+                  type="button"
                   onClick={() => onChangeStatus(job.id, "PUBLISHED")}
                   disabled={isLoadingAction}
-                  className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition"
+                  className={`${ACTION_BASE} hover:text-emerald-600 hover:bg-emerald-50`}
                   title="Reactivar"
                 >
                   {isLoadingAction ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" strokeWidth={1.5} />}
+                  <span className="sm:hidden">Reactivar</span>
                 </button>
               )}
 
               {job.status === "PUBLISHED" && (
                 <button
+                  type="button"
                   onClick={() => onChangeStatus(job.id, "SUSPENDED")}
                   disabled={isLoadingAction}
-                  className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition"
+                  className={`${ACTION_BASE} hover:text-amber-600 hover:bg-amber-50`}
                   title="Pausar"
                 >
                   {isLoadingAction ? <Loader2 className="w-4 h-4 animate-spin" /> : <Pause className="w-4 h-4" strokeWidth={1.5} />}
+                  <span className="sm:hidden">Pausar</span>
                 </button>
               )}
 
               {job.status !== "CLOSED" && (
                 <button
+                  type="button"
                   onClick={() => onChangeStatus(job.id, "CLOSED")}
                   disabled={isLoadingAction}
-                  className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
+                  className={`${ACTION_BASE} hover:text-red-600 hover:bg-red-50`}
                   title="Cerrar Vacante"
                 >
                   {isLoadingAction ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" strokeWidth={1.5} />}
+                  <span className="sm:hidden">Cerrar</span>
                 </button>
               )}
 
               <button
+                type="button"
                 onClick={() => onDuplicate(job.id)}
                 disabled={isLoadingAction}
-                className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition"
+                className={`${ACTION_BASE} hover:text-slate-600 hover:bg-slate-100`}
                 title="Duplicar"
               >
                 <Copy className="w-4 h-4" strokeWidth={1.5} />
+                <span className="sm:hidden">Duplicar</span>
               </button>
 
               <button
+                type="button"
                 onClick={() => onDelete(job.id)}
                 disabled={isLoadingAction}
-                className="p-1.5 text-slate-400 hover:text-red-700 hover:bg-red-50 rounded-lg transition"
+                className={`${ACTION_BASE} hover:text-red-700 hover:bg-red-50`}
                 title="Eliminar"
               >
                 {isLoadingAction ? <Loader2 className="w-4 h-4 animate-spin" /> : <TrashIcon className="w-4 h-4" />}
+                <span className="sm:hidden">Eliminar</span>
               </button>
             </div>
           </div>
@@ -266,8 +288,10 @@ function JobCard({
         {/* Línea divisoria */}
         <div className="border-t border-slate-100 my-4" />
 
-        {/* Métricas */}
-        <div className="grid grid-cols-4 gap-4">
+        {/* Métricas
+            RESPONSIVE: 4 columnas a 284px dejaban ~50px por columna y los
+            textos se pisaban. 2x2 en celular, 4 en una fila desde sm. */}
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           <div>
             <p className="text-xs text-slate-500 mb-0.5">Total Postulantes</p>
             <p className="text-lg font-bold text-slate-900">{totalApps}</p>
@@ -325,6 +349,7 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
 
 export function JobsManagementPage() {
   useProtectedRoute();
+  const router = useRouter();
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("");
@@ -434,8 +459,10 @@ export function JobsManagementPage() {
     }
   };
 
+  // Navegación de Next.js (antes window.location.href, que recargaba toda la
+  // página y volvía a pedir layout, sesión y datos).
   const handleViewApplicants = (jobId: string) => {
-    window.location.href = `/company/pipeline/${jobId}`;
+    router.push(`/company/pipeline/${jobId}`);
   };
 
   if (jobsQuery.isLoading) {
@@ -451,19 +478,21 @@ export function JobsManagementPage() {
 
   return (
     <div className="space-y-6 p-4 sm:p-6 lg:p-8">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
+      {/* Header
+          RESPONSIVE: el botón "Crear Nueva Publicación" se salía por la
+          derecha. En celular se apila bajo el título y ocupa todo el ancho. */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold text-[#1e3a8a]">Mis Publicaciones</h1>
           <p className="text-sm text-slate-500 mt-1">Gestiona todas tus vacantes, proyectos freelance y asesorías</p>
         </div>
-        <a
+        <Link
           href="/company/jobs/create"
-          className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-900 to-teal-600 text-white font-semibold px-6 py-3 rounded-2xl hover:from-blue-800 hover:to-teal-500 transition-all shadow-sm"
+          className="inline-flex w-full shrink-0 items-center justify-center gap-2 bg-gradient-to-r from-blue-900 to-teal-600 text-white font-semibold px-6 py-3 rounded-2xl hover:from-blue-800 hover:to-teal-500 transition-all shadow-sm sm:w-auto"
         >
           <Plus className="w-5 h-5" />
           Crear Nueva Publicación
-        </a>
+        </Link>
       </div>
 
       {/* Error de acciones */}
@@ -483,23 +512,25 @@ export function JobsManagementPage() {
         }}
       />
 
-      {/* Filtros */}
-      <div className="flex items-center gap-3">
-        <div className="relative flex-1 max-w-md">
+      {/* Filtros
+          RESPONSIVE: buscador + 2 selectores en una fila no cabían (el
+          segundo selector quedaba fuera de pantalla). Apilados en celular. */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="relative w-full sm:max-w-md sm:flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" strokeWidth={1.5} />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Buscar por título o industria..."
-            className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-[#1e3a8a] focus:ring-2 focus:ring-blue-100 transition"
+            className="w-full min-w-0 pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-[#1e3a8a] focus:ring-2 focus:ring-blue-100 transition"
           />
         </div>
 
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-[#1e3a8a] focus:ring-2 focus:ring-blue-100 transition"
+          className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-[#1e3a8a] focus:ring-2 focus:ring-blue-100 transition sm:w-auto"
         >
           <option value="">Todos los estados</option>
           <option value="PUBLISHED">Activas</option>
@@ -510,7 +541,7 @@ export function JobsManagementPage() {
         <select
           value={typeFilter}
           onChange={(e) => setTypeFilter(e.target.value)}
-          className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-[#1e3a8a] focus:ring-2 focus:ring-blue-100 transition"
+          className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-[#1e3a8a] focus:ring-2 focus:ring-blue-100 transition sm:w-auto"
         >
           <option value="">Todos los tipos</option>
           <option value="FULL_TIME">Empleo Fijo</option>
@@ -523,7 +554,7 @@ export function JobsManagementPage() {
 
       {/* Lista de publicaciones */}
       {filteredJobs.length === 0 ? (
-        <EmptyState onCreate={() => window.location.href = "/company/jobs/create"} />
+        <EmptyState onCreate={() => router.push("/company/jobs/create")} />
       ) : (
         <div className="space-y-4">
           {filteredJobs.map((job) => (
