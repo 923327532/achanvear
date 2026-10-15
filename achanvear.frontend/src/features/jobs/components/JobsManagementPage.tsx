@@ -5,6 +5,7 @@ import { useState, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useProtectedRoute } from "@/shared/hooks/useProtectedRoute";
+import { ConfirmModal } from "@/shared/components/ui/ConfirmModal";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { jobApi } from "../api/jobApi";
 import type { Job } from "../types/job.types";
@@ -146,14 +147,17 @@ function JobCard({
   actionLoading,
   onViewApplicants,
   onChangeStatus,
-  onDelete,
+  onRequestClose,
+  onRequestDelete,
   onDuplicate,
 }: {
   job: Job;
   actionLoading: string | null;
   onViewApplicants: (jobId: string) => void;
   onChangeStatus: (jobId: string, newStatus: string) => void;
-  onDelete: (jobId: string) => void;
+  // "Cerrar" y "Eliminar" no se ejecutan directo: piden confirmación con un cuadro propio (ver JobsManagementPage)
+  onRequestClose: (job: Job) => void;
+  onRequestDelete: (job: Job) => void;
   onDuplicate: (jobId: string) => void;
 }) {
   const isLoadingAction = actionLoading === job.id;
@@ -250,7 +254,7 @@ function JobCard({
               {job.status !== "CLOSED" && (
                 <button
                   type="button"
-                  onClick={() => onChangeStatus(job.id, "CLOSED")}
+                  onClick={() => onRequestClose(job)}
                   disabled={isLoadingAction}
                   className={`${ACTION_BASE} hover:text-red-600 hover:bg-red-50`}
                   title="Cerrar Vacante"
@@ -273,7 +277,7 @@ function JobCard({
 
               <button
                 type="button"
-                onClick={() => onDelete(job.id)}
+                onClick={() => onRequestDelete(job)}
                 disabled={isLoadingAction}
                 className={`${ACTION_BASE} hover:text-red-700 hover:bg-red-50`}
                 title="Eliminar"
@@ -356,6 +360,8 @@ export function JobsManagementPage() {
   const [typeFilter, setTypeFilter] = useState<string>("");
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  // Acción pendiente de confirmar (cerrar o eliminar una publicación)
+  const [pending, setPending] = useState<{ kind: "close" | "delete"; job: Job } | null>(null);
 
   // Obtener publicaciones
   const jobsQuery = useQuery({
@@ -404,8 +410,9 @@ export function JobsManagementPage() {
     },
   });
 
+  // FIX: ya no pide confirmación aquí (antes usaba el confirm() nativo del navegador). La confirmación se muestra
+  // antes, con el cuadro propio de más abajo (ConfirmModal), y recién al aceptar se llega a esta función.
   const handleDelete = async (jobId: string) => {
-    if (!confirm("¿Estás seguro de eliminar esta publicación? Esta acción no se puede deshacer.")) return;
     setActionLoading(jobId);
     setActionError(null);
     try {
@@ -426,6 +433,20 @@ export function JobsManagementPage() {
       setActionError(err instanceof Error ? err.message : "Error al cambiar estado");
     } finally {
       setActionLoading(null);
+    }
+  };
+
+  // El usuario aceptó el cuadro de confirmación: se cierra el cuadro y se ejecuta la acción
+  // (mientras tanto, la tarjeta de esa publicación muestra el indicador de carga).
+  const handleConfirmPending = () => {
+    if (!pending) return;
+    const { kind, job } = pending;
+    setPending(null);
+    if (kind === "delete") {
+      void handleDelete(job.id);
+    } else {
+      // FIX: antes "Cerrar" cambiaba el estado a CLOSED directamente, sin preguntar nada
+      void handleChangeStatus(job.id, "CLOSED");
     }
   };
 
@@ -564,11 +585,27 @@ export function JobsManagementPage() {
               actionLoading={actionLoading}
               onViewApplicants={handleViewApplicants}
               onChangeStatus={handleChangeStatus}
-              onDelete={handleDelete}
+              onRequestClose={(j) => setPending({ kind: "close", job: j })}
+              onRequestDelete={(j) => setPending({ kind: "delete", job: j })}
               onDuplicate={handleDuplicate}
             />
           ))}
         </div>
+      )}
+
+      {/* Confirmación de "Cerrar" y "Eliminar" */}
+      {pending && (
+        <ConfirmModal
+          title={pending.kind === "delete" ? "Eliminar publicación" : "Cerrar vacante"}
+          description={
+            pending.kind === "delete"
+              ? `Vas a eliminar "${pending.job.title}". Esta acción no se puede deshacer.`
+              : `Vas a cerrar "${pending.job.title}". Dejará de recibir postulaciones y no podrás reabrirla desde aquí.`
+          }
+          confirmLabel={pending.kind === "delete" ? "Eliminar" : "Cerrar vacante"}
+          onConfirm={handleConfirmPending}
+          onCancel={() => setPending(null)}
+        />
       )}
     </div>
   );

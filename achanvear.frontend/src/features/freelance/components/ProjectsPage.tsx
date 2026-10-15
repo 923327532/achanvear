@@ -1,11 +1,12 @@
 // features/freelance/components/ProjectsPage.tsx
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Filter, Search, Rocket } from "lucide-react";
 import { useProjects } from "../hooks/useProjects";
 import { useMyProposals } from "../hooks/useMyProposals";
 import { useProjectFiltersStore } from "../store/useProjectFiltersStore";
+import { useAuthContext } from "@/providers/AuthProvider";
 import { ProjectCard } from "./ProjectCard";
 import { ProjectFilters } from "./ProjectFilters";
 import { ProposalModal } from "./ProposalModal";
@@ -37,6 +38,22 @@ export function ProjectsPage() {
     isError: proposalsError,
     totalItems: proposalsTotal,
   } = useMyProposals();
+  const { user } = useAuthContext();
+
+  // FIX (Mis Proyectos): esta pestaña mostraba siempre "No tienes proyectos activos" sin consultar nada, aunque el
+  // freelancer ya hubiera sido contratado (en "Propuestas Enviadas" el mismo proyecto aparece como "Aceptada").
+  // GET /freelance/projects/my-proposals ya entrega cada proyecto con sus propuestas, así que "contratado" es
+  // un proyecto donde la propuesta DE ESTE usuario está aceptada. Se compara con el id del usuario (y no con
+  // proposals[0]) por si la lista de propuestas de un proyecto trae también las de otros freelancers.
+  const contractedProjects = useMemo(
+    () =>
+      myProposals.filter((project) =>
+        (project.proposals ?? []).some(
+          (proposal) => proposal.freelancerUserId === user?.id && proposal.status === "ACCEPTED"
+        )
+      ),
+    [myProposals, user?.id]
+  );
 
   const TABS = [
     { key: "explore" as Tab,     label: "Explorar Proyectos" },
@@ -70,7 +87,11 @@ export function ProjectsPage() {
           <div className="mb-4 flex items-center justify-between gap-3">
             <div className="min-w-0">
               <h1 className="text-lg font-semibold text-slate-900 sm:text-xl">Proyectos Freelance</h1>
-              <p className="mt-1 text-xs text-slate-500">Mostrando proyectos activos disponibles</p>
+              {/* FIX: este subtítulo solo describe la pestaña "Explorar Proyectos"; antes salía también en "Mis Proyectos"
+                  y "Propuestas Enviadas", donde no corresponde. */}
+              {activeTab === "explore" && (
+                <p className="mt-1 text-xs text-slate-500">Mostrando proyectos activos disponibles</p>
+              )}
             </div>
             {activeTab === "explore" && (
               <button
@@ -218,13 +239,49 @@ export function ProjectsPage() {
 
           {/* Tab Mis Proyectos */}
           {activeTab === "my-projects" && (
-            <div className="flex flex-col items-center justify-center py-16 text-center">
-              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-100">
-                <Rocket className="h-8 w-8 text-slate-400" strokeWidth={1.5} />
-              </div>
-              <p className="text-sm font-semibold text-slate-700">No tienes proyectos activos</p>
-              <p className="mt-1 text-xs text-slate-500">Los proyectos aparecerán cuando seas contratado</p>
-            </div>
+            <>
+              {proposalsLoading ? (
+                <div className="space-y-4">
+                  {[1, 2].map((i) => (
+                    <div key={i} className="h-52 rounded-xl border border-slate-200 bg-white animate-pulse" />
+                  ))}
+                </div>
+              ) : proposalsError ? (
+                <div className="flex flex-col items-center justify-center py-16 text-center">
+                  <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-100">
+                    <Rocket className="h-8 w-8 text-red-400" strokeWidth={1.5} />
+                  </div>
+                  <p className="text-sm font-semibold text-slate-700">Error al cargar tus proyectos</p>
+                  <p className="mt-1 text-xs text-slate-500">No se pudieron cargar tus proyectos. Verifica tu conexión e intenta de nuevo.</p>
+                </div>
+              ) : contractedProjects.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 text-center">
+                  <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-100">
+                    <Rocket className="h-8 w-8 text-slate-400" strokeWidth={1.5} />
+                  </div>
+                  <p className="text-sm font-semibold text-slate-700">No tienes proyectos activos</p>
+                  <p className="mt-1 text-xs text-slate-500">Los proyectos aparecerán cuando seas contratado</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <p className="text-sm text-slate-500 mb-4">
+                    Tienes <span className="font-semibold text-slate-700">{contractedProjects.length}</span> proyecto(s) contratado(s)
+                  </p>
+                  {/* RESPONSIVE: 2 columnas solo desde xl */}
+                  <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                    {contractedProjects.map((project) => (
+                      <ProjectCard
+                        key={project.id}
+                        project={project}
+                        onViewDetail={(p) => setDetailProject(p)}
+                        onPropose={(p) => setSelectedProject(p)}
+                        showProjectStatus
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
           )}
 
           {/* Tab Propuestas Enviadas */}
@@ -273,6 +330,7 @@ export function ProjectsPage() {
                         onViewDetail={(p) => setDetailProject(p)}
                         onPropose={(p) => setSelectedProject(p)}
                         showProposalStatus
+                        onGoToMyProjects={() => setActiveTab("my-projects")}
                       />
                     ))}
                   </div>

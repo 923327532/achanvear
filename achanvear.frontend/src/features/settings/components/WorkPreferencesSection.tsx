@@ -112,9 +112,6 @@ export function WorkPreferencesSection({ profile }: Props) {
 
       {/* RESPONSIVE: botones apilados a ancho completo en celular (Guardar arriba), en fila a la derecha desde sm */}
       <div className="flex flex-col-reverse gap-3 pt-4 border-t border-gray-100 sm:flex-row sm:items-center sm:justify-end">
-        <button className="text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors">
-          Cancelar
-        </button>
         <button
           onClick={handleSave}
           disabled={isSaving}

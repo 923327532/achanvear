@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { freelanceApi } from "../api/freelanceApi";
 import { profileApi } from "@/features/profile/api/profileApi";
+import { ConfirmModal } from "@/shared/components/ui/ConfirmModal";
 import type { Project, Proposal } from "../types/freelance.types";
 import {
   Plus,
@@ -153,6 +154,8 @@ function ProposalCard({
   isSelecting: boolean;
 }) {
   const router = useRouter();
+  // FIX: aviso de "sin portafolio". Antes era un alert() del navegador; ahora es un mensaje dentro de la tarjeta.
+  const [portfolioMissing, setPortfolioMissing] = useState(false);
   const freelancerQuery = useQuery({
     queryKey: ["freelancer-profile", proposal.freelancerUserId],
     queryFn: () => profileApi.getProfileById(proposal.freelancerUserId),
@@ -168,10 +171,12 @@ function ProposalCard({
   const totalProjects = freelancer?.reputationScore?.totalRatings || 0;
 
   const handleViewPortfolio = () => {
-    if ((proposal as any).portfolioUrl) {
-      window.open((proposal as any).portfolioUrl, "_blank", "noopener,noreferrer");
+    const portfolioUrl = (proposal as any).portfolioUrl;
+    if (portfolioUrl) {
+      setPortfolioMissing(false);
+      window.open(portfolioUrl, "_blank", "noopener,noreferrer");
     } else {
-      alert("El freelancer no ha proporcionado un enlace a su portafolio.");
+      setPortfolioMissing(true);
     }
   };
 
@@ -270,6 +275,12 @@ function ProposalCard({
           Seleccionar Freelancer
         </button>
       </div>
+
+      {portfolioMissing && (
+        <p role="status" className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
+          El freelancer no ha proporcionado un enlace a su portafolio.
+        </p>
+      )}
     </div>
   );
 }
@@ -352,6 +363,9 @@ function ProjectCard({
   const router = useRouter();
   const queryClient = useQueryClient();
   const currencySymbol = "S/.";
+  // FIX: confirmación de "Cancelar proyecto". Antes se pedía con window.confirm dentro de la mutación (y si decías
+  // que no, lanzaba un Error("cancelado") solo para abortar). Ahora se muestra el ConfirmModal del proyecto.
+  const [confirmingCancel, setConfirmingCancel] = useState(false);
 
   const pauseMutation = useMutation({
     mutationFn: () => freelanceApi.pause(project.id),
@@ -364,12 +378,7 @@ function ProjectCard({
   });
 
   const deleteMutation = useMutation({
-    mutationFn: () => {
-      if (!window.confirm("¿Cancelar este proyecto? Se marcará como cancelado y dejará de recibir propuestas.")) {
-        throw new Error("cancelado");
-      }
-      return freelanceApi.remove(project.id);
-    },
+    mutationFn: () => freelanceApi.remove(project.id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["company-projects"] }),
   });
   const companyName = project.companyName ?? null;
@@ -523,10 +532,10 @@ function ProjectCard({
             )}
             {/* Cancelar (antes decía "Eliminar", pero el backend solo marca el
                 proyecto como CANCELLED — no lo borra. El texto ahora refleja lo
-                que realmente pasa. */}
+                que realmente pasa. Pide confirmación con ConfirmModal. */}
             <button
               type="button"
-              onClick={() => deleteMutation.mutate()}
+              onClick={() => setConfirmingCancel(true)}
               disabled={deleteMutation.isPending}
               className={`${ACTION_BTN} text-red-600 border-red-200 hover:bg-red-50 disabled:opacity-50`}
             >
@@ -548,6 +557,20 @@ function ProjectCard({
           </>
         )}
       </div>
+
+      {confirmingCancel && (
+        <ConfirmModal
+          title="Cancelar proyecto"
+          description={`Vas a cancelar "${project.title}". Se marcará como cancelado y dejará de recibir propuestas.`}
+          confirmLabel="Cancelar proyecto"
+          cancelLabel="Volver"
+          onConfirm={() => {
+            setConfirmingCancel(false);
+            deleteMutation.mutate();
+          }}
+          onCancel={() => setConfirmingCancel(false)}
+        />
+      )}
     </div>
   );
 }

@@ -1,49 +1,19 @@
 // features/services/components/ExploreDetailModal.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { X, Star, Clock, DollarSign, MessageSquare, Phone, ChevronDown, ChevronUp } from "lucide-react";
 import { CATEGORY_LABELS, CATEGORY_COLORS } from "../types/service.types";
 import type { ExploreService } from "../types/service.types";
 import { RateFreelancerModal } from "./RateFreelancerModal";
-import api from "@/lib/axiosClient";
-import { ApiError } from "@/lib/errors";
+import { useFreelancerComments } from "../hooks/useExploreServices";
 
 interface Props {
   open: boolean;
   service: ExploreService | null;
   onClose: () => void;
   onHire: (service: ExploreService) => void;
-}
-
-interface ProfileRating {
-  reviewerUserId: string;
-  reviewerType: string;
-  stars: number;
-  recommended: boolean;
-  comment: string | null;
-  createdAt: string;
-}
-
-interface TalentProfileResponse {
-  id: string;
-  userId: string;
-  profileType: string;
-  headline: string;
-  biography: string;
-  location: string;
-  profilePhotoUrl: string | null;
-  curriculumUrl: string | null;
-  status: string;
-  reputationScore: {
-    averageStars: number;
-    recommendationPercentage: number;
-    totalRatings: number;
-  };
-  skills: { name: string; level: string; yearsOfExperience: number }[];
-  portfolioItems: { title: string; description: string; assetUrl: string | null; projectUrl: string | null }[];
-  ratings: ProfileRating[];
 }
 
 const AVATAR_COLORS = ["bg-teal-500", "bg-[#1B3A6B]", "bg-purple-500", "bg-amber-500", "bg-rose-500", "bg-emerald-600"];
@@ -58,36 +28,12 @@ function getAvatarColor(name: string) {
 
 export function ExploreDetailModal({ open, service, onClose, onHire }: Props) {
   const [rateModalOpen, setRateModalOpen] = useState(false);
-  const [ratings, setRatings] = useState<ProfileRating[]>([]);
   const [showAllReviews, setShowAllReviews] = useState(false);
-  const [loadingRatings, setLoadingRatings] = useState(false);
 
-  // Fetch ratings when modal opens
-  useEffect(() => {
-    if (!open || !service?.freelancer?.id) return;
-
-    let cancelled = false;
-    setLoadingRatings(true);
-
-    api.get<{ data: TalentProfileResponse }>(`/profiles/by-user/${service.freelancer.id}`)
-      .then((res) => {
-        if (!cancelled) {
-          const profile = res.data?.data ?? res.data;
-          const allRatings = (profile?.ratings ?? [])
-            .filter((r) => r.comment) // Only ratings with comments
-            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-          setRatings(allRatings);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setRatings([]);
-      })
-      .finally(() => {
-        if (!cancelled) setLoadingRatings(false);
-      });
-
-    return () => { cancelled = true; };
-  }, [open, service?.freelancer?.id]);
+  // FIX (pendiente front): antes pedía las reseñas con api.get directo dentro de un useEffect (salteándose la capa
+  // API → hook → componente), con un estado "loadingRatings" que nunca se mostraba y un import sin uso (ApiError).
+  // Ahora la petición vive en serviceApi.getFreelancerRatings y se consulta con el hook useFreelancerComments.
+  const { ratings } = useFreelancerComments(service?.freelancer?.id, open);
 
   if (!open || !service) return null;
 

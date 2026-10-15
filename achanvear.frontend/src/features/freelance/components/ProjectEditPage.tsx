@@ -1,7 +1,7 @@
 // features/freelance/components/ProjectEditPage.tsx
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, Fragment } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
 import { freelanceApi } from "../api/freelanceApi";
@@ -193,6 +193,14 @@ export function ProjectEditPage() {
 
   const currencySymbol = getCurrencySymbol(currency);
 
+  // FIX (pendiente front #8): el paso de Revisión mostraba el valor interno (JUNIOR / MID / SENIOR) y no
+  // mostraba la modalidad. Se traduce con las mismas listas que usan los botones del paso 3; si llega un valor
+  // que no está en la lista, se muestra tal cual en vez de dejar el campo vacío.
+  const experienceLabel =
+    EXPERIENCE_LEVELS.find((el) => el.value === experienceLevel)?.label ?? (experienceLevel || "No especificado");
+  const modalityLabel =
+    MODALITIES.find((m) => m.value === modality)?.label ?? (modality || "No especificada");
+
   // ─── Validación ─────────────────────────────────────────────────────────────
   const isStep1Valid = title.length >= 5 && description.length >= 20 && category.length >= 3;
   const isStep2Valid = Number(estimatedDays) > 0;
@@ -261,36 +269,49 @@ export function ProjectEditPage() {
       </div>
 
       {/* ── Steps Progress ─────────────────────────────────────────────────
-          RESPONSIVE: con px-4 por paso, los 4 indicadores no cabían en celular
-          y el cuarto (el ojo) se cortaba. Menos padding y gap hasta sm. */}
+          FIX (pasos pegados): antes cada paso ocupaba una parte IGUAL del ancho (flex-1) pero las etiquetas miden
+          distinto y no se encogían (shrink-0): la de "Requisitos y Preferencias" es más ancha que su parte y se
+          montaba sobre la siguiente, borrando el guion. Con las 4 etiquetas completas (~770px) en los ~832px útiles
+          no quedaba sitio para las líneas. Ahora los pasos toman su ancho natural y solo las líneas de unión
+          reparten el espacio sobrante (con un mínimo de 12px, para que siempre se vean).
+          RESPONSIVE: la etiqueta del paso activo se ve desde sm; las de los demás pasos solo desde xl (donde
+          caben todas). En pantallas menores los demás pasos quedan solo con el ícono (el nombre sigue disponible
+          en el tooltip y para lectores de pantalla). Debajo de sm, ningún paso muestra texto. */}
       <div className="flex items-center gap-1 mb-8 sm:gap-2">
-        {STEPS.map((step, index) => (
-          <div key={step.id} className="flex min-w-0 flex-1 items-center gap-1 sm:gap-2">
-            <div
-              className={`flex shrink-0 items-center gap-2 px-2.5 py-2 rounded-xl text-sm font-semibold transition sm:px-4 ${
-                currentStep === step.id
-                  ? "bg-[#1e3a8a] text-white shadow-sm"
-                  : currentStep > step.id
-                  ? "bg-emerald-50 text-emerald-600"
-                  : "bg-white text-slate-400 border border-slate-200"
-              }`}
-            >
-              {currentStep > step.id ? (
-                <Check className="w-4 h-4" />
-              ) : (
-                <step.icon className="w-4 h-4" />
-              )}
-              <span className="hidden sm:inline">{step.label}</span>
-            </div>
-            {index < STEPS.length - 1 && (
+        {STEPS.map((step, index) => {
+          const isActive = currentStep === step.id;
+          return (
+            <Fragment key={step.id}>
               <div
-                className={`flex-1 h-0.5 rounded-full ${
-                  currentStep > step.id ? "bg-emerald-400" : "bg-slate-200"
+                title={step.label}
+                aria-current={isActive ? "step" : undefined}
+                className={`flex shrink-0 items-center gap-2 px-2.5 py-2 rounded-xl text-[13px] font-semibold transition sm:px-3 ${
+                  isActive
+                    ? "bg-[#1e3a8a] text-white shadow-sm"
+                    : currentStep > step.id
+                    ? "bg-emerald-50 text-emerald-600"
+                    : "bg-white text-slate-400 border border-slate-200"
                 }`}
-              />
-            )}
-          </div>
-        ))}
+              >
+                {currentStep > step.id ? (
+                  <Check className="w-4 h-4" />
+                ) : (
+                  <step.icon className="w-4 h-4" />
+                )}
+                <span className={isActive ? "sr-only sm:not-sr-only" : "sr-only xl:not-sr-only"}>
+                  {step.label}
+                </span>
+              </div>
+              {index < STEPS.length - 1 && (
+                <div
+                  className={`h-0.5 min-w-[12px] flex-1 rounded-full ${
+                    currentStep > step.id ? "bg-emerald-400" : "bg-slate-200"
+                  }`}
+                />
+              )}
+            </Fragment>
+          );
+        })}
       </div>
 
       {/* ── Form Steps ─────────────────────────────────────────────────── */}
@@ -633,7 +654,8 @@ export function ProjectEditPage() {
                 <p className="break-words text-sm text-slate-700 mt-1 line-clamp-3">{description}</p>
               </div>
 
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              {/* FIX (#8): 2 columnas en lugar de 3 para sumar la Modalidad (4 datos → 2x2) */}
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="min-w-0">
                   <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Presupuesto</p>
                   <p className="break-words text-sm font-semibold text-emerald-600 mt-1">
@@ -650,7 +672,11 @@ export function ProjectEditPage() {
                 </div>
                 <div>
                   <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Experiencia</p>
-                  <p className="text-sm font-medium text-slate-900 mt-1">{experienceLevel || "No especificado"}</p>
+                  <p className="text-sm font-medium text-slate-900 mt-1">{experienceLabel}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Modalidad</p>
+                  <p className="text-sm font-medium text-slate-900 mt-1">{modalityLabel}</p>
                 </div>
               </div>
 

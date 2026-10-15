@@ -41,7 +41,7 @@ export function SettingsPage() {
                 {activeSection === "work"          && <WorkPreferencesSection profile={profile} />}
                 {activeSection === "finances"      && <FinancesSection profile={profile} />}
                 {activeSection === "security"      && <SecuritySection />}
-                {activeSection === "notifications" && <NotificationsSection />}
+                {activeSection === "notifications" && <NotificationsSection profile={profile} />}
                 {activeSection === "general"       && <GeneralSection profile={profile} />}
               </>
             )}

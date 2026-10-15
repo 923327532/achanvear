@@ -12,6 +12,16 @@ import type {
   ServiceFilters,
 } from "../types/service.types";
 
+// Reseña que un usuario dejó en el perfil de un freelancer
+export interface FreelancerRating {
+  reviewerUserId: string;
+  reviewerType: string;
+  stars: number;
+  recommended: boolean;
+  comment: string | null;
+  createdAt: string;
+}
+
 export const serviceApi = {
   // GET /services/my
   getMyServices: async (): Promise<Service[]> => {
@@ -98,5 +108,12 @@ export const serviceApi = {
   }> => {
     const response = await api.post<ApiResponse<any>>("/services/ai-suggest", { prompt });
     return parseResponse(response);
+  },
+
+  // GET /profiles/by-user/{userId} — reseñas que ha recibido un freelancer (para el detalle de un servicio del
+  // explorador). Probado en Swagger con la cuenta de empresa: responde 200. Si el perfil no trae reseñas, devuelve [].
+  getFreelancerRatings: async (userId: string): Promise<FreelancerRating[]> => {
+    const response = await api.get<ApiResponse<{ ratings?: FreelancerRating[] }>>(`/profiles/by-user/${userId}`);
+    return parseResponse(response)?.ratings ?? [];
   },
 };

@@ -1,10 +1,12 @@
 // features/freelance/components/ProjectDetailPage.tsx
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
 import { freelanceApi } from "../api/freelanceApi";
+import { ConfirmModal } from "@/shared/components/ui/ConfirmModal";
 import type { Project } from "../types/freelance.types";
 import { MercadoPagoCheckout } from "@/features/payments/components/MercadoPagoCheckout";
 import { useProjectMilestones, useReleaseMilestone } from "@/features/payments/hooks/usePayments";
@@ -363,6 +365,10 @@ export function ProjectDetailPage() {
   const projectId = params.projectId as string;
   const paymentMilestonesQuery = useProjectMilestones(projectId);
   const releaseMilestoneMutation = useReleaseMilestone();
+  // Acción pendiente de confirmar: aceptar una propuesta o dar conformidad a un pago
+  const [pending, setPending] = useState<
+    { kind: "accept"; proposalId: string } | { kind: "release"; milestoneId: string } | null
+  >(null);
 
   const projectQuery = useQuery({
     queryKey: ["company-project", projectId],
@@ -380,16 +386,23 @@ export function ProjectDetailPage() {
     },
   });
 
-  const handleAcceptProposal = (proposalId: string) => {
-    if (!confirm("¿Estás seguro de aceptar esta propuesta? Las demás propuestas serán rechazadas automáticamente.")) return;
-    acceptMutation.mutate(proposalId);
-  };
+  // FIX: "Aceptar propuesta" y "Dar conformidad" pedían confirmación con el confirm() nativo del navegador.
+  // Ahora abren el ConfirmModal del proyecto. Los botones solo registran la acción pendiente; recién al
+  // confirmar se ejecuta (el texto de la advertencia es el mismo de antes).
+  const handleAcceptProposal = (proposalId: string) => setPending({ kind: "accept", proposalId });
+  const handleReleaseMilestone = (milestoneId: string) => setPending({ kind: "release", milestoneId });
 
-  const handleReleaseMilestone = async (milestoneId: string) => {
-    if (!confirm("Confirma solo si la entrega esta conforme. Se liberara el pago neto al profesional descontando la comision de la app.")) return;
-    await releaseMilestoneMutation.releaseAsync(milestoneId);
-    queryClient.invalidateQueries({ queryKey: ["payments", "project-milestones", projectId] });
-    queryClient.invalidateQueries({ queryKey: ["company-project", projectId] });
+  const handleConfirmPending = async () => {
+    if (!pending) return;
+    const current = pending;
+    setPending(null);
+    if (current.kind === "accept") {
+      acceptMutation.mutate(current.proposalId);
+    } else {
+      await releaseMilestoneMutation.releaseAsync(current.milestoneId);
+      queryClient.invalidateQueries({ queryKey: ["payments", "project-milestones", projectId] });
+      queryClient.invalidateQueries({ queryKey: ["company-project", projectId] });
+    }
   };
 
   const project = projectQuery.data;
@@ -713,6 +726,21 @@ export function ProjectDetailPage() {
           )}
         </div>
       </div>
+      {pending && (
+        <ConfirmModal
+          title={pending.kind === "accept" ? "Aceptar propuesta" : "Dar conformidad"}
+          description={
+            pending.kind === "accept"
+              ? "Las demás propuestas serán rechazadas automáticamente."
+              : "Confirma solo si la entrega está conforme. Se liberará el pago neto al profesional, descontando la comisión de la app."
+          }
+          confirmLabel={pending.kind === "accept" ? "Aceptar propuesta" : "Dar conformidad"}
+          cancelLabel="Volver"
+          confirmClassName="bg-emerald-600 hover:bg-emerald-700"
+          onConfirm={handleConfirmPending}
+          onCancel={() => setPending(null)}
+        />
+      )}
     </div>
   );
 }

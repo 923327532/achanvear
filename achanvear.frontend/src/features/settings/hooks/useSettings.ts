@@ -3,9 +3,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { settingsApi } from "../api/settingsApi";
 import type { AvailabilityStatus, PreferredCurrency, PaymentMethodType } from "../types/settings.types";
 
-type SettingsProfile = Awaited<ReturnType<typeof settingsApi.getMyProfile>>;
-
-// ─── Mi perfil (se carga UNA vez, en SettingsPage) ───────────────────────────
+// FIX: ahora se exporta para poder tipar las secciones de Configuración (por ejemplo NotificationsSection).
+export type SettingsProfile = Awaited<ReturnType<typeof settingsApi.getMyProfile>>;
 
 export function useSettingsProfile() {
   const query = useQuery({
@@ -75,10 +74,6 @@ function useProfileFieldUpdate(profile: SettingsProfile | null) {
   return mutation;
 }
 
-// ─── Actualizar Preferencias de Trabajo (disponibilidad + visibilidad CV) ─────
-// Combinado en UNA sola petición para evitar condición de carrera:
-// si se mandaran por separado en paralelo, cada request arma su payload con el
-// profile "viejo" y puede pisar el cambio que la otra request acaba de guardar.
 
 export function useUpdateWorkPreferences(profile: SettingsProfile | null) {
   const mutation = useProfileFieldUpdate(profile);
@@ -90,9 +85,6 @@ export function useUpdateWorkPreferences(profile: SettingsProfile | null) {
     isError: mutation.isError,
   };
 }
-
-// ─── Actualizar Finanzas (moneda + método de pago) ────────────────────────────
-// Mismo motivo: una sola petición combinada, no dos en paralelo.
 
 export function useUpdateFinances(profile: SettingsProfile | null) {
   const mutation = useProfileFieldUpdate(profile);
@@ -112,6 +104,16 @@ export function useUpdateGeneralSettings(profile: SettingsProfile | null) {
   const mutation = useProfileFieldUpdate(profile);
   return {
     updateAsync: (data: { language: string; timezone: string }) => mutation.mutateAsync(data),
+    isLoading: mutation.isPending,
+    isSuccess: mutation.isSuccess,
+  };
+}
+
+
+export function useUpdateNotificationPreferences(profile: SettingsProfile | null) {
+  const mutation = useProfileFieldUpdate(profile);
+  return {
+    updateAsync: (data: { notificationPreferences: string }) => mutation.mutateAsync(data),
     isLoading: mutation.isPending,
     isSuccess: mutation.isSuccess,
   };

@@ -115,9 +115,6 @@ export function GeneralSection({ profile }: Props) {
       {/* Footer */}
       {/* RESPONSIVE: botones apilados a ancho completo en celular (Guardar arriba), en fila a la derecha desde sm */}
       <div className="flex flex-col-reverse gap-3 pb-4 sm:flex-row sm:items-center sm:justify-end">
-        <button className="text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors">
-          Cancelar
-        </button>
         <button
           onClick={handleSaveGeneral}
           disabled={savingGeneral}
