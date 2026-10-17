@@ -307,6 +307,9 @@ export function CompanyBillingSection() {
   const published = overview?.publishedProjectsCount ?? 0;
   const remaining = overview?.remainingFreeProjects ?? Math.max(0, FREE_JOB_LIMIT - published);
   const currentPlanType = currentPlan?.planType ?? overview?.currentPlan ?? "FREE";
+  const currentPlanName =
+    activePlans.find((plan) => plan.planType === currentPlanType)?.displayName ??
+    (currentPlanType === "FREE" ? "Gratis" : currentPlanType);
 
   const handleChoosePlan = (planType: string) => {
     setSelectedPlan(planType);
@@ -457,7 +460,7 @@ export function CompanyBillingSection() {
             <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div className="rounded-lg bg-slate-50 p-4">
                 <p className="text-xs font-medium text-slate-500">Plan actual</p>
-                <p className="mt-1 text-lg font-bold text-slate-950">{currentPlanType}</p>
+                <p className="mt-1 text-lg font-bold text-slate-950">{currentPlanName}</p>
               </div>
               <div className="rounded-lg bg-slate-50 p-4">
                 <p className="text-xs font-medium text-slate-500">Publicados</p>
@@ -709,7 +712,7 @@ export function CompanyBillingSection() {
                     className="mt-2 w-full min-w-0 rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none transition focus:border-[#0EA5A0] focus:ring-2 focus:ring-[#0EA5A0]/20"
                   />
                   <p className="mt-2 text-xs leading-relaxed text-slate-400">
-                    Enviaremos la ficha de pago a este correo por Brevo.
+                    Enviaremos la ficha de pago a este correo.
                   </p>
 
                   {error && <p className="mt-2 break-words text-xs font-medium text-red-600">{error}</p>}
@@ -756,7 +759,7 @@ export function CompanyBillingSection() {
           <div className="min-w-0">
             <h3 className="font-bold text-blue-950">Como funciona la version gratis</h3>
             <p className="mt-1 text-sm leading-relaxed text-blue-800">
-              Una empresa puede registrarse gratis y usar el plan FREE. Actualmente el backend permite {FREE_JOB_LIMIT}
+              Una empresa puede registrarse gratis y usar el plan Gratis. Actualmente se permiten {FREE_JOB_LIMIT}
               empleos gratuitos por 30 dias. Si compra un paquete, cada empleo publicado consume 1 publicacion del saldo.
               Para publicar mas vacantes o activar beneficios avanzados, debe comprar publicaciones o pagar un plan.
             </p>

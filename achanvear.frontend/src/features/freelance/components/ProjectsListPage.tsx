@@ -168,7 +168,8 @@ function ProposalCard({
   const initials = getInitials(freelancerName);
   const skills = freelancer?.skills || [];
   const rating = freelancer?.reputationScore?.averageStars || 0;
-  const totalProjects = freelancer?.reputationScore?.totalRatings || 0;
+  // FIX: totalRatings es la cantidad de RESEÑAS del freelancer, no de proyectos realizados (antes decía "proyectos").
+  const totalRatings = freelancer?.reputationScore?.totalRatings || 0;
 
   const handleViewPortfolio = () => {
     const portfolioUrl = (proposal as any).portfolioUrl;
@@ -204,7 +205,7 @@ function ProposalCard({
                 <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
                 <span className="text-sm font-semibold text-slate-700">{rating.toFixed(1)}</span>
               </div>
-              <span className="text-xs text-slate-400">· {totalProjects} proyectos</span>
+              <span className="text-xs text-slate-400">· {totalRatings} {totalRatings === 1 ? "reseña" : "reseñas"}</span>
             </div>
           </div>
         </div>
@@ -604,7 +605,6 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
 
 export function ProjectsListPage() {
   const router = useRouter();
-  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [currentPage, setCurrentPage] = useState(0);

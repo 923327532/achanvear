@@ -118,15 +118,34 @@ const CLOSING_OPTIONS: { id: ClosingMode; label: string; help: string; icon: Rea
 // dejaba muy poco ancho útil (a 284px quedaban ~190px para el contenido).
 const CARD = "bg-white rounded-xl border border-slate-200 p-4 sm:p-6 shadow-sm";
 
+function toLocalInputValue(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+const SERVER_MESSAGES: Record<string, string> = {
+  "closingDate must be in the future": "La fecha de cierre debe ser futura. Cámbiala o elige otro modo de cierre.",
+};
+
+function getErrorMessage(err: unknown): string {
+  const e = err as { response?: { data?: { message?: string } }; message?: string };
+  const message = e?.response?.data?.message ?? (e?.message && !e.message.startsWith("Request failed") ? e.message : undefined);
+  if (!message) return "No se pudo guardar los cambios. Intenta de nuevo.";
+  return SERVER_MESSAGES[message] ?? message;
+}
+
 export default function EditJobPostPage() {
   const router = useRouter();
   const params = useParams();
   const id = params?.id as string;
 
   const { job, isLoading: loadingJob, isError } = useJobDetail(id);
-  const { mutate: updateJob, isPending } = useUpdateJobPost();
+  const { mutate: updateJob, isPending, error: updateError } = useUpdateJobPost();
   const { currentPlan } = useCurrentPlan();
   const isFreePlan = !currentPlan || currentPlan.planType?.toUpperCase() === "FREE";
+  const loadedClosingDate = job?.closingDate ? toLocalInputValue(job.closingDate) : "";
 
   // ─── Form state ──────────────────────────────────────────────────────────
   const [title, setTitle] = useState("");
@@ -180,7 +199,7 @@ export default function EditJobPostPage() {
         setMaxApplicants(String(job.maxApplicants));
       }
       if (job.closingDate) {
-        setClosingDate(job.closingDate.slice(0, 16));
+        setClosingDate(toLocalInputValue(job.closingDate));
       }
     }
   }, [job]);
@@ -213,6 +232,14 @@ export default function EditJobPostPage() {
     if (closingMode === "FIXED_DATE" && !closingDate) {
       errs.push("Debes indicar la fecha de cierre");
     }
+    if (
+      closingMode === "FIXED_DATE" &&
+      closingDate &&
+      closingDate !== loadedClosingDate &&
+      new Date(closingDate).getTime() <= Date.now()
+    ) {
+      errs.push("La fecha de cierre debe ser futura");
+    }
     if (salaryMin && salaryMax && Number(salaryMin) > Number(salaryMax)) {
       errs.push("El salario minimo no puede ser mayor al maximo");
     }
@@ -228,6 +255,7 @@ export default function EditJobPostPage() {
     closingMode,
     maxApplicants,
     closingDate,
+    loadedClosingDate,
     salaryMin,
     salaryMax,
   ]);
@@ -734,78 +762,79 @@ export default function EditJobPostPage() {
                 {CLOSING_OPTIONS.map((opt) => {
                   const selected = closingMode === opt.id;
                   return (
-                    <button
-                      key={opt.id}
-                      type="button"
-                      onClick={() => setClosingMode(opt.id)}
-                      className={`w-full text-left rounded-xl border-2 p-3 sm:p-4 transition-all ${
-                        selected
-                          ? "border-blue-600 bg-blue-50/60 shadow-sm"
-                          : "border-slate-200 bg-white hover:border-slate-300"
-                      }`}
-                    >
-                      <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-x-3 gap-y-2">
-                        <div
-                          className={`sm:row-span-2 w-8 h-8 rounded-lg flex items-center justify-center ${
-                            selected
-                              ? "bg-[#0a1628] text-white"
-                              : "bg-slate-100 text-slate-500"
-                          }`}
-                        >
-                          {opt.icon}
+                    <div key={opt.id}>
+                      <button
+                        type="button"
+                        onClick={() => setClosingMode(opt.id)}
+                        className={`w-full text-left rounded-xl border-2 p-3 sm:p-4 transition-all ${
+                          selected
+                            ? "border-blue-600 bg-blue-50/60 shadow-sm"
+                            : "border-slate-200 bg-white hover:border-slate-300"
+                        }`}
+                      >
+                        <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-x-3 gap-y-2">
+                          <div
+                            className={`sm:row-span-2 w-8 h-8 rounded-lg flex items-center justify-center ${
+                              selected
+                                ? "bg-[#0a1628] text-white"
+                                : "bg-slate-100 text-slate-500"
+                            }`}
+                          >
+                            {opt.icon}
+                          </div>
+                          <span
+                            className={`min-w-0 break-words font-semibold text-sm ${
+                              selected ? "text-[#0a1628]" : "text-slate-800"
+                            }`}
+                          >
+                            {opt.label}
+                          </span>
+                          <div
+                            className={`w-4 h-4 rounded-full border-2 flex items-center justify-center mt-0.5 ${
+                              selected ? "border-blue-600" : "border-slate-300"
+                            }`}
+                          >
+                            {selected && (
+                              <div className="w-2 h-2 rounded-full bg-blue-600" />
+                            )}
+                          </div>
+                          <p className="col-span-3 min-w-0 text-xs text-slate-500 sm:col-span-2 sm:col-start-2">
+                            {opt.help}
+                          </p>
                         </div>
-                        <span
-                          className={`min-w-0 break-words font-semibold text-sm ${
-                            selected ? "text-[#0a1628]" : "text-slate-800"
-                          }`}
-                        >
-                          {opt.label}
-                        </span>
-                        <div
-                          className={`w-4 h-4 rounded-full border-2 flex items-center justify-center mt-0.5 ${
-                            selected ? "border-blue-600" : "border-slate-300"
-                          }`}
-                        >
-                          {selected && (
-                            <div className="w-2 h-2 rounded-full bg-blue-600" />
-                          )}
+                      </button>
+
+                      {selected && opt.id === "MAX_APPLICANTS" && (
+                        <div className="mt-3 ml-2 pl-3 sm:ml-11 sm:pl-4 border-l-2 border-blue-200 py-2">
+                          <label className="block text-xs font-medium text-slate-600 mb-1.5">
+                            Numero maximo de postulantes
+                          </label>
+                          <input
+                            type="number"
+                            value={maxApplicants}
+                            onChange={(e) => setMaxApplicants(e.target.value)}
+                            min={1}
+                            className="w-full min-w-0 h-10 px-3 rounded-lg border border-slate-300 bg-white text-[#0a1628] text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          />
                         </div>
-                        <p className="col-span-3 min-w-0 text-xs text-slate-500 sm:col-span-2 sm:col-start-2">
-                          {opt.help}
-                        </p>
-                      </div>
-                    </button>
+                      )}
+
+                      {selected && opt.id === "FIXED_DATE" && (
+                        <div className="mt-3 ml-2 pl-3 sm:ml-11 sm:pl-4 border-l-2 border-blue-200 py-2">
+                          <label className="block text-xs font-medium text-slate-600 mb-1.5">
+                            Fecha de cierre
+                          </label>
+                          <input
+                            type="datetime-local"
+                            value={closingDate}
+                            onChange={(e) => setClosingDate(e.target.value)}
+                            className="w-full min-w-0 h-10 px-3 rounded-lg border border-slate-300 bg-white text-[#0a1628] text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          />
+                        </div>
+                      )}
+                    </div>
                   );
                 })}
-
-                {closingMode === "MAX_APPLICANTS" && (
-                  <div className="ml-2 pl-3 sm:ml-11 sm:pl-4 border-l-2 border-blue-200 pt-2 pb-1">
-                    <label className="block text-xs font-medium text-slate-600 mb-1.5">
-                      Numero maximo de postulantes
-                    </label>
-                    <input
-                      type="number"
-                      value={maxApplicants}
-                      onChange={(e) => setMaxApplicants(e.target.value)}
-                      min={1}
-                      className="w-full min-w-0 h-10 px-3 rounded-lg border border-slate-300 bg-white text-[#0a1628] text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
-                )}
-
-                {closingMode === "FIXED_DATE" && (
-                  <div className="ml-2 pl-3 sm:ml-11 sm:pl-4 border-l-2 border-blue-200 pt-2 pb-1">
-                    <label className="block text-xs font-medium text-slate-600 mb-1.5">
-                      Fecha de cierre
-                    </label>
-                    <input
-                      type="datetime-local"
-                      value={closingDate}
-                      onChange={(e) => setClosingDate(e.target.value)}
-                      className="w-full min-w-0 h-10 px-3 rounded-lg border border-slate-300 bg-white text-[#0a1628] text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
-                )}
               </div>
             </div>
 
@@ -821,6 +850,12 @@ export default function EditJobPostPage() {
                     <li key={i}>{err}</li>
                   ))}
                 </ul>
+              </div>
+            )}
+
+            {updateError && (
+              <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+                <p className="text-sm text-red-600">{getErrorMessage(updateError)}</p>
               </div>
             )}
 

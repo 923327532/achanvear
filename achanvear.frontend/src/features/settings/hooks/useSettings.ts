@@ -3,7 +3,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { settingsApi } from "../api/settingsApi";
 import type { AvailabilityStatus, PreferredCurrency, PaymentMethodType } from "../types/settings.types";
 
-// FIX: ahora se exporta para poder tipar las secciones de Configuración (por ejemplo NotificationsSection).
 export type SettingsProfile = Awaited<ReturnType<typeof settingsApi.getMyProfile>>;
 
 export function useSettingsProfile() {
@@ -21,9 +20,6 @@ export function useSettingsProfile() {
   };
 }
 
-// ─── Helper interno: arma el payload completo a partir del profile YA CARGADO ─
-// Ya no busca nada en cache — recibe el profile directo como argumento.
-
 function buildFullPayload(profile: SettingsProfile, partialPayload: Record<string, unknown>) {
   return {
     ...(profile.name              ? { name: profile.name }              : {}),
@@ -35,13 +31,12 @@ function buildFullPayload(profile: SettingsProfile, partialPayload: Record<strin
     ...(profile.paymentMethodType ? { paymentMethodType: profile.paymentMethodType } : {}),
     ...(profile.dni               ? { dni: profile.dni }                : {}),
     ...(profile.profilePhotoUrl   ? { profilePhotoUrl: profile.profilePhotoUrl } : {}),
+    ...(profile.bannerUrl         ? { bannerUrl: profile.bannerUrl }       : {}),
     ...(profile.curriculumUrl     ? { curriculumUrl: profile.curriculumUrl } : {}),
+    ...(profile.cvData            ? { cvData: profile.cvData }             : {}),
     ...(profile.certifications    ? { certifications: profile.certifications } : {}),
     ...(profile.skills            ? { skills: profile.skills }          : {}),
     ...(profile.portfolioItems    ? { portfolioItems: profile.portfolioItems } : {}),
-    // Campos de Configuración — SIN estos, guardar una sección borra lo que
-    // ya se había guardado en otra (el backend reemplaza el perfil completo
-    // con lo que recibe; si un campo no viene, se pierde).
     ...(profile.availabilityStatus     ? { availabilityStatus: profile.availabilityStatus } : {}),
     ...(profile.cvVisibility           ? { cvVisibility: profile.cvVisibility } : {}),
     ...(profile.preferredCurrency      ? { preferredCurrency: profile.preferredCurrency } : {}),

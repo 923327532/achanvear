@@ -23,19 +23,6 @@ const ARCO_RIGHTS = [
   "Oponerme al tratamiento de datos",
 ];
 
-function Toggle({ enabled, onChange }: { enabled: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <button
-      onClick={() => onChange(!enabled)}
-      role="switch"
-      aria-checked={enabled}
-      className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 ${enabled ? "bg-[#0EA5A0]" : "bg-gray-200"}`}
-    >
-      <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${enabled ? "translate-x-5" : "translate-x-0"}`} />
-    </button>
-  );
-}
-
 interface Props {
   profile: any; // idealmente tipar con SettingsProfile exportado de settingsApi
 }
@@ -43,7 +30,6 @@ interface Props {
 export function GeneralSection({ profile }: Props) {
   const [language, setLanguage] = useState(profile?.language ?? "es-PE");
   const [timezone, setTimezone] = useState(profile?.timezone ?? "UTC-5");
-  const [twoFA, setTwoFA]       = useState(false);
   const [generalSaved, setGeneralSaved] = useState(false);
 
   const { updateAsync: updateGeneral, isLoading: savingGeneral } = useUpdateGeneralSettings(profile);

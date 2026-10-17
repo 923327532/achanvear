@@ -37,6 +37,19 @@ const STATUS_COLORS: Record<string, string> = {
   CANCELLED: "bg-red-100 text-red-600",
 };
 
+const PAYMENT_STATUS_LABELS: Record<string, string> = {
+  PENDING: "Pendiente",
+  FUNDED: "Retenido en garantía",
+  IN_PROGRESS: "En progreso",
+  READY_FOR_REVIEW: "Por conformidad",
+  SUBMITTED: "En revisión",
+  APPROVED: "Aprobado",
+  RELEASED: "Aprobado",
+  REFUNDED: "Reembolsado",
+  DISPUTED: "En disputa",
+  REJECTED: "Rechazado",
+};
+
 // ─── Sub-componente: item con checkmark teal ────────────────────────────────
 function CheckItem({ text }: { text: string }) {
   return (
@@ -105,7 +118,7 @@ export function ProjectDetailModal({
       <div className="flex w-full max-w-xl flex-col rounded-2xl bg-white shadow-xl max-h-[90vh]">
 
         {/* ── Header ─────────────────────────────────────────────────────── */}
-        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4 flex-shrink-0">
+        <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3 sm:px-6 sm:py-4 flex-shrink-0">
           <h2 className="text-base font-semibold text-slate-900">
             Detalles del Proyecto
           </h2>
@@ -119,11 +132,11 @@ export function ProjectDetailModal({
         </div>
 
         {/* ── Contenido scrollable ────────────────────────────────────────── */}
-        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+        <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5 space-y-5">
 
           {/* 1 · Título + badge de estado */}
           <div className="flex items-start justify-between gap-3">
-            <h3 className="text-lg font-bold text-slate-900 leading-tight">
+            <h3 className="min-w-0 break-words text-lg font-bold text-slate-900 leading-tight">
               {project.title}
             </h3>
             <span
@@ -140,18 +153,18 @@ export function ProjectDetailModal({
             <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-slate-200 text-sm font-bold text-slate-600">
               {companyInitials}
             </div>
-            <div>
+            <div className="min-w-0">
               {companyName ? (
-                <p className="text-sm font-semibold text-slate-800">{companyName}</p>
+                <p className="break-words text-sm font-semibold text-slate-800">{companyName}</p>
               ) : (
                 <p className="text-sm font-medium text-slate-400 italic">Empresa verificada</p>
               )}
               {hasClientMeta && (
-                <div className="flex items-center gap-1 text-xs text-slate-500">
+                <div className="flex flex-wrap items-center gap-1 text-xs text-slate-500">
                   {hasRating && (
                     <>
                       <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
-                      <span className="font-medium text-slate-700">{companyRating}</span>
+                      <span className="font-medium text-slate-700">{companyRating.toFixed(1)}</span>
                     </>
                   )}
                   {hasRating && hasJobs && <span>•</span>}
@@ -180,17 +193,17 @@ export function ProjectDetailModal({
           </div>
 
           {/* 4 · Presupuesto */}
-          <div className="flex items-center justify-between rounded-xl bg-emerald-50 px-5 py-4">
+          <div className="flex items-center justify-between gap-3 rounded-xl bg-emerald-50 px-4 py-3 sm:px-5 sm:py-4">
             <div>
               <p className="text-xs font-medium text-emerald-700">
                 Presupuesto del Proyecto
               </p>
-              <p className="text-xl font-bold text-emerald-800 mt-0.5">
+              <p className="break-words text-lg font-bold text-emerald-800 mt-0.5 sm:text-xl">
                 {formatBudget(project.minBudget ?? project.budget, project.maxBudget ?? undefined)}
               </p>
             </div>
             <DollarSign
-              className="h-8 w-8 text-emerald-400"
+              className="h-8 w-8 flex-shrink-0 text-emerald-400"
               strokeWidth={1.5}
             />
           </div>
@@ -316,9 +329,9 @@ export function ProjectDetailModal({
                             <p className="text-xs font-bold text-slate-800">
                               {index === 0 ? "20% inicial" : index === 1 ? "50% avance" : "30% saldo"} - {milestone.title}
                             </p>
-                            <p className="mt-0.5 text-xs text-slate-500">{milestone.status}</p>
+                            <p className="mt-0.5 text-xs text-slate-500">{PAYMENT_STATUS_LABELS[milestone.status] ?? milestone.status}</p>
                           </div>
-                          <span className="text-xs font-bold text-[#0EA5A0]">
+                          <span className="flex-shrink-0 text-xs font-bold text-[#0EA5A0]">
                             S/. {milestone.amount.toLocaleString("es-PE")}
                           </span>
                         </div>
@@ -375,11 +388,11 @@ export function ProjectDetailModal({
         </div>
 
         {/* ── Footer ─────────────────────────────────────────────────────── */}
-        <div className="flex gap-3 border-t border-slate-100 px-6 py-4 flex-shrink-0">
+        <div className="flex flex-col-reverse gap-2 border-t border-slate-100 px-4 py-3 flex-shrink-0 sm:flex-row sm:gap-3 sm:px-6 sm:py-4">
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 rounded-xl border border-slate-300 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
+            className="w-full rounded-xl border border-slate-300 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors sm:w-auto sm:flex-1"
           >
             Cerrar
           </button>
@@ -390,13 +403,13 @@ export function ProjectDetailModal({
                 onClose();
                 onPropose(project);
               }}
-              className="flex-1 rounded-xl bg-[#1B3A6B] py-2.5 text-sm font-semibold text-white hover:bg-[#16305a] transition-colors"
+              className="w-full rounded-xl bg-[#1B3A6B] py-2.5 text-sm font-semibold text-white hover:bg-[#16305a] transition-colors sm:w-auto sm:flex-1"
             >
               Enviar Propuesta
             </button>
           )}
           {project.hasApplied && (
-            <div className="flex-1 flex items-center justify-center rounded-xl bg-blue-50 border border-blue-200 py-2.5 text-sm font-semibold text-blue-700">
+            <div className="flex w-full items-center justify-center rounded-xl bg-blue-50 border border-blue-200 py-2.5 text-sm font-semibold text-blue-700 sm:w-auto sm:flex-1">
               <CheckCircle2 className="h-4 w-4 mr-2" strokeWidth={2} />
               Ya postulaste
             </div>

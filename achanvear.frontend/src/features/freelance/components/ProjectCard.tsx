@@ -2,7 +2,7 @@
 "use client";
 
 import { CalendarDays, Clock, MessageCircle, Eye, Send, Star, CheckCircle, XCircle, ChevronRight } from "lucide-react";
-import type { Project, ProposalStatus } from "../types/freelance.types";
+import type { Project } from "../types/freelance.types";
 
 interface ProjectCardProps {
   project: Project;
