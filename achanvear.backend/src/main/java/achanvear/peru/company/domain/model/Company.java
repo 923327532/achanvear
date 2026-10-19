@@ -183,8 +183,8 @@ public class Company extends AggregateRoot<CompanyId> {
         this.industry = validateRequiredText(industry, "Industry", 2, 120);
         this.specialty = validateRequiredText(specialty, "Specialty", 2, 120);
         this.companySize = Objects.requireNonNull(companySize, "Company size cannot be null");
-        this.logoUrl = normalizeOptionalText(logoUrl);
-        this.bannerUrl = normalizeOptionalText(bannerUrl);
+        if (logoUrl != null) this.logoUrl = normalizeOptionalText(logoUrl);
+        if (bannerUrl != null) this.bannerUrl = normalizeOptionalText(bannerUrl);
         this.biography = validateRequiredText(biography, "Biography", 10, 1500);
         this.achievements = normalizeOptionalText(achievements);
         this.address = validateRequiredText(address, "Address", 5, 255);

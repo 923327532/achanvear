@@ -34,3 +34,6 @@ Thumbs.db
 
 # FIREBASE
 firebase-service-account.json
+
+# Private database migration backups
+.migration-backup/

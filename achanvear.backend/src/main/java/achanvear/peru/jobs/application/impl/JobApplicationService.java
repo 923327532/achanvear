@@ -223,7 +223,7 @@ public class JobApplicationService implements
 
     @Override
     public JobPostResponse execute(ApplyJobCommand command) {
-        JobPost jobPost = jobPostRepository.findById(JobPostId.from(command.jobPostId()))
+        JobPost jobPost = jobPostRepository.findByIdForUpdate(JobPostId.from(command.jobPostId()))
                 .orElseThrow(() -> new ResourceNotFoundException("Job post not found"));
 
         UUID candidateUserId = UUID.fromString(command.candidateUserId());

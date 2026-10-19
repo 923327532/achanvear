@@ -41,13 +41,16 @@ public class InterviewMapper {
         }
 
         if (interview.getInterviewerProfile() != null) {
+            entity.setInterviewerCode(interview.getInterviewerProfile().getCode());
             entity.setInterviewerName(interview.getInterviewerProfile().getName());
+            entity.setInterviewerStyle(interview.getInterviewerProfile().getStyle());
             entity.setInterviewerVoice(interview.getInterviewerProfile().getVoice().name());
         }
 
+        entity.setRecordingActive(interview.getRecordingSession() != null
+                && interview.getRecordingSession().isActive());
         if (interview.getRecordingSession() != null) {
             entity.setRecordingFileKey(interview.getRecordingSession().getFileKey());
-            entity.setRecordingActive(true);
         }
 
         List<QuestionJpaEntity> questionEntities = new ArrayList<>();
@@ -95,18 +98,15 @@ public class InterviewMapper {
         InterviewerProfile interviewerProfile = null;
         if (entity.getInterviewerName() != null && entity.getInterviewerVoice() != null) {
             interviewerProfile = new InterviewerProfile(
-                    "DEFAULT", // code
+                    entity.getInterviewerCode() != null ? entity.getInterviewerCode() : "DEFAULT",
                     entity.getInterviewerName(),
-                    "PROFESSIONAL", // style
+                    entity.getInterviewerStyle() != null ? entity.getInterviewerStyle() : "PROFESSIONAL",
                     InterviewerVoice.valueOf(entity.getInterviewerVoice())
             );
         }
 
-        RecordingSession recordingSession = null;
-        if (entity.getRecordingFileKey() != null) {
-            recordingSession = new RecordingSession(entity.getRecordingFileKey(), 
-                    entity.getRecordingActive() != null ? entity.getRecordingActive() : false);
-        }
+        RecordingSession recordingSession = new RecordingSession(
+                entity.getRecordingFileKey(), entity.getRecordingActive());
 
         List<Question> questions = entity.getQuestions().stream()
                 .map(q -> new Question(

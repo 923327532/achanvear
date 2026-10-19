@@ -242,27 +242,29 @@ public class FreelancerProfile extends AggregateRoot<FreelancerId> {
             String timezone,
             String notificationPreferences
     ) {
-        this.name = validateRequiredText(name, "Name", 3, 150);
-        this.industry = validateRequiredText(industry, "Industry", 3, 120);
-        this.specialty = validateRequiredText(specialty, "Specialty", 3, 120);
-        this.profilePhotoUrl = normalizeOptionalText(profilePhotoUrl);
-        this.bannerUrl = normalizeOptionalText(bannerUrl);
-        this.biography = validateRequiredText(biography, "Biography", 20, 2000);
-        this.achievements = normalizeOptionalText(achievements);
-        this.address = normalizeOptionalText(address);
-        this.paymentMethodType = Objects.requireNonNull(paymentMethodType, "Payment method type cannot be null");
-        this.dni = validateDni(dni);
-        this.curriculumUrl = normalizeOptionalText(curriculumUrl);
-        this.cvData = normalizeOptionalText(cvData);
-        this.certifications.clear();
-        this.certifications.addAll(Objects.requireNonNull(certifications, "Certifications cannot be null"));
-        this.availabilityStatus = availabilityStatus;
-        this.cvVisibility = cvVisibility;
-        this.preferredCurrency = preferredCurrency;
-        this.preferredPaymentMethod = preferredPaymentMethod;
-        this.language = language;
-        this.timezone = timezone;
-        this.notificationPreferences = notificationPreferences;
+        if (name != null) this.name = validateRequiredText(name, "Name", 3, 150);
+        if (industry != null) this.industry = validateRequiredText(industry, "Industry", 3, 120);
+        if (specialty != null) this.specialty = validateRequiredText(specialty, "Specialty", 3, 120);
+        if (profilePhotoUrl != null) this.profilePhotoUrl = normalizeOptionalText(profilePhotoUrl);
+        if (bannerUrl != null) this.bannerUrl = normalizeOptionalText(bannerUrl);
+        if (biography != null) this.biography = validateRequiredText(biography, "Biography", 20, 2000);
+        if (achievements != null) this.achievements = normalizeOptionalText(achievements);
+        if (address != null) this.address = normalizeOptionalText(address);
+        if (paymentMethodType != null) this.paymentMethodType = Objects.requireNonNull(paymentMethodType, "Payment method type cannot be null");
+        if (dni != null) this.dni = validateDni(dni);
+        if (curriculumUrl != null) this.curriculumUrl = normalizeOptionalText(curriculumUrl);
+        if (cvData != null) this.cvData = normalizeOptionalText(cvData);
+        if (certifications != null) {
+            this.certifications.clear();
+            this.certifications.addAll(certifications);
+        }
+        if (availabilityStatus != null) this.availabilityStatus = availabilityStatus;
+        if (cvVisibility != null) this.cvVisibility = cvVisibility;
+        if (preferredCurrency != null) this.preferredCurrency = preferredCurrency;
+        if (preferredPaymentMethod != null) this.preferredPaymentMethod = preferredPaymentMethod;
+        if (language != null) this.language = language;
+        if (timezone != null) this.timezone = timezone;
+        if (notificationPreferences != null) this.notificationPreferences = notificationPreferences;
     }
 
 

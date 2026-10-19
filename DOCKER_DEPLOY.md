@@ -9,12 +9,24 @@ docker compose up --build
 
 Backend health: `http://localhost:8081/api/v1/actuator/health`
 
-The default database is Neon. Set these values in the root `.env`:
+The default database is Supabase PostgreSQL. Set these values in the root `.env`:
 
 ```env
-DB_URL=jdbc:postgresql://YOUR_NEON_HOST/neondb?sslmode=require&channel_binding=require
-DB_USERNAME=neondb_owner
+DB_URL=jdbc:postgresql://aws-0-us-west-1.pooler.supabase.com:6543/postgres?sslmode=require&prepareThreshold=0
+FLYWAY_URL=jdbc:postgresql://aws-0-us-west-1.pooler.supabase.com:5432/postgres?sslmode=require&prepareThreshold=0
+DB_USERNAME=postgres.ttcxfhzulxmmxguzphjw
 DB_PASSWORD=...
+```
+
+Application queries use the transaction pooler (6543); Flyway uses the session
+pooler (5432) for migration locks. Flyway creates tables and seed data on startup.
+For a new Supabase project, leave the public schema empty before the first run.
+No data or connection to the previous database is required.
+
+To apply migrations independently after packaging the backend JAR:
+
+```bash
+python scripts/initialize-database.py
 ```
 
 Local Postgres is available only when explicitly enabled:

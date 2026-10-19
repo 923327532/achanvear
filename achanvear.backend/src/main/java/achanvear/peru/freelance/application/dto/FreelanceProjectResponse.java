@@ -37,7 +37,9 @@ public record FreelanceProjectResponse(
         double companyRating,
         int publishedJobsCount,
         int proposalCount,
-        boolean hasApplied
+        boolean hasApplied,
+        String selectedFreelancerName,
+        String selectedFreelancerPhotoUrl
 ) {
 }
 

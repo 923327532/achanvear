@@ -13,7 +13,10 @@ public class CompanyLookupAdapter implements CompanyLookupPort {
 
     private final CompanyJpaRepository companyJpaRepository;
 
-    public CompanyLookupAdapter(CompanyJpaRepository companyJpaRepository) {
+    private final achanvear.peru.profile.TalentProfileRepository profileRepository;
+
+    public CompanyLookupAdapter(CompanyJpaRepository companyJpaRepository, achanvear.peru.profile.TalentProfileRepository profileRepository) {
+        this.profileRepository = profileRepository;
         this.companyJpaRepository = companyJpaRepository;
     }
 
@@ -30,6 +33,9 @@ public class CompanyLookupAdapter implements CompanyLookupPort {
     }
 
     private CompanySummary toSummary(CompanyJpaEntity company) {
+        var score = profileRepository.findByUserId(company.getOwnerUserId())
+            .map(p -> achanvear.peru.profile.domain.model.ReputationScore.fromRatings(p.getRatings()))
+            .orElse(achanvear.peru.profile.domain.model.ReputationScore.empty());
         return new CompanySummary(
                 company.getId(),
                 company.getBusinessName(),
@@ -42,8 +48,8 @@ public class CompanyLookupAdapter implements CompanyLookupPort {
                 company.getOwnerUserId(),
                 company.getCompanyPlan(),
                 company.getCreatedAt(),
-                0.0, // averageRating
-                0,   // totalRatings
+                score.averageStars().doubleValue(),
+                score.totalRatings(),
                 0    // publishedProjectsCount
         );
     }

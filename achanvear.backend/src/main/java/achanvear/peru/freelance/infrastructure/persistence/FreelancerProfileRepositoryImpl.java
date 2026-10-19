@@ -50,6 +50,7 @@ public class FreelancerProfileRepositoryImpl implements FreelancerProfileReposit
                             existingEntity.setPreferredPaymentMethod(freelancerProfile.getPreferredPaymentMethod());
                             existingEntity.setLanguage(freelancerProfile.getLanguage());
                             existingEntity.setTimezone(freelancerProfile.getTimezone());
+                            existingEntity.setNotificationPreferences(freelancerProfile.getNotificationPreferences());
 
                             // Reemplazar completamente la colección @ElementCollection
                             existingEntity.getCertifications().clear();
@@ -72,6 +73,14 @@ public class FreelancerProfileRepositoryImpl implements FreelancerProfileReposit
     @Override
     public Optional<FreelancerProfile> findByUserId(UUID userId) {
         return jpaRepository.findByUserId(userId).map(mapper::toFreelancerProfileDomain);
+    }
+
+    @Override
+    public java.util.Map<UUID, FreelancerProfileRepository.Summary> findSummariesByUserIds(java.util.Collection<UUID> userIds) {
+        if (userIds.isEmpty()) return java.util.Map.of();
+        return jpaRepository.findByUserIdIn(userIds).stream().collect(java.util.stream.Collectors.toMap(
+                FreelancerProfileJpaRepository.Summary::getUserId,
+                p -> new FreelancerProfileRepository.Summary(p.getUserId(), p.getName(), p.getProfilePhotoUrl())));
     }
 
     @Override

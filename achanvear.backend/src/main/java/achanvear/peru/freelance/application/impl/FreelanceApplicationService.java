@@ -183,7 +183,7 @@ public class FreelanceApplicationService implements
             // logger.error("Error validating DNI: {}", e.getMessage());
         }
 
-        PaymentMethodType paymentMethod = parsePaymentMethodType(command.paymentMethodType());
+        PaymentMethodType paymentMethod = command.paymentMethodType() == null ? null : parsePaymentMethodType(command.paymentMethodType());
 
         AvailabilityStatus availabilityStatus = parseAvailabilityStatus(command.availabilityStatus());
         CvVisibility cvVisibility = parseCvVisibility(command.cvVisibility());
@@ -203,7 +203,7 @@ public class FreelanceApplicationService implements
                 command.dni(),
                 command.curriculumUrl(),
                 command.cvData(),
-                mapCertifications(command.certifications()),
+                command.certifications() == null ? null : mapCertifications(command.certifications()),
                 availabilityStatus,
                 cvVisibility,
                 preferredCurrency,
@@ -222,9 +222,9 @@ public class FreelanceApplicationService implements
             return TalentProfile.create(
                     userId,
                     ProfileType.FREELANCER,
-                    command.name() != null ? command.name() : "Profesional",
-                    command.biography() != null ? command.biography() : "",
-                    command.address() != null ? command.address() : "",
+                    "Perfil de " + profile.getName(),
+                    profile.getBiography(),
+                    profile.getAddress(),
                     command.profilePhotoUrl(),
                     command.curriculumUrl(),
                     mapSkillsFromCommand(command.skills()),
@@ -239,8 +239,8 @@ public class FreelanceApplicationService implements
                 talentProfile.getLocation(),
                 talentProfile.getProfilePhotoUrl(),
                 talentProfile.getCurriculumUrl(),
-                mapSkillsFromCommand(command.skills()),
-                mapPortfolioItemsFromCommand(command.portfolioItems())
+                command.skills() == null ? talentProfile.getSkills() : mapSkillsFromCommand(command.skills()),
+                command.portfolioItems() == null ? talentProfile.getPortfolioItems() : mapPortfolioItemsFromCommand(command.portfolioItems())
         );
         talentProfileRepository.save(talentProfile);
 

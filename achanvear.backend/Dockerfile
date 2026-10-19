@@ -14,6 +14,12 @@ COPY src ./src
 RUN mvn clean package -DskipTests -B -o || mvn clean package -DskipTests -B
 
 # ================================
+# Optional regression checks: docker build --target regression-tests .
+# ================================
+FROM builder AS regression-tests
+RUN mvn test -B -Dtest=BackendRegressionTest
+
+# ================================
 # Stage 2: Runtime
 # ================================
 FROM eclipse-temurin:17-jre-alpine

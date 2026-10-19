@@ -44,8 +44,8 @@ public class InterviewJpaEntity {
     @Column(name = "recording_file_key")
     private String recordingFileKey;
 
-    @Column(name = "recording_active")
-    private Boolean recordingActive;
+    @Column(name = "recording_active", nullable = false)
+    private boolean recordingActive;
 
     @Column(name = "python_session_id")
     private String pythonSessionId;
@@ -139,8 +139,8 @@ public class InterviewJpaEntity {
     public String getRecordingFileKey() { return recordingFileKey; }
     public void setRecordingFileKey(String recordingFileKey) { this.recordingFileKey = recordingFileKey; }
 
-    public Boolean getRecordingActive() { return recordingActive; }
-    public void setRecordingActive(Boolean recordingActive) { this.recordingActive = recordingActive; }
+    public boolean getRecordingActive() { return recordingActive; }
+    public void setRecordingActive(Boolean recordingActive) { this.recordingActive = Boolean.TRUE.equals(recordingActive); }
 
     public String getPythonSessionId() { return pythonSessionId; }
     public void setPythonSessionId(String pythonSessionId) { this.pythonSessionId = pythonSessionId; }

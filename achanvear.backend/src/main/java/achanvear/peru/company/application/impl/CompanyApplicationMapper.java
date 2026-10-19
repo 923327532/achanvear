@@ -9,28 +9,14 @@ import org.springframework.stereotype.Component;
 @Component
 public class CompanyApplicationMapper {
 
+    private final achanvear.peru.profile.TalentProfileRepository profileRepository;
+
+    public CompanyApplicationMapper(achanvear.peru.profile.TalentProfileRepository profileRepository) {
+        this.profileRepository = profileRepository;
+    }
+
     public CompanyResponse toResponse(Company company) {
-        return new CompanyResponse(
-                company.getId().toString(),
-                company.getOwnerUserId().toString(),
-                company.getBusinessName(),
-                company.getTradeName(),
-                company.getLegalName(),
-                company.getIndustry(),
-                company.getSpecialty(),
-                company.getCompanySize().name(),
-                company.getLogoUrl(),
-                company.getBannerUrl(),
-                company.getBiography(),
-                company.getAchievements(),
-                company.getAddress(),
-                company.getPaymentMethodType().name(),
-                company.getCompanyPlan().name(),
-                company.getRepresentativeDni().value(),
-                company.getRuc() != null ? company.getRuc().value() : null,
-                company.getStatus().name(),
-                company.getStatus().name()
-        );
+        return CompanyResponse.from(company, profileRepository.findByUserId(company.getOwnerUserId()).orElse(null));
     }
 
     public CompanyPageResponse toPageResponse(Page<Company> page) {

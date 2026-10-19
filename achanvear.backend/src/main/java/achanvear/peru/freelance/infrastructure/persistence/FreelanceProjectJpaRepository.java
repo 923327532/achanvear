@@ -20,6 +20,10 @@ public interface FreelanceProjectJpaRepository extends JpaRepository<FreelancePr
 
     List<FreelanceProjectJpaEntity> findByClientUserId(UUID clientUserId);
 
+    boolean existsByClientUserIdAndSelectedFreelancerUserIdAndStatus(
+            UUID clientUserId, UUID freelancerUserId,
+            achanvear.peru.freelance.domain.model.ProjectStatus status);
+
     long countByClientUserIdAndCreatedAtGreaterThanEqual(UUID clientUserId, Instant createdAt);
 
     List<FreelanceProjectJpaEntity> findBySelectedFreelancerUserId(UUID freelancerUserId);

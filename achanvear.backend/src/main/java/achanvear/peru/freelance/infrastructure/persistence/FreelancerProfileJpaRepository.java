@@ -10,4 +10,12 @@ public interface FreelancerProfileJpaRepository extends JpaRepository<Freelancer
     Optional<FreelancerProfileJpaEntity> findByUserId(UUID userId);
 
     boolean existsByDni(String dni);
+
+    java.util.List<Summary> findByUserIdIn(java.util.Collection<UUID> userIds);
+
+    interface Summary {
+        UUID getUserId();
+        String getName();
+        String getProfilePhotoUrl();
+    }
 }

@@ -16,6 +16,8 @@ public interface JobPostRepository {
 
     Optional<JobPost> findById(JobPostId id);
 
+    Optional<JobPost> findByIdForUpdate(JobPostId id);
+
     Page<JobPost> search(JobSearchQuery query);
 
     boolean existsByTitleAndCompanyId(String title, UUID companyId);

@@ -1,3 +1,4 @@
+from fastapi import HTTPException
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import PydanticOutputParser
 from shared.llm_client.llm_client import llm
@@ -68,19 +69,11 @@ async def evaluate_answer(
         }
 
     except Exception as e:
-        print(f"Error evaluando respuesta teorica: {e}")
-        score = heuristic_score(question, answer, expected_concepts)
-        hits = matched_concepts(answer, expected_concepts)
-        return {
-            "score": score,
-            "details": {
-                "error": str(e),
-                "fallback": "Evaluacion heuristica aplicada por error del LLM/parser",
-                "concepts_hit": hits,
-                "concepts_missed": [c for c in (expected_concepts or []) if c not in hits],
-            },
-            "passed": score >= 75
-        }
+        print(f"Theory AI unavailable: {type(e).__name__}")
+        raise HTTPException(
+            status_code=503,
+            detail="El servicio de IA no esta disponible. Revisa la clave y el saldo del proveedor. Puedes reintentar sin perder tu progreso.",
+        ) from e
 
 
 def heuristic_score(question: str, answer: str, expected_concepts: List[str]) -> float:

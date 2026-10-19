@@ -14,4 +14,8 @@ public interface FreelancerProfileRepository {
     Optional<FreelancerProfile> findByUserId(UUID userId);
 
     boolean existsByDni(String dni);
+
+    java.util.Map<UUID, Summary> findSummariesByUserIds(java.util.Collection<UUID> userIds);
+
+    record Summary(UUID userId, String name, String profilePhotoUrl) {}
 }

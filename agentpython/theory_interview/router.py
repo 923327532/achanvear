@@ -5,7 +5,7 @@ from theory_interview.answer_evaluator import evaluate_answer
 from shared.session_orchestrator import (
     get_session, update_session, InterviewStage
 )
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
 
 router = APIRouter(prefix="/theory-interview", tags=["theory-interview"])
@@ -19,7 +19,7 @@ class StartRequest(BaseModel):
 
 class AnswerRequest(BaseModel):
     session_id: str
-    answer: str
+    answer: str = Field(min_length=1)
 
 
 @router.post("/start")
@@ -28,19 +28,26 @@ async def start_theory_interview(req: StartRequest):
     if not state:
         raise HTTPException(404, f"Session {req.session_id} not found")
 
-    questions = await generate_questions(req.career, req.job_title)
-    state.questions = questions
-    state.current_q = 0
-    state.stage = InterviewStage.THEORY
-    await update_session(state)
+    if state.questions and state.stage != InterviewStage.THEORY:
+        raise HTTPException(409, "Esta sesion ya avanzo a otra etapa")
+    if not state.questions:
+        questions = await generate_questions(req.career, req.job_title)
+        if not questions:
+            raise HTTPException(503, "No se pudieron generar preguntas. Reintenta.")
+        state.questions = questions
+        state.current_q = 0
+        state.stage = InterviewStage.THEORY
+        await update_session(state)
+    if state.current_q >= len(state.questions):
+        raise HTTPException(409, "La entrevista teorica ya termino")
 
-    first_q = state.questions[0]
+    first_q = state.questions[state.current_q]
     return {
         "session_id": state.session_id,
-        "total_questions": len(questions),
+        "total_questions": len(state.questions),
         "current_question": {
-            "index": 1,
-            "total": len(questions),
+            "index": state.current_q + 1,
+            "total": len(state.questions),
             "text": first_q.get("text", first_q) if isinstance(first_q, dict) else str(first_q),
         }
     }
@@ -52,6 +59,10 @@ async def submit_answer(req: AnswerRequest):
     if not state:
         raise HTTPException(404, f"Session {req.session_id} not found")
 
+    if not req.answer.strip():
+        raise HTTPException(422, "La respuesta no puede estar vacia")
+    if not state.questions or state.stage != InterviewStage.THEORY:
+        raise HTTPException(409, "Primero inicia la entrevista teorica")
     if state.current_q >= len(state.questions):
         raise HTTPException(400, "La entrevista ya ha terminado. Usa /result/{session_id} para obtener el resultado.")
 
@@ -98,6 +109,8 @@ async def get_theory_result(session_id: str):
     state = await get_session(session_id)
     if not state:
         raise HTTPException(404, f"Session {session_id} not found")
+    if not state.questions or state.current_q < len(state.questions):
+        raise HTTPException(409, "Debes responder todas las preguntas antes de finalizar")
 
     avg_score = sum(state.scores) / len(state.scores) if state.scores else 0
     state.theory_score = avg_score
@@ -134,7 +147,10 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
             await websocket.close(code=4001)
             return
 
-        question_idx = 0
+        if not state.questions or state.stage != InterviewStage.THEORY:
+            await websocket.close(code=4001)
+            return
+        question_idx = state.current_q
         questions_list = state.questions
 
         while question_idx < len(questions_list):
@@ -149,13 +165,14 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
 
             if data.get("type") == "answer":
                 eval_result = await evaluate_answer(
-                    questions_list[question_idx],
+                    questions_list[question_idx].get("text", "") if isinstance(questions_list[question_idx], dict) else str(questions_list[question_idx]),
                     data["text"],
                     ["conceptos_generales"]
                 )
 
                 state.answers.append(data["text"])
                 state.scores.append(eval_result["score"])
+                state.current_q = question_idx + 1
                 await update_session(state)
 
                 await websocket.send_json({

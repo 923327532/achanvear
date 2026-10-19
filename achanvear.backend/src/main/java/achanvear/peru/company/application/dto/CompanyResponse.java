@@ -1,6 +1,11 @@
 package achanvear.peru.company.application.dto;
 
 import achanvear.peru.company.domain.model.Company;
+import achanvear.peru.profile.TalentProfile;
+import achanvear.peru.profile.domain.model.ReputationScore;
+import achanvear.peru.profile.domain.model.ProfileRating;
+import java.util.List;
+import java.math.BigDecimal;
 
 public record CompanyResponse(
         String id,
@@ -21,9 +26,19 @@ public record CompanyResponse(
         String representativeDni,
         String ruc,
         String status,
-        String name) {
+        String name,
+        BigDecimal averageRating,
+        int totalRatings,
+        ReputationScore reputationScore,
+        List<ProfileRating> ratings) {
 
     public static CompanyResponse from(Company company) {
+        return from(company, null);
+    }
+
+    public static CompanyResponse from(Company company, TalentProfile profile) {
+        var ratings = profile == null ? List.<ProfileRating>of() : profile.getRatings();
+        var score = ReputationScore.fromRatings(ratings);
         return new CompanyResponse(
                 company.getId().toString(),
                 company.getOwnerUserId().toString(),
@@ -43,6 +58,7 @@ public record CompanyResponse(
                 company.getRepresentativeDni().value(),
                 company.getRuc() != null ? company.getRuc().value() : null,
                 company.getStatus().name(),
-                company.getStatus().name());
+                company.getBusinessName(),
+                score.averageStars(), score.totalRatings(), score, ratings);
     }
 }

@@ -166,6 +166,9 @@ public class JobPost extends AggregateRoot<JobPostId> {
 
     public void apply(UUID candidateUserId, String cvUrl, String coverLetter) {
         ensurePublished();
+        if (hasClosingDatePassed() || hasReachedMaxApplicants()) {
+            throw new IllegalStateException("Job post is closed for applications");
+        }
 
         boolean alreadyApplied = this.applications.stream()
                 .anyMatch(application -> application.getCandidateUserId().equals(candidateUserId));
@@ -176,6 +179,9 @@ public class JobPost extends AggregateRoot<JobPostId> {
 
         JobApplication application = JobApplication.create(this.id.value(), candidateUserId, cvUrl, coverLetter);
         this.applications.add(application);
+        if (hasReachedMaxApplicants()) {
+            close();
+        }
 
         registerEvent(ApplicationSubmittedEvent.now(this.id, application.getId(), candidateUserId));
     }
@@ -313,8 +319,8 @@ public class JobPost extends AggregateRoot<JobPostId> {
     }
 
     private void ensureEditable() {
-        if (this.status == JobStatus.CLOSED || this.status == JobStatus.SUSPENDED) {
-            throw new IllegalStateException("Closed or suspended job posts cannot be updated");
+        if (this.status == JobStatus.SUSPENDED) {
+            throw new IllegalStateException("Suspended job posts cannot be updated");
         }
     }
 
@@ -390,7 +396,7 @@ public class JobPost extends AggregateRoot<JobPostId> {
                 if (closingDate == null) {
                     throw new IllegalArgumentException("closingDate is required for FIXED_DATE mode");
                 }
-                if (closingDate.isBefore(Instant.now())) {
+                if (!closingDate.equals(this.closingDate) && !closingDate.isAfter(Instant.now())) {
                     throw new IllegalArgumentException("closingDate must be in the future");
                 }
                 this.closingDate = closingDate;
@@ -413,10 +419,7 @@ public class JobPost extends AggregateRoot<JobPostId> {
         if (selectionMode != SelectionMode.MAX_APPLICANTS || maxApplicants == null) {
             return false;
         }
-        long approvedCount = applications.stream()
-                .filter(a -> a.getScreeningResult() != null && a.getScreeningResult())
-                .count();
-        return approvedCount >= maxApplicants;
+        return applications.size() >= maxApplicants;
     }
 
     /**
@@ -426,7 +429,7 @@ public class JobPost extends AggregateRoot<JobPostId> {
         if (closingDate == null) {
             return false;
         }
-        return Instant.now().isAfter(closingDate);
+        return selectionMode == SelectionMode.FIXED_DATE && !Instant.now().isBefore(closingDate);
     }
 
     /**

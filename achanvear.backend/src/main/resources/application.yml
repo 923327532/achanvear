@@ -19,8 +19,10 @@ spring:
           time_zone: UTC
   flyway:
     enabled: true
-    baseline-on-migrate: true
-    baseline-version: 17
+    url: ${FLYWAY_URL:${DB_URL:jdbc:postgresql://localhost:5433/achanvear}}
+    user: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:Lopez2003}
+    baseline-on-migrate: false
   servlet:
     multipart:
       max-file-size: 10MB

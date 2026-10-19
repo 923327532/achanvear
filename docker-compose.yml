@@ -104,7 +104,8 @@ services:
     environment:
       PORT: 8081
       SPRING_PROFILES_ACTIVE: docker
-      DB_URL: ${DB_URL:?DB_URL is required. Set the Neon JDBC URL in the root .env file}
+      DB_URL: ${DB_URL:?DB_URL is required. Set the PostgreSQL JDBC URL in the root .env file}
+      FLYWAY_URL: ${FLYWAY_URL:-${DB_URL}}
       DB_USERNAME: ${DB_USERNAME:?DB_USERNAME is required. Set it in the root .env file}
       DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required. Set it in the root .env file}
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required. Set it in the root .env file}

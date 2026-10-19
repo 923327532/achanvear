@@ -1,6 +1,8 @@
 services:
   postgres:
     image: postgres:17-alpine
+    profiles:
+      - local-db
     container_name: achanvear-postgres
     environment:
       POSTGRES_DB: achanvear
@@ -60,8 +62,6 @@ services:
     image: roberto523/achanvear-ai-agent:latest
     container_name: achanvear-ai-agent
     depends_on:
-      postgres:
-        condition: service_healthy
       redis:
         condition: service_started
       mongo:
@@ -91,7 +91,7 @@ services:
       N8N_EMAIL_WEBHOOK: ${N8N_EMAIL_WEBHOOK:-}
       DATABASE_URL: ${DATABASE_URL:-}
       PRACTICAL_SQL_ENABLED: ${PRACTICAL_SQL_ENABLED:-true}
-      PRACTICAL_POSTGRES_DSN: ${PRACTICAL_POSTGRES_DSN:-postgresql://postgres:Lopez2003@postgres:5432/achanvear}
+      PRACTICAL_POSTGRES_DSN: ${PRACTICAL_POSTGRES_DSN:?Set PRACTICAL_POSTGRES_DSN in .env}
       PRACTICAL_MONGODB_ENABLED: ${PRACTICAL_MONGODB_ENABLED:-true}
       PRACTICAL_MONGODB_URI: ${PRACTICAL_MONGODB_URI:-mongodb://interview_runner:Lopez2003@mongo:27017/admin}
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
@@ -127,8 +127,6 @@ services:
     image: roberto523/achanvear-backend:latest
     container_name: achanvear-backend
     depends_on:
-      postgres:
-        condition: service_healthy
       redis:
         condition: service_started
       ai-agent:
@@ -136,9 +134,10 @@ services:
     environment:
       PORT: 8081
       SPRING_PROFILES_ACTIVE: docker
-      DB_URL: jdbc:postgresql://postgres:5432/achanvear
-      DB_USERNAME: ${DB_USERNAME:-postgres}
-      DB_PASSWORD: ${DB_PASSWORD:-Lopez2003}
+      DB_URL: ${DB_URL:?Set DB_URL in .env}
+      FLYWAY_URL: ${FLYWAY_URL:-${DB_URL}}
+      DB_USERNAME: ${DB_USERNAME:?Set DB_USERNAME in .env}
+      DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
       JWT_SECRET: ${JWT_SECRET:-my-super-secret-key-min-32-chars-long-for-dev-only}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}

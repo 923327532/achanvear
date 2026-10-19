@@ -1,3 +1,4 @@
+from fastapi import HTTPException
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
 from shared.llm_client.llm_client import llm
@@ -90,8 +91,11 @@ async def generate_questions(
         return normalized[:num_questions]
 
     except Exception as e:
-        print(f"[ERROR] Question Generator: {str(e)}. Usando fallback.")
-        return fallback[:num_questions]
+        print(f"Theory AI unavailable: {type(e).__name__}")
+        raise HTTPException(
+            status_code=503,
+            detail="El servicio de IA no esta disponible. Revisa la clave y el saldo del proveedor. Puedes reintentar sin perder tu progreso.",
+        ) from e
 
 
 def infer_category(index: int) -> str:

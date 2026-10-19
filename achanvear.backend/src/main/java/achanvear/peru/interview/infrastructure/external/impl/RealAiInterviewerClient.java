@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
+import achanvear.peru.interview.infrastructure.external.AiServiceUnavailableException;
 import org.springframework.web.client.RestClient;
 
 import java.util.List;
@@ -38,7 +39,10 @@ public class RealAiInterviewerClient implements AiInterviewerClient {
             RestClient.Builder restClientBuilder,
             @Value("${ai.api.url}") String aiApiUrl
     ) {
-        this.restClient = restClientBuilder.baseUrl(aiApiUrl).build();
+        this.restClient = restClientBuilder.baseUrl(aiApiUrl)
+                .defaultStatusHandler(status -> status.isError(), (request, response) -> {
+                    throw new AiServiceUnavailableException();
+                }).build();
         this.objectMapper = new ObjectMapper();
     }
 
@@ -133,8 +137,7 @@ public class RealAiInterviewerClient implements AiInterviewerClient {
 
             return new AnswerResponse(eval, status, nextQNode, theoryResultNode);
         } catch (Exception e) {
-            System.err.println("[submitTheoryAnswer] Error: " + e.getMessage());
-            return null;
+            throw new AiServiceUnavailableException();
         }
     }
 
@@ -162,7 +165,7 @@ public class RealAiInterviewerClient implements AiInterviewerClient {
             );
         } catch (Exception e) {
             // Fallback: si falla la conexion con Python
-            return new TheoryResultResponse(sessionId, 75.0, true, List.of(), "technical");
+            throw new AiServiceUnavailableException();
         }
     }
 
@@ -392,42 +395,8 @@ public class RealAiInterviewerClient implements AiInterviewerClient {
                     );
             }
         } catch (Exception e) {
-            // No tragar la excepción - loguearla y devolver respuesta genérica
-            System.err.println("[evaluateAnswer] Error: " + e.getMessage());
+            throw new AiServiceUnavailableException();
         }
-        // Fallback con 15 preguntas ÚNICAS (no repetir nunca)
-        int answerCount = interview.getAnswers().size();
-        
-        // Máximo 15 preguntas en total
-        if (answerCount >= 15) {
-            return new AiAnswerEvaluation(50, "Entrevista completada", null, true);
-        }
-        
-        String[] allFallbackQuestions = {
-            "Cuéntame más sobre tu experiencia profesional.",
-            "¿Qué te motivó a postularte a esta posición?",
-            "Describe una situación donde trabajaste en equipo.",
-            "¿Cómo manejas la presión en el trabajo?",
-            "¿Dónde te ves en los próximos años?",
-            "Describe un proyecto desafiante que hayas liderado.",
-            "¿Qué herramientas técnicas dominas?",
-            "Explica cómo resolverías un problema complejo en tu área.",
-            "¿Cómo te mantienes actualizado en tu campo?",
-            "Describe tu metodología de trabajo.",
-            "¿Qué harías si un proyecto se atrasa?",
-            "¿Cómo evalúas la calidad de tu trabajo?",
-            "Describe tu experiencia con equipos multidisciplinarios.",
-            "¿Qué feedback has recibido de tus superiores?",
-            "Propón una mejora para el área en la que trabajas."
-        };
-        
-        // Usar answerCount como índice directo (0-14), nunca repite
-        String fallbackText = allFallbackQuestions[Math.min(answerCount, 14)];
-        Question fallbackQuestion = new Question(
-                java.util.UUID.randomUUID().toString(),
-                fallbackText,
-                answerCount + 1
-        );
-        return new AiAnswerEvaluation(50, "Evaluación temporal", fallbackQuestion, false);
+        throw new AiServiceUnavailableException();
     }
 }

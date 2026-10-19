@@ -42,6 +42,11 @@ public class JobPostRepositoryImpl implements JobPostRepository {
     }
 
     @Override
+    public Optional<JobPost> findByIdForUpdate(JobPostId id) {
+        return jobPostJpaRepository.findLockedById(id.value()).map(jobPostMapper::toDomain);
+    }
+
+    @Override
     public Page<JobPost> search(JobSearchQuery query) {
         Sort.Direction direction = resolveDirection(query.sortDirection());
         String sortBy = resolveSortBy(query.sortBy());

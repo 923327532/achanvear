@@ -11,6 +11,8 @@ public record ProposalResponse(
         Integer estimatedDays,
         String portfolioUrl,
         Instant submittedAt,
-        String status
+        String status,
+        String freelancerName,
+        String freelancerPhotoUrl
 ) {
 }

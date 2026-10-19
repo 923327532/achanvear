@@ -214,7 +214,7 @@ public class FreelanceController {
                         request.dni(),
                         request.curriculumUrl(),
                         request.cvData(),
-                        request.certifications() == null ? java.util.List.of() :
+                        request.certifications() == null ? null :
                                 request.certifications().stream()
                                         .map(certification -> new FreelancerCertificationCommand(
                                                 certification.name(),
@@ -222,7 +222,7 @@ public class FreelanceController {
                                                 certification.credentialUrl()
                                         ))
                                         .toList(),
-                        request.skills() == null ? java.util.List.of() :
+                        request.skills() == null ? null :
                                 request.skills().stream()
                                         .map(skill -> new SkillCommand(
                                                 skill.name(),
@@ -230,7 +230,7 @@ public class FreelanceController {
                                                 skill.yearsOfExperience()
                                         ))
                                         .toList(),
-                        request.portfolioItems() == null ? java.util.List.of() :
+                        request.portfolioItems() == null ? null :
                                 request.portfolioItems().stream()
                                         .map(item -> new PortfolioItemCommand(
                                                 item.title(),

@@ -9,13 +9,20 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.Map;
+import java.util.Collection;
+import java.util.HashSet;
+import achanvear.peru.freelance.domain.repository.FreelancerProfileRepository;
 
 @Component
 public class FreelanceApplicationMapper {
 
     private final CompanyLookupPort companyLookupPort;
 
-    public FreelanceApplicationMapper(CompanyLookupPort companyLookupPort) {
+    private final FreelancerProfileRepository freelancerProfiles;
+
+    public FreelanceApplicationMapper(CompanyLookupPort companyLookupPort, FreelancerProfileRepository freelancerProfiles) {
+        this.freelancerProfiles = freelancerProfiles;
         this.companyLookupPort = companyLookupPort;
     }
 
@@ -116,6 +123,21 @@ public class FreelanceApplicationMapper {
     }
 
     public FreelanceProjectResponse toProjectResponse(FreelanceProject project, UUID authenticatedUserId) {
+        return toProjectResponse(project, authenticatedUserId, summaries(List.of(project)));
+    }
+
+    private Map<UUID, FreelancerProfileRepository.Summary> summaries(Collection<FreelanceProject> projects) {
+        var ids = new HashSet<UUID>();
+        for (var project : projects) {
+            if (project.getSelectedFreelancerUserId() != null) ids.add(project.getSelectedFreelancerUserId());
+            project.getProposals().forEach(p -> ids.add(p.getFreelancerUserId()));
+        }
+        return freelancerProfiles.findSummariesByUserIds(ids);
+    }
+
+    private FreelanceProjectResponse toProjectResponse(FreelanceProject project, UUID authenticatedUserId,
+            Map<UUID, FreelancerProfileRepository.Summary> profiles) {
+        var selected = project.getSelectedFreelancerUserId() == null ? null : profiles.get(project.getSelectedFreelancerUserId());
         // Obtener datos de la empresa usando map/orElse para evitar variables mutables en lambda
         CompanyLookupPort.CompanySummary company = (project.getClientUserId() != null)
                 ? companyLookupPort.findByOwnerUserId(project.getClientUserId()).orElse(null)
@@ -148,7 +170,7 @@ public class FreelanceApplicationMapper {
                 project.getAttachments(),
                 project.getStatus().name(),
                 project.getSelectedFreelancerUserId() == null ? null : project.getSelectedFreelancerUserId().toString(),
-                project.getProposals().stream().map(this::toProposalResponse).toList(),
+                project.getProposals().stream().map(p -> toProposalResponse(p, profiles)).toList(),
                 project.getMilestones().stream().map(this::toMilestoneResponse).toList(),
                 project.getCreatedAt(),
                 project.getCurrency(),
@@ -163,7 +185,9 @@ public class FreelanceApplicationMapper {
                 companyRating,
                 publishedJobsCount,
                 project.getProposals().size(),
-                hasApplied
+                hasApplied,
+                selected == null ? null : selected.name(),
+                selected == null ? null : selected.profilePhotoUrl()
         );
     }
 
@@ -172,9 +196,10 @@ public class FreelanceApplicationMapper {
     }
 
     public FreelanceProjectPageResponse toProjectPageResponse(Page<FreelanceProject> page, UUID authenticatedUserId) {
+        var profiles = summaries(page.getContent());
         return new FreelanceProjectPageResponse(
                 page.getContent().stream()
-                        .map(p -> toProjectResponse(p, authenticatedUserId))
+                        .map(p -> toProjectResponse(p, authenticatedUserId, profiles))
                         .toList(),
                 page.getTotalElements(),
                 page.getTotalPages(),
@@ -193,7 +218,8 @@ public class FreelanceApplicationMapper {
         );
     }
 
-    private ProposalResponse toProposalResponse(Proposal proposal) {
+    private ProposalResponse toProposalResponse(Proposal proposal, Map<UUID, FreelancerProfileRepository.Summary> profiles) {
+        var freelancer = profiles.get(proposal.getFreelancerUserId());
         return new ProposalResponse(
                 proposal.getId().toString(),
                 proposal.getFreelancerUserId().toString(),
@@ -202,7 +228,9 @@ public class FreelanceApplicationMapper {
                 proposal.getEstimatedDays(),
                 proposal.getPortfolioUrl(),
                 proposal.getSubmittedAt(),
-                proposal.getStatus().name()
+                proposal.getStatus().name(),
+                freelancer == null ? null : freelancer.name(),
+                freelancer == null ? null : freelancer.profilePhotoUrl()
         );
     }
 

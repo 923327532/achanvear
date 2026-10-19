@@ -7,15 +7,12 @@ import jakarta.validation.constraints.Size;
 import java.util.List;
 
 public record UpdateFreelancerProfileRequest(
-        @NotBlank
         @Size(min = 3, max = 150)
         String name,
 
-        @NotBlank
         @Size(min = 3, max = 120)
         String industry,
 
-        @NotBlank
         @Size(min = 3, max = 120)
         String specialty,
 
@@ -23,7 +20,6 @@ public record UpdateFreelancerProfileRequest(
 
         String bannerUrl,
 
-        @NotBlank
         @Size(min = 20, max = 2000)
         String biography,
 
@@ -34,7 +30,6 @@ public record UpdateFreelancerProfileRequest(
 
         String paymentMethodType,
 
-        @NotBlank
         @Pattern(regexp = "\\d{8}")
         String dni,
 
@@ -42,10 +37,13 @@ public record UpdateFreelancerProfileRequest(
 
         String cvData,
 
+        @jakarta.validation.Valid
         List<CertificationRequest> certifications,
 
+        @jakarta.validation.Valid
         List<SkillRequest> skills,
 
+        @jakarta.validation.Valid
         List<PortfolioItemRequest> portfolioItems,
 
         // ── Preferencias de Configuración ──

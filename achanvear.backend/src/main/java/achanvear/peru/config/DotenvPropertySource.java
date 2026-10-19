@@ -30,7 +30,7 @@ public class DotenvPropertySource extends PropertySource<Dotenv> {
             dotenv.entries().forEach(entry -> {
                 properties.put(entry.getKey(), entry.getValue());
                 System.setProperty(entry.getKey(), entry.getValue());
-                System.out.println("Loaded from .env: " + entry.getKey() + " = " + entry.getValue());
+                System.out.println("Loaded from .env: " + entry.getKey());
             });
             
             if (!properties.isEmpty()) {
