@@ -38,12 +38,12 @@ export const metadata: Metadata = {
     icon: [
       { url: "/logo/favicon-48.png", type: "image/png", sizes: "48x48" },
       { url: "/logo/logo-512.png", type: "image/png", sizes: "512x512" },
-      { url: "/favicon.ico", sizes: "any" },
+      { url: "/favicon.ico", type: "image/x-icon", sizes: "48x48" },
     ],
     apple: [
       { url: "/logo/apple-icon.png", type: "image/png", sizes: "180x180" },
     ],
-    shortcut: ["/favicon.ico"],
+    shortcut: ["/logo/favicon-48.png"],
   },
   openGraph: {
     type: "website",

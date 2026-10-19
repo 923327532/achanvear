@@ -34,6 +34,9 @@ export function organizationSchema() {
     },
     knowsAbout: [
       "empleo",
+      "primer empleo",
+      "empleo para egresados",
+      "servicios profesionales",
       "trabajo freelance",
       "freelancers",
       "profesionales independientes",
@@ -98,6 +101,14 @@ export function itemListSchema() {
  * ("cómo publicar empleo", "cómo buscar trabajo", "cómo ser freelance").
  */
 export const FAQS: Array<{ question: string; answer: string }> = [
+  {
+    question: "¿Cómo encontrar mi primer empleo si soy egresado y no tengo experiencia?",
+    answer: "Prepara un CV con tu formación, proyectos académicos, prácticas y habilidades. Busca puestos de nivel inicial y revisa sus requisitos antes de postular. En Achanvear puedes completar tu perfil profesional y consultar oportunidades desde tu cuenta.",
+  },
+  {
+    question: "¿Cómo empezar a brindar servicios profesionales como freelancer?",
+    answer: "Define un servicio concreto, prepara muestras de trabajo y explica qué entregas, en qué plazo y con qué presupuesto. Crea tu perfil profesional y adapta cada propuesta a la necesidad del cliente antes de aceptar un proyecto.",
+  },
   {
     question: "¿Cómo publicar empleo o una oferta de trabajo en Achanvear?",
     answer:

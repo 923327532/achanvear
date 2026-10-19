@@ -1,6 +1,7 @@
+import { GUIDES } from "./guides";
 
 export const SITE_URL = (
-  process.env.NEXT_PUBLIC_SITE_URL ?? "https://achanvear.com"
+  process.env.NEXT_PUBLIC_SITE_URL ?? "https://achanvear.site"
 ).replace(/\/$/, "");
 
 export const SITE_NAME = "Achanvear";
@@ -11,7 +12,7 @@ export const SITE_TAGLINE =
   "Publica empleos y contrata profesionales independientes en Perú";
 
 export const SITE_DESCRIPTION =
-  "Achanvear es la plataforma peruana de talento freelance y empleo donde puedes publicar empleos, buscar empleo, encontrar freelancers y profesionales independientes verificados por IA. Consigue proyectos y trabaja como independiente con pagos seguros (Escrow).";
+  "Busca trabajo, prepara tu primer empleo y ofrece servicios profesionales en Per?. Encuentra freelancers o publica empleos para tu empresa en Achanvear.";
 
 /**
  * Palabras clave orientadas a las búsquedas reales de los usuarios en Perú.
@@ -21,6 +22,15 @@ export const SITE_KEYWORDS: string[] = [
   "publicar oferta de empleo",
   "buscar empleo",
   "buscar trabajo",
+  "c?mo buscar trabajo",
+  "mi primer empleo",
+  "mi primer trabajo",
+  "empleo para egresados",
+  "primeros trabajos",
+  "servicios profesionales",
+  "brindar servicios profesionales",
+  "buscar profesionales",
+  "ser freelancer",
   "empleos en Perú",
   "bolsa de trabajo Perú",
   "freelancer",
@@ -44,6 +54,8 @@ export const PUBLIC_ROUTES: Array<{
   priority: number;
 }> = [
   { path: "/", changeFrequency: "weekly", priority: 1 },
+  { path: "/guias", changeFrequency: "monthly", priority: 0.8 },
+  ...GUIDES.map(({ slug }) => ({ path: `/guias/${slug}`, changeFrequency: "monthly" as const, priority: 0.8 })),
   { path: "/register", changeFrequency: "weekly", priority: 0.9 },
   { path: "/login", changeFrequency: "monthly", priority: 0.5 },
   { path: "/privacy", changeFrequency: "yearly", priority: 0.3 },

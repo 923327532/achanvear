@@ -14,22 +14,13 @@ import {
 import Link from "next/link";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { faqSchema, FAQS, itemListSchema } from "@/lib/seo/jsonld";
-import { SITE_URL } from "@/lib/seo/site";
+import { SITE_URL, SITE_DESCRIPTION, SITE_KEYWORDS } from "@/lib/seo/site";
+import { GUIDES } from "@/lib/seo/guides";
 
 export const metadata: Metadata = {
-  title: "Publica empleos y contrata freelancers en Perú",
-  description:
-    "Achanvear es la plataforma peruana para publicar empleos, buscar empleo, encontrar freelancers y profesionales independientes verificados por IA. Consigue proyectos y trabaja como independiente con pagos seguros.",
-  keywords: [
-    "publicar empleo",
-    "buscar empleo",
-    "freelancer",
-    "proyectos freelance",
-    "profesionales independientes",
-    "conseguir ser independiente",
-    "trabajar como independiente",
-    "empleos Perú",
-  ],
+  title: "Buscar trabajo, primer empleo y servicios profesionales en Per?",
+  description: SITE_DESCRIPTION,
+  keywords: SITE_KEYWORDS,
   alternates: {
     canonical: "/",
   },
@@ -334,6 +325,21 @@ export default function LandingPage() {
       <SectoresSection />
       <TestimoniosSection />
       <MisionSection />
+      <section className="bg-white py-16 sm:py-20" aria-labelledby="career-guides-title">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <h2 id="career-guides-title" className="text-2xl font-bold text-slate-900 sm:text-3xl">Tu primer empleo y tus pr?ximos proyectos</h2>
+          <p className="mt-4 max-w-3xl text-slate-600">?Buscas trabajo, acabas de egresar o quieres ser freelancer? Encuentra orientaci?n para presentar tu experiencia, brindar servicios profesionales o publicar empleo y contratar talento.</p>
+          <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {GUIDES.map((guide) => (
+              <Link key={guide.slug} href={`/guias/${guide.slug}`} className="rounded-2xl border border-slate-200 p-6 transition-colors hover:border-teal-600">
+                <h3 className="text-lg font-semibold text-teal-800">{guide.title}</h3>
+                <p className="mt-3 text-sm leading-relaxed text-slate-600">{guide.description}</p>
+              </Link>
+            ))}
+          </div>
+          <Link href="/guias" className="mt-6 inline-block font-semibold text-teal-700 underline underline-offset-4">Ver todas las gu?as</Link>
+        </div>
+      </section>
       <FaqSection />
       <CtaSection />
     </>
