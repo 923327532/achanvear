@@ -26,8 +26,9 @@ El favicon de Achanvear reemplaza el de Vercel.
 - Sitemap XML válido y enlaces bajo achanvear.site.
 - Guía inexistente: HTTP 404.
 - ESLint aprobado para los archivos SEO modificados.
-- El chequeo global de TypeScript detecta tres errores fuera de este cambio:
-  comparaciones de MilestoneStatus con HELD en EscrowTab.tsx y PaymentsPage.tsx.
+- Compilación de producción `npm run build` aprobada, incluyendo tipos, lint y
+  generación de páginas. Se corrigieron las tres comparaciones con HELD separando
+  EscrowStatus de MilestoneStatus y sus etiquetas de presentación.
 
 ## Publicación
 

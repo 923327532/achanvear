@@ -3,7 +3,7 @@
 
 import { Shield, Loader2, AlertTriangle, CheckCircle, Clock } from "lucide-react";
 import { useEscrowProjects, useReleaseMilestone, useRefundMilestone } from "../hooks/usePayments";
-import { MILESTONE_STATUS_CONFIG } from "../types/payments.types";
+import { ESCROW_STATUS_CONFIG } from "../types/payments.types";
 
 export function EscrowTab() {
   const { projects, isLoading } = useEscrowProjects();
@@ -35,7 +35,7 @@ export function EscrowTab() {
   return (
     <div className="space-y-4">
       {projects.map((project) => {
-        const statusConfig = MILESTONE_STATUS_CONFIG[project.status];
+        const statusConfig = ESCROW_STATUS_CONFIG[project.status];
 
         return (
           <div
