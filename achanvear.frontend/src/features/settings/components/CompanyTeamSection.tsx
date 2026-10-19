@@ -20,6 +20,7 @@ import {
   useRemoveCollaborator,
   useDeactivateCollaborator,
 } from "../hooks/useCompanySettings";
+import { ConfirmModal } from "@/shared/components/ui/ConfirmModal";
 
 export function CompanyTeamSection() {
   const {
@@ -38,6 +39,8 @@ export function CompanyTeamSection() {
   const [error, setError] = useState("");
   const [tempPassword, setTempPassword] = useState("");
   const [showCredentials, setShowCredentials] = useState(false);
+  const [pendingAction, setPendingAction] = useState<{ kind: "remove" | "deactivate"; id: string; name: string } | null>(null);
+  const [actionError, setActionError] = useState("");
 
   const handleInviteMember = async () => {
     setError("");
@@ -63,19 +66,23 @@ export function CompanyTeamSection() {
     }
   };
 
-  const handleRemove = async (collaboratorId: string) => {
+  const handleConfirmAction = async () => {
+    if (!pendingAction) return;
+    const current = pendingAction;
+    setPendingAction(null);
+    setActionError("");
     try {
-      await removeAsync(collaboratorId);
-    } catch {
-      // error silently
-    }
-  };
-
-  const handleDeactivate = async (collaboratorId: string) => {
-    try {
-      await deactivateAsync(collaboratorId);
-    } catch {
-      // error silently
+      if (current.kind === "remove") {
+        await removeAsync(current.id);
+      } else {
+        await deactivateAsync(current.id);
+      }
+    } catch (err: unknown) {
+      const axiosError = err as { response?: { data?: { message?: string } } };
+      setActionError(
+        axiosError?.response?.data?.message ||
+          (current.kind === "remove" ? "No se pudo eliminar al colaborador" : "No se pudo desactivar al colaborador")
+      );
     }
   };
 
@@ -123,6 +130,13 @@ export function CompanyTeamSection() {
           Invitar Colaborador
         </button>
       </div>
+
+      {actionError && (
+        <div className="flex items-center gap-2 p-3 rounded-xl bg-red-50 border border-red-200">
+          <AlertTriangle className="w-4 h-4 text-red-500 shrink-0" />
+          <p className="text-xs text-red-600">{actionError}</p>
+        </div>
+      )}
 
       <div className="overflow-x-auto">
         <table className="w-full">
@@ -186,14 +200,14 @@ export function CompanyTeamSection() {
                     <div className="flex items-center justify-center gap-2">
                       {member.status === "ACTIVE" && (
                         <button
-                          onClick={() => handleDeactivate(member.id)}
+                          onClick={() => setPendingAction({ kind: "deactivate", id: member.id, name: member.fullName })}
                           className="text-xs font-medium text-amber-500 hover:text-amber-600 transition-colors"
                         >
                           Desactivar
                         </button>
                       )}
                       <button
-                        onClick={() => handleRemove(member.id)}
+                        onClick={() => setPendingAction({ kind: "remove", id: member.id, name: member.fullName })}
                         className="text-xs font-medium text-red-500 hover:text-red-600 transition-colors"
                       >
                         Eliminar
@@ -303,6 +317,22 @@ export function CompanyTeamSection() {
             </button>
           </div>
         </div>
+      )}
+
+      {pendingAction && (
+        <ConfirmModal
+          title={pendingAction.kind === "remove" ? "Eliminar colaborador" : "Desactivar colaborador"}
+          description={
+            pendingAction.kind === "remove"
+              ? `Vas a eliminar a ${pendingAction.name} de tu equipo.`
+              : `Vas a desactivar a ${pendingAction.name} de tu equipo.`
+          }
+          confirmLabel={pendingAction.kind === "remove" ? "Eliminar" : "Desactivar"}
+          cancelLabel="Volver"
+          confirmClassName={pendingAction.kind === "deactivate" ? "bg-amber-500 hover:bg-amber-600" : undefined}
+          onConfirm={handleConfirmAction}
+          onCancel={() => setPendingAction(null)}
+        />
       )}
 
       {saved && (

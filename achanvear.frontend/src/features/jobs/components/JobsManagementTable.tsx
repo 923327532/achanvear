@@ -1,9 +1,11 @@
 // features/jobs/components/JobsManagementTable.tsx
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { Pencil, Trash2, Play, Pause, XCircle, Loader2, MapPin, Clock } from "lucide-react";
 import type { Job } from "@/features/jobs/types/job.types";
+import { ConfirmModal } from "@/shared/components/ui/ConfirmModal";
 
 interface JobsManagementTableProps {
   jobs: Job[];
@@ -95,7 +97,7 @@ function formatDate(dateStr?: string) {
 interface JobActionsProps {
   job: Job;
   isLoadingAction: boolean;
-  onDelete: (jobId: string) => void;
+  onDelete: (job: Job) => void;
   onChangeStatus: (jobId: string, newStatus: string) => void;
   onClose: (job: Job) => void;
   showLabels?: boolean;
@@ -179,10 +181,10 @@ function JobActions({
         </button>
       )}
 
-      {/* Eliminar */}
+      {/* Eliminar — pide confirmación */}
       <button
         type="button"
-        onClick={() => onDelete(job.id)}
+        onClick={() => onDelete(job)}
         disabled={isLoadingAction}
         className={`${base} hover:text-red-700 hover:bg-red-50`}
         title="Eliminar"
@@ -199,6 +201,10 @@ function JobActions({
 }
 
 export function JobsManagementTable({ jobs, actionLoading, onDelete, onChangeStatus }: JobsManagementTableProps) {
+  // Acción pendiente de confirmar (cerrar o eliminar). Va antes del "return" de lista vacía porque los hooks
+  // siempre deben ejecutarse en el mismo orden.
+  const [pending, setPending] = useState<{ kind: "close" | "delete"; job: Job } | null>(null);
+
   if (jobs.length === 0) {
     return (
       <div className="text-center py-16">
@@ -209,14 +215,20 @@ export function JobsManagementTable({ jobs, actionLoading, onDelete, onChangeSta
     );
   }
 
-  // Cerrar una vacante es irreversible desde la UI: "Publicar" solo reaparece
-  // si el estado es SUSPENDED, nunca desde CLOSED. Por eso pedimos confirmación
-  // aquí, con el mismo criterio que ya usa "Eliminar".
-  const handleCloseClick = (job: Job) => {
-    const confirmed = window.confirm(
-      `¿Cerrar "${job.title}"? Dejará de recibir postulaciones y no podrás reabrirla desde aquí.`
-    );
-    if (confirmed) {
+  // FIX: "Cerrar" y "Eliminar" pedían confirmación con el cuadro nativo del navegador (window.confirm / confirm del
+  // padre). Ahora abren un cuadro propio (ConfirmModal). Cerrar una vacante no se puede deshacer desde la UI:
+  // "Publicar" solo reaparece si el estado es SUSPENDED, nunca desde CLOSED.
+  // La confirmación vive aquí, así que el padre ya NO debe pedirla (si no, se preguntaría dos veces).
+  const handleCloseClick = (job: Job) => setPending({ kind: "close", job });
+  const handleDeleteClick = (job: Job) => setPending({ kind: "delete", job });
+
+  const handleConfirmPending = () => {
+    if (!pending) return;
+    const { kind, job } = pending;
+    setPending(null);
+    if (kind === "delete") {
+      onDelete(job.id);
+    } else {
       onChangeStatus(job.id, "CLOSED");
     }
   };
@@ -271,7 +283,7 @@ export function JobsManagementTable({ jobs, actionLoading, onDelete, onChangeSta
                 <JobActions
                   job={job}
                   isLoadingAction={isLoadingAction}
-                  onDelete={onDelete}
+                  onDelete={handleDeleteClick}
                   onChangeStatus={onChangeStatus}
                   onClose={handleCloseClick}
                   showLabels
@@ -340,7 +352,7 @@ export function JobsManagementTable({ jobs, actionLoading, onDelete, onChangeSta
                       <JobActions
                         job={job}
                         isLoadingAction={isLoadingAction}
-                        onDelete={onDelete}
+                        onDelete={handleDeleteClick}
                         onChangeStatus={onChangeStatus}
                         onClose={handleCloseClick}
                       />
@@ -352,6 +364,20 @@ export function JobsManagementTable({ jobs, actionLoading, onDelete, onChangeSta
           </tbody>
         </table>
       </div>
+
+      {pending && (
+        <ConfirmModal
+          title={pending.kind === "delete" ? "Eliminar publicación" : "Cerrar vacante"}
+          description={
+            pending.kind === "delete"
+              ? `Vas a eliminar "${pending.job.title}". Esta acción no se puede deshacer.`
+              : `Vas a cerrar "${pending.job.title}". Dejará de recibir postulaciones y no podrás reabrirla desde aquí.`
+          }
+          confirmLabel={pending.kind === "delete" ? "Eliminar" : "Cerrar vacante"}
+          onConfirm={handleConfirmPending}
+          onCancel={() => setPending(null)}
+        />
+      )}
     </>
   );
 }

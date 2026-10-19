@@ -836,6 +836,9 @@ export function ServiceForm({ service, onSubmit, isSubmitting, freelancerProfile
   const [uploading, setUploading] = useState<{ images: boolean; videos: boolean; pdfs: boolean; certs: boolean }>({
     images: false, videos: false, pdfs: false, certs: false,
   });
+  // FIX: error de subida de archivos. Antes se mostraba con alert() del navegador; ahora es un mensaje rojo dentro de
+  // la pantalla, debajo de la zona que falló. Se borra al intentar subir de nuevo.
+  const [uploadError, setUploadError] = useState<{ type: "images" | "videos" | "pdfs" | "certs"; message: string } | null>(null);
 
   const handleFileUpload = async (
     files: FileList | null,
@@ -847,6 +850,7 @@ export function ServiceForm({ service, onSubmit, isSubmitting, freelancerProfile
     const formKey = type === "images" ? "imageUrls" : type === "videos" ? "videoUrls" : type === "pdfs" ? "pdfUrls" : "certificateUrls";
 
     setUploading(prev => ({ ...prev, [uploadKey]: true }));
+    setUploadError(null);
 
     try {
       const { storageApi } = await import("../api/storageApi");
@@ -861,7 +865,7 @@ export function ServiceForm({ service, onSubmit, isSubmitting, freelancerProfile
         [formKey]: [...prev[formKey], ...urls],
       }));
     } catch (err: any) {
-      alert("Error al subir archivos: " + (err.message || "Error desconocido"));
+      setUploadError({ type, message: "Error al subir archivos: " + (err.message || "Error desconocido") });
     } finally {
       setUploading(prev => ({ ...prev, [uploadKey]: false }));
     }
@@ -963,6 +967,12 @@ export function ServiceForm({ service, onSubmit, isSubmitting, freelancerProfile
             </>
           )}
         </label>
+
+        {uploadError?.type === type && (
+          <p role="alert" className="mt-3 break-words rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">
+            {uploadError.message}
+          </p>
+        )}
       </div>
     );
   };

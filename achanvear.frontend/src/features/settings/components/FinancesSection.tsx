@@ -296,9 +296,6 @@ export function FinancesSection({ profile }: Props) {
       {/* Footer */}
       {/* RESPONSIVE: botones apilados a ancho completo en celular (Guardar arriba), en fila a la derecha desde sm */}
       <div className="flex flex-col-reverse gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-end">
-        <button className="text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors">
-          Cancelar
-        </button>
         <button
           onClick={handleSave}
           disabled={isSaving}

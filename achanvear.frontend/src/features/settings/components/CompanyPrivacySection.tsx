@@ -1,9 +1,10 @@
 // features/settings/components/CompanyPrivacySection.tsx
 "use client";
 
-import { useState, useEffect } from "react";
-import { Eye, EyeOff, Shield, Monitor, Smartphone, CheckCircle2, Loader2 } from "lucide-react";
+import { useState } from "react";
+import { Eye, EyeOff, Shield, Monitor, Smartphone, CheckCircle2, Loader2, AlertCircle } from "lucide-react";
 import { usePrivacySettings } from "../hooks/useCompanySettings";
+import type { PrivacySettings } from "../types/company-settings.types";
 
 function Toggle({ enabled, onChange }: { enabled: boolean; onChange: (v: boolean) => void }) {
   return (
@@ -17,43 +18,7 @@ function Toggle({ enabled, onChange }: { enabled: boolean; onChange: (v: boolean
 }
 
 export function CompanyPrivacySection() {
-  const { settings, isLoading, updateAsync, isUpdating } = usePrivacySettings();
-  const [saved, setSaved] = useState(false);
-
-  const [incognitoMode, setIncognitoMode] = useState(false);
-  const [showContactInfo, setShowContactInfo] = useState(true);
-  const [showInDirectory, setShowInDirectory] = useState(true);
-  const [visibilityNotifications, setVisibilityNotifications] = useState(false);
-
-  useEffect(() => {
-    if (settings) {
-      setIncognitoMode(settings.incognitoMode);
-      setShowContactInfo(settings.showContactInfo);
-      setShowInDirectory(settings.showInDirectory);
-      setVisibilityNotifications(settings.visibilityNotifications);
-    }
-  }, [settings]);
-
-  const handleToggle = async (key: keyof typeof settings, value: boolean) => {
-    if (key === "incognitoMode") setIncognitoMode(value);
-    if (key === "showContactInfo") setShowContactInfo(value);
-    if (key === "showInDirectory") setShowInDirectory(value);
-    if (key === "visibilityNotifications") setVisibilityNotifications(value);
-
-    try {
-      await updateAsync({
-        ...settings,
-        [key]: value,
-      });
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
-    } catch {
-      if (key === "incognitoMode") setIncognitoMode(!value);
-      if (key === "showContactInfo") setShowContactInfo(!value);
-      if (key === "showInDirectory") setShowInDirectory(!value);
-      if (key === "visibilityNotifications") setVisibilityNotifications(!value);
-    }
-  };
+  const { settings, isLoading, updateAsync } = usePrivacySettings();
 
   if (isLoading) {
     return (
@@ -65,6 +30,51 @@ export function CompanyPrivacySection() {
       </div>
     );
   }
+
+  return <PrivacyForm initial={settings} onSave={updateAsync} />;
+}
+
+function PrivacyForm({
+  initial,
+  onSave,
+}: {
+  initial: PrivacySettings;
+  onSave: (data: PrivacySettings) => Promise<unknown>;
+}) {
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const [incognitoMode, setIncognitoMode] = useState(initial.incognitoMode);
+  const [showContactInfo, setShowContactInfo] = useState(initial.showContactInfo);
+  const [showInDirectory, setShowInDirectory] = useState(initial.showInDirectory);
+  const [visibilityNotifications, setVisibilityNotifications] = useState(initial.visibilityNotifications);
+
+  const handleToggle = async (key: keyof PrivacySettings, value: boolean) => {
+    setError(null);
+    if (key === "incognitoMode") setIncognitoMode(value);
+    if (key === "showContactInfo") setShowContactInfo(value);
+    if (key === "showInDirectory") setShowInDirectory(value);
+    if (key === "visibilityNotifications") setVisibilityNotifications(value);
+
+    try {
+      await onSave({
+        incognitoMode,
+        showContactInfo,
+        showInDirectory,
+        visibilityNotifications,
+        [key]: value,
+      });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch {
+      if (key === "incognitoMode") setIncognitoMode(!value);
+      if (key === "showContactInfo") setShowContactInfo(!value);
+      if (key === "showInDirectory") setShowInDirectory(!value);
+      if (key === "visibilityNotifications") setVisibilityNotifications(!value);
+      // FIX: antes el interruptor volvía a su sitio sin decir nada.
+      setError("No se pudo guardar el cambio de privacidad. Inténtalo de nuevo.");
+    }
+  };
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5">
@@ -134,6 +144,13 @@ export function CompanyPrivacySection() {
           <Toggle enabled={visibilityNotifications} onChange={(v) => handleToggle("visibilityNotifications", v)} />
         </div>
       </div>
+
+      {error && (
+        <div role="alert" className="flex items-center gap-2 p-3 rounded-xl bg-red-50 border border-red-200">
+          <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
+          <p className="text-xs text-red-700">{error}</p>
+        </div>
+      )}
 
       {saved && (
         <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 px-5 py-3 rounded-2xl bg-emerald-50 border border-emerald-200 shadow-lg">

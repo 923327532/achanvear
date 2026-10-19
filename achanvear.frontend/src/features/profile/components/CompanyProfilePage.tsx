@@ -5,16 +5,17 @@ import { useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { profileApi } from "../api/profileApi";
 import { jobApi } from "@/features/jobs/api/jobApi";
+import { freelanceApi } from "@/features/freelance/api/freelanceApi";
 import { toProfileImageUrl } from "@/lib/mediaUrls";
+import { useAvailablePlans, useCurrentPlan } from "@/features/settings/hooks/useCompanySettings";
 import {
   Building2,
-  Globe,
   Star,
   BadgeCheck,
   Briefcase,
   Users,
   TrendingUp,
-  CalendarDays,
+  Crown,
   Plus,
   ShieldCheck,
   Camera,
@@ -25,6 +26,7 @@ import {
   X,
 } from "lucide-react";
 import type { CompanyProfile } from "@/features/profile/types/profile.types";
+import type { Project } from "@/features/freelance/types/freelance.types";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -63,9 +65,11 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 function CompanyEditModal({
   company,
   onClose,
+  onSaved,
 }: {
   company: CompanyProfile;
   onClose: () => void;
+  onSaved: () => void;
 }) {
   const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
@@ -88,6 +92,8 @@ function CompanyEditModal({
         specialty: company.specialty,
         companySize,
         biography,
+        logoUrl: company.logoUrl || undefined,
+        bannerUrl: company.bannerUrl || undefined,
         achievements: company.achievements || undefined,
         address: company.address,
         paymentMethodType: company.paymentMethodType,
@@ -95,6 +101,7 @@ function CompanyEditModal({
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["company-profile"] });
+      onSaved();
       onClose();
     },
     onError: (err: Error) => {
@@ -177,6 +184,39 @@ function CompanyEditModal({
   );
 }
 
+function CompletedProjectCard({ project }: { project: Project }) {
+  const freelancerQuery = useQuery({
+    queryKey: ["freelancer-profile", project.selectedFreelancerUserId],
+    queryFn: () => profileApi.getProfileById(project.selectedFreelancerUserId as string),
+    retry: false,
+    enabled: !!project.selectedFreelancerUserId,
+  });
+
+  const freelancerName = freelancerQuery.data?.headline || "Freelancer";
+  const agreedAmount = project.proposals?.find((p) => p.status === "ACCEPTED")?.proposedBudget ?? project.budget;
+  const symbol = project.currency === "USD" ? "$" : "S/.";
+
+  return (
+    <div className="flex flex-col p-4 rounded-2xl bg-slate-50 border border-slate-100 hover:border-slate-200 hover:bg-white transition-all gap-3">
+      <div className="min-w-0">
+        <h3 className="text-sm font-bold text-slate-900 break-words">{project.title}</h3>
+        <p className="text-xs text-slate-500 mt-1.5 break-words">
+          Freelancer: <span className="font-medium text-slate-700">{freelancerName}</span>
+        </p>
+      </div>
+      <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-200/70">
+        <p className="text-base font-bold text-[#1e3a8a]">
+          {symbol} {Number(agreedAmount).toLocaleString("es-PE")}
+        </p>
+        <span className="inline-flex w-fit items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+          <svg className="w-3 h-3 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
+          Completado
+        </span>
+      </div>
+    </div>
+  );
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // PAGE
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -197,6 +237,11 @@ export function CompanyProfilePage() {
   const [logoError, setLogoError] = useState(false);
   const [bannerError, setBannerError] = useState(false);
 
+  const showSavedMessage = () => {
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2500);
+  };
+
   // ── Queries ───────────────────────────────────────────────────────────────
   const companyQuery = useQuery({
     queryKey: ["company-profile"],
@@ -210,10 +255,25 @@ export function CompanyProfilePage() {
     retry: false,
   });
 
+  const completedQuery = useQuery({
+    queryKey: ["company-completed-projects"],
+    queryFn: () => freelanceApi.getMyProjects({ page: 0, size: 50, status: "COMPLETED" }),
+    retry: false,
+  });
+  const completedProjects = completedQuery.data?.items ?? [];
+
+  const { currentPlan, isLoading: isLoadingPlan } = useCurrentPlan();
+  const { plans } = useAvailablePlans();
+
   const company = companyQuery.data;
   const jobs = jobsQuery.data?.items ?? [];
 
   const isLoading = companyQuery.isLoading || jobsQuery.isLoading;
+
+  const currentPlanType = currentPlan?.planType ?? "FREE";
+  const currentPlanName =
+    plans.find((plan) => plan.planType === currentPlanType)?.displayName ??
+    (currentPlanType === "FREE" ? "Gratis" : currentPlanType);
 
   // ── Métricas dinámicas ────────────────────────────────────────────────────
   const activeJobs = jobs.filter((j) => j.status === "PUBLISHED").length;
@@ -227,55 +287,6 @@ export function CompanyProfilePage() {
     ).length ?? 0;
     return sum + accepted;
   }, 0);
-
-  // ── Reputación calculada desde datos REALES del backend ──────────────────
-  const totalApplications = totalCandidates;
-  const totalHired = hiredCount;
-  const totalActiveJobs = activeJobs;
-
-  const hiringRate = totalApplications > 0
-    ? Math.round((totalHired / totalApplications) * 100)
-    : 0;
-
-  const reviewedApps = jobs.reduce((sum, j) => {
-    const reviewed = j.applications?.filter(a => a.status !== "PENDING").length ?? 0;
-    return sum + reviewed;
-  }, 0);
-  const reviewRate = totalApplications > 0
-    ? Math.round((reviewedApps / totalApplications) * 100)
-    : 0;
-
-  const rating = totalHired > 0
-    ? Math.min(5, 1 + (totalHired / Math.max(totalApplications, 1)) * 4)
-    : 0;
-
-  const totalReviews = totalApplications;
-
-  const hasReviews = totalApplications > 0;
-  const CRITERIOS_REPUTACION = hasReviews
-    ? [
-        {
-          label: "Pagos a tiempo",
-          score: hiringRate,
-          realValue: `${totalHired} de ${totalApplications} contrataciones`,
-        },
-        {
-          label: "Comunicación",
-          score: reviewRate,
-          realValue: `${reviewedApps} de ${totalApplications} revisadas`,
-        },
-        {
-          label: "Claridad requerimientos",
-          score: totalActiveJobs > 0 ? Math.round((totalHired / Math.max(totalActiveJobs, 1)) * 100) : 0,
-          realValue: `${totalHired} contrataciones en ${totalActiveJobs} vacantes`,
-        },
-        {
-          label: "Ambiente laboral",
-          score: totalHired > 0 ? Math.min(100, hiringRate + 10) : 0,
-          realValue: `${totalHired} freelancers contratados`,
-        },
-      ]
-    : [];
 
   // ── Handlers de subida ──────────────────────────────────────────────────
   const uploadFileViaBackend = async (
@@ -307,12 +318,13 @@ export function CompanyProfilePage() {
     try {
       const publicUrl = await uploadFileViaBackend(file, "PROFILE_PHOTO", "banner");
       if (publicUrl && company) {
-        await profileApi.updateCompanyMedia({ bannerUrl: publicUrl });
+        await profileApi.updateCompanyMedia({ bannerUrl: publicUrl, logoUrl: company.logoUrl || undefined });
         setBannerError(false);
         queryClient.setQueryData(["company-profile"], {
           ...company,
           bannerUrl: publicUrl,
         });
+        showSavedMessage();
       }
       queryClient.invalidateQueries({ queryKey: ["company-profile"] });
     } catch (err: any) {
@@ -330,12 +342,13 @@ export function CompanyProfilePage() {
     try {
       const publicUrl = await uploadFileViaBackend(file, "PROFILE_PHOTO", "logo");
       if (publicUrl && company) {
-        await profileApi.updateCompanyMedia({ logoUrl: publicUrl });
+        await profileApi.updateCompanyMedia({ logoUrl: publicUrl, bannerUrl: company.bannerUrl || undefined });
         setLogoError(false);
         queryClient.setQueryData(["company-profile"], {
           ...company,
           logoUrl: publicUrl,
         });
+        showSavedMessage();
       }
       queryClient.invalidateQueries({ queryKey: ["company-profile"] });
     } catch (err: any) {
@@ -358,7 +371,6 @@ export function CompanyProfilePage() {
   }
 
   const companyName = company?.businessName || "Mi Empresa";
-  const companyTradeName = company?.tradeName || "";
   const industry = company?.industry || "Tecnología";
   const companySize = company?.companySize || "";
   const sizeLabel = COMPANY_SIZE_LABELS[companySize] || companySize;
@@ -407,7 +419,7 @@ export function CompanyProfilePage() {
             <button
               onClick={() => bannerInputRef.current?.click()}
               disabled={uploadingBanner}
-              className="absolute top-3 right-3 sm:top-4 sm:right-4 inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl bg-black/40 backdrop-blur-sm text-white text-xs sm:text-sm font-medium hover:bg-black/60 transition-all border border-white/10"
+              className="absolute top-3 right-3 sm:top-4 sm:right-4 inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl bg-slate-900/70 backdrop-blur-sm text-white text-xs sm:text-sm font-medium hover:bg-slate-900/90 transition-all border border-white/10"
             >
               {uploadingBanner ? (
                 <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" />
@@ -459,7 +471,7 @@ export function CompanyProfilePage() {
                   <div className="space-y-2 sm:space-y-3 w-full">
 
                     {/* Nombre empresa */}
-                    <h1 className="text-2xl sm:text-3xl font-bold text-[#0a1628] tracking-tight text-center sm:text-left">
+                    <h1 className="text-2xl sm:text-3xl font-bold text-[#0a1628] tracking-tight text-center sm:text-left break-words">
                       {companyName}
                     </h1>
 
@@ -480,24 +492,10 @@ export function CompanyProfilePage() {
                     <div className="flex items-center justify-center sm:justify-start gap-2">
                       <div className="flex items-center gap-0.5">
                         {Array.from({ length: 5 }).map((_, i) => (
-                          <Star
-                            key={i}
-                            className={`w-4 h-4 ${
-                              i < Math.floor(rating)
-                                ? "fill-amber-400 text-amber-400"
-                                : i < rating
-                                ? "fill-amber-300 text-amber-300"
-                                : "fill-slate-200 text-slate-200"
-                            }`}
-                          />
+                          <Star key={i} className="w-4 h-4 fill-slate-200 text-slate-200" />
                         ))}
                       </div>
-                      <span className="text-sm font-semibold text-slate-800">
-                        {rating > 0 ? rating.toFixed(1) : "—"}
-                      </span>
-                      <span className="text-xs text-slate-400">
-                        ({formatNumber(totalReviews)} {totalReviews === 1 ? "reseña" : "reseñas"})
-                      </span>
+                      <span className="text-xs text-slate-400">Sin calificaciones</span>
                     </div>
 
                     {/* Badge Verificado */}
@@ -559,32 +557,21 @@ export function CompanyProfilePage() {
                           <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z" />
                         </svg>
                       </a>
-                      {companyTradeName && (
-                        <a
-                          href={companyTradeName.startsWith("http") ? companyTradeName : `https://${companyTradeName}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 text-slate-600 text-xs font-medium hover:bg-slate-200 transition-all"
-                        >
-                          <Globe className="w-3.5 h-3.5" />
-                          {companyTradeName.replace(/^https?:\/\//, "").replace(/\/.*$/, "").slice(0, 20)}
-                        </a>
-                      )}
                     </div>
                   </div>
 
                   {/* ── BOTONES ACCIÓN ── */}
-                  <div className="flex items-center gap-3 shrink-0 pt-1 w-full lg:w-auto justify-center lg:justify-end">
+                  <div className="flex flex-wrap items-center gap-3 shrink-0 pt-1 w-full lg:w-auto justify-center lg:justify-end">
                     <button
                       onClick={() => setShowEditModal(true)}
-                      className="inline-flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl border-2 border-[#1e3a8a] text-[#1e3a8a] text-sm font-semibold hover:bg-blue-50 transition-all shadow-sm"
+                      className="inline-flex w-full sm:w-auto items-center justify-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl border-2 border-[#1e3a8a] text-[#1e3a8a] text-sm font-semibold hover:bg-blue-50 transition-all shadow-sm"
                     >
                       <Save className="w-4 h-4" />
                       Editar Perfil
                     </button>
                     <a
                       href="/company/jobs/create"
-                      className="inline-flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl bg-[#1e3a8a] text-white text-sm font-semibold hover:bg-[#1e3a8a]/90 transition-all shadow-sm"
+                      className="inline-flex w-full sm:w-auto items-center justify-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl bg-[#1e3a8a] text-white text-sm font-semibold hover:bg-[#1e3a8a]/90 transition-all shadow-sm"
                     >
                       <Plus className="w-4 h-4" />
                       Publicar Vacante
@@ -628,11 +615,11 @@ export function CompanyProfilePage() {
               <div className="py-5 sm:py-7 text-center">
                 <div className="flex items-center justify-center mb-2">
                   <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-emerald-50 flex items-center justify-center">
-                    <CalendarDays className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-600" />
+                    <Crown className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-600" />
                   </div>
                 </div>
-                <p className="text-xl sm:text-3xl font-bold text-[#0a1628]">{new Date().getFullYear()}</p>
-                <p className="text-xs text-slate-500 mt-1">Año de fundación</p>
+                <p className="text-xl sm:text-3xl font-bold text-[#0a1628] break-words">{isLoadingPlan ? "—" : currentPlanName}</p>
+                <p className="text-xs text-slate-500 mt-1">Plan actual</p>
               </div>
             </div>
           </div>
@@ -661,12 +648,12 @@ export function CompanyProfilePage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-2">RUC</label>
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3">
                   <input
                     type="text"
                     value={ruc || "—"}
                     readOnly
-                    className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-800 cursor-default outline-none"
+                    className="min-w-0 flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-800 cursor-default outline-none"
                   />
                   <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold shrink-0">
                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
@@ -677,34 +664,25 @@ export function CompanyProfilePage() {
 
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-2">Razón Social</label>
-                <input
-                  type="text"
-                  value={companyName || "—"}
-                  readOnly
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-800 cursor-default outline-none"
-                />
+                <div className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-800 break-words">
+                  {companyName || "—"}
+                </div>
               </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-2">Representante Legal</label>
-                <input
-                  type="text"
-                  value={company?.legalName || "—"}
-                  readOnly
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-800 cursor-default outline-none"
-                />
+                <div className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-800 break-words">
+                  {company?.legalName || "—"}
+                </div>
               </div>
 
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-2">Dirección Fiscal</label>
-                <input
-                  type="text"
-                  value={address || "—"}
-                  readOnly
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-800 cursor-default outline-none"
-                />
+                <div className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-800 break-words">
+                  {address || "—"}
+                </div>
               </div>
             </div>
           </div>
@@ -732,58 +710,13 @@ export function CompanyProfilePage() {
               </div>
             </div>
 
-            {!hasReviews ? (
-              <div className="text-center py-8 sm:py-12">
-                <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
-                  <Star className="w-6 h-6 sm:w-7 sm:h-7 text-slate-400" />
-                </div>
-                <p className="text-sm font-medium text-slate-500">Aún no tienes calificaciones</p>
-                <p className="text-xs text-slate-400 mt-1">Las reseñas aparecerán cuando los freelancers te califiquen</p>
+            <div className="text-center py-8 sm:py-12">
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
+                <Star className="w-6 h-6 sm:w-7 sm:h-7 text-slate-400" />
               </div>
-            ) : (
-              <>
-                <div className="flex items-center justify-center gap-4 sm:gap-6 mb-6 sm:mb-8">
-                  <div className="text-center">
-                    <p className="text-4xl sm:text-5xl font-bold text-[#0a1628]">{rating.toFixed(1)}</p>
-                    <div className="flex items-center justify-center gap-0.5 mt-1">
-                      {Array.from({ length: 5 }).map((_, i) => (
-                        <Star key={i} className={`w-4 h-4 ${i < Math.floor(rating) ? "fill-amber-400 text-amber-400" : "fill-slate-200 text-slate-200"}`} />
-                      ))}
-                    </div>
-                    <p className="text-xs text-slate-400 mt-1">{totalReviews} reseñas verificadas</p>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  {CRITERIOS_REPUTACION.map((criterio) => (
-                    <div key={criterio.label}>
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-xs sm:text-sm font-medium text-slate-700">{criterio.label}</span>
-                        <span className="text-xs sm:text-sm font-bold text-slate-800">{criterio.score}%</span>
-                      </div>
-                      <div className="w-full h-2 sm:h-2.5 rounded-full bg-slate-100 overflow-hidden">
-                        <div
-                          className="h-full rounded-full bg-gradient-to-r from-[#0d9488] to-[#0d9488] transition-all duration-500"
-                          style={{ width: `${criterio.score}%` }}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="mt-6 sm:mt-8 p-3 sm:p-4 rounded-2xl bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-emerald-100 flex items-center justify-center shrink-0">
-                      <BadgeCheck className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold text-emerald-800">Empleador Top — Pagos Puntuales</p>
-                      <p className="text-xs text-emerald-600 mt-0.5">Reconocimiento por pagos a tiempo y buen ambiente laboral</p>
-                    </div>
-                  </div>
-                </div>
-              </>
-            )}
+              <p className="text-sm font-medium text-slate-500">Aún no tienes calificaciones</p>
+              <p className="text-xs text-slate-400 mt-1">Las reseñas aparecerán cuando los freelancers te califiquen</p>
+            </div>
           </div>
 
           {/* ── Proyectos Completados ── */}
@@ -798,105 +731,32 @@ export function CompanyProfilePage() {
               </div>
             </div>
 
-            {(() => {
-              const completedProjects: Array<{
-                jobTitle: string;
-                freelancerId: string;
-                appliedAt: string;
-                salary: number;
-                currency: string;
-                status: string;
-              }> = [];
-
-              jobs.forEach((job) => {
-                (job.applications || []).forEach((app) => {
-                  if (app.status === "ACCEPTED") {
-                    completedProjects.push({
-                      jobTitle: job.title,
-                      freelancerId: app.candidateUserId,
-                      appliedAt: app.appliedAt,
-                      salary: job.salaryMax || job.salaryMin || 0,
-                      currency: job.currency || "PEN",
-                      status: "Pago a tiempo",
-                    });
-                  }
-                });
-              });
-
-              if (completedProjects.length === 0) {
-                return (
-                  <div className="text-center py-8 sm:py-12">
-                    <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
-                      <svg className="w-7 h-7 sm:w-8 sm:h-8 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" /></svg>
-                    </div>
-                    <p className="text-sm font-medium text-slate-500">Aún no hay proyectos completados</p>
-                    <p className="text-xs text-slate-400 mt-1">Los proyectos aparecerán cuando contrates freelancers</p>
-                  </div>
-                );
-              }
-
-              return (
-                <div className="space-y-3">
-                  {completedProjects.map((project, idx) => {
-                    const projRating = 4.5 + Math.random() * 0.5;
-                    const isOnTime = project.status === "Pago a tiempo";
-                    const formattedDate = project.appliedAt
-                      ? new Date(project.appliedAt).toISOString().split("T")[0]
-                      : "—";
-                    const formattedSalary = new Intl.NumberFormat("es-PE", {
-                      style: "currency",
-                      currency: project.currency === "PEN" ? "PEN" : "USD",
-                      minimumFractionDigits: 0,
-                      maximumFractionDigits: 0,
-                    }).format(project.salary);
-
-                    return (
-                      <div
-                        key={idx}
-                        className="flex flex-col p-4 rounded-2xl bg-slate-50 border border-slate-100 hover:border-slate-200 hover:bg-white transition-all gap-3"
-                      >
-                        <div className="min-w-0">
-                          <h3 className="text-sm font-bold text-slate-900 truncate">
-                            {project.jobTitle}
-                          </h3>
-                          <p className="text-xs text-slate-500 mt-1.5">
-                            Freelancer: <span className="font-medium text-slate-700">{project.freelancerId.slice(0, 8)}...</span>
-                          </p>
-                          <p className="text-xs text-slate-400 mt-1">
-                            {formattedDate}
-                          </p>
-                        </div>
-
-                        <div className="flex items-center justify-between gap-3 pt-2 border-t border-slate-200/70">
-                          <p className="text-base font-bold text-[#1e3a8a]">
-                            {formattedSalary}
-                          </p>
-                          <div className="flex items-center gap-1">
-                            <svg className="w-4 h-4 fill-amber-400 text-amber-400" viewBox="0 0 24 24"><path d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" /></svg>
-                            <span className="text-sm font-bold text-slate-800">{projRating.toFixed(1)}</span>
-                          </div>
-                        </div>
-                        <span className={`inline-flex w-fit items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${
-                          isOnTime
-                            ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                            : "bg-red-50 text-red-700 border border-red-200"
-                        }`}>
-                          <svg className={`w-3 h-3 ${isOnTime ? "text-emerald-500" : "text-red-500"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d={isOnTime ? "M5 13l4 4L19 7" : "M6 18L18 6M6 6l12 12"} /></svg>
-                          {isOnTime ? "Pago a tiempo" : "Pago con retraso"}
-                        </span>
-                      </div>
-                    );
-                  })}
+            {completedQuery.isLoading ? (
+              <div className="flex items-center justify-center py-8 sm:py-12">
+                <Loader2 className="w-6 h-6 text-slate-300 animate-spin" />
+              </div>
+            ) : completedProjects.length === 0 ? (
+              <div className="text-center py-8 sm:py-12">
+                <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-7 h-7 sm:w-8 sm:h-8 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" /></svg>
                 </div>
-              );
-            })()}
+                <p className="text-sm font-medium text-slate-500">Aún no hay proyectos completados</p>
+                <p className="text-xs text-slate-400 mt-1">Los proyectos aparecerán cuando contrates freelancers</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {completedProjects.map((project) => (
+                  <CompletedProjectCard key={project.id} project={project} />
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
 
       {/* ── Modal de edición ── */}
       {showEditModal && company && (
-        <CompanyEditModal company={company} onClose={() => setShowEditModal(false)} />
+        <CompanyEditModal company={company} onClose={() => setShowEditModal(false)} onSaved={showSavedMessage} />
       )}
 
       {/* ── Mensajes flotantes ── */}

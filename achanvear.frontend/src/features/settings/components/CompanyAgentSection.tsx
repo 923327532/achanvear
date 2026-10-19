@@ -68,11 +68,17 @@ export function CompanyAgentSection() {
   // useEffect, que es el lugar correcto para reaccionar a datos que llegan
   // de forma asíncrona. Si no hay agente persistido, se autoselecciona el
   // primero del catálogo (solo local, no se persiste hasta que el usuario guarda).
+  //
+  // FIX: antes este efecto pisaba al de arriba. Al VOLVER a la sección (el catálogo y los ajustes ya están en
+  // memoria), los dos efectos corrían a la vez en el primer dibujo: el de arriba ponía el agente guardado y este,
+  // que veía "selectedAgent === null", lo reemplazaba por el primero del catálogo. Con la página recién cargada no
+  // pasaba porque los datos llegaban en momentos distintos. Ahora este efecto espera a que los ajustes terminen de
+  // cargar y no actúa si ya hay un agente guardado.
   useEffect(() => {
-    if (agents.length > 0 && selectedAgent === null) {
+    if (!isLoadingSettings && agents.length > 0 && selectedAgent === null && !agentSettings?.selectedAgentId) {
       setSelectedAgent(agents[0].id);
     }
-  }, [agents, selectedAgent]);
+  }, [agents, selectedAgent, agentSettings, isLoadingSettings]);
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-6">

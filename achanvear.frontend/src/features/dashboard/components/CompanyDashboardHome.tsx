@@ -17,7 +17,6 @@ export function CompanyDashboardHome() {
   const [actionError, setActionError] = useState<string | null>(null);
 
   const handleDeleteJob = async (jobId: string) => {
-    if (!confirm("¿Estás seguro de eliminar esta publicación? Esta acción no se puede deshacer.")) return;
     setActionLoading(jobId);
     setActionError(null);
     try {
@@ -86,10 +85,6 @@ export function CompanyDashboardHome() {
           </div>
         )}
 
-        {/* Sección Publicaciones
-            RESPONSIVE: el padding horizontal pasa de 24px fijos a 16px en
-            celular. A 306px de ancho, 24px por lado dejaban solo ~226px útiles
-            para el contenido. */}
         <section className="bg-white rounded-2xl border border-slate-200 shadow-sm">
           <div className="flex items-center justify-between gap-3 px-4 sm:px-6 pt-6 pb-4 border-b border-slate-100">
             <h2 className="text-lg font-bold text-slate-900">Mis publicaciones activas</h2>

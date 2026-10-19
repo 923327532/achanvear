@@ -3,9 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { settingsApi } from "../api/settingsApi";
 import type { AvailabilityStatus, PreferredCurrency, PaymentMethodType } from "../types/settings.types";
 
-type SettingsProfile = Awaited<ReturnType<typeof settingsApi.getMyProfile>>;
-
-// ─── Mi perfil (se carga UNA vez, en SettingsPage) ───────────────────────────
+export type SettingsProfile = Awaited<ReturnType<typeof settingsApi.getMyProfile>>;
 
 export function useSettingsProfile() {
   const query = useQuery({
@@ -22,9 +20,6 @@ export function useSettingsProfile() {
   };
 }
 
-// ─── Helper interno: arma el payload completo a partir del profile YA CARGADO ─
-// Ya no busca nada en cache — recibe el profile directo como argumento.
-
 function buildFullPayload(profile: SettingsProfile, partialPayload: Record<string, unknown>) {
   return {
     ...(profile.name              ? { name: profile.name }              : {}),
@@ -36,13 +31,12 @@ function buildFullPayload(profile: SettingsProfile, partialPayload: Record<strin
     ...(profile.paymentMethodType ? { paymentMethodType: profile.paymentMethodType } : {}),
     ...(profile.dni               ? { dni: profile.dni }                : {}),
     ...(profile.profilePhotoUrl   ? { profilePhotoUrl: profile.profilePhotoUrl } : {}),
+    ...(profile.bannerUrl         ? { bannerUrl: profile.bannerUrl }       : {}),
     ...(profile.curriculumUrl     ? { curriculumUrl: profile.curriculumUrl } : {}),
+    ...(profile.cvData            ? { cvData: profile.cvData }             : {}),
     ...(profile.certifications    ? { certifications: profile.certifications } : {}),
     ...(profile.skills            ? { skills: profile.skills }          : {}),
     ...(profile.portfolioItems    ? { portfolioItems: profile.portfolioItems } : {}),
-    // Campos de Configuración — SIN estos, guardar una sección borra lo que
-    // ya se había guardado en otra (el backend reemplaza el perfil completo
-    // con lo que recibe; si un campo no viene, se pierde).
     ...(profile.availabilityStatus     ? { availabilityStatus: profile.availabilityStatus } : {}),
     ...(profile.cvVisibility           ? { cvVisibility: profile.cvVisibility } : {}),
     ...(profile.preferredCurrency      ? { preferredCurrency: profile.preferredCurrency } : {}),
@@ -75,10 +69,6 @@ function useProfileFieldUpdate(profile: SettingsProfile | null) {
   return mutation;
 }
 
-// ─── Actualizar Preferencias de Trabajo (disponibilidad + visibilidad CV) ─────
-// Combinado en UNA sola petición para evitar condición de carrera:
-// si se mandaran por separado en paralelo, cada request arma su payload con el
-// profile "viejo" y puede pisar el cambio que la otra request acaba de guardar.
 
 export function useUpdateWorkPreferences(profile: SettingsProfile | null) {
   const mutation = useProfileFieldUpdate(profile);
@@ -90,9 +80,6 @@ export function useUpdateWorkPreferences(profile: SettingsProfile | null) {
     isError: mutation.isError,
   };
 }
-
-// ─── Actualizar Finanzas (moneda + método de pago) ────────────────────────────
-// Mismo motivo: una sola petición combinada, no dos en paralelo.
 
 export function useUpdateFinances(profile: SettingsProfile | null) {
   const mutation = useProfileFieldUpdate(profile);
@@ -112,6 +99,16 @@ export function useUpdateGeneralSettings(profile: SettingsProfile | null) {
   const mutation = useProfileFieldUpdate(profile);
   return {
     updateAsync: (data: { language: string; timezone: string }) => mutation.mutateAsync(data),
+    isLoading: mutation.isPending,
+    isSuccess: mutation.isSuccess,
+  };
+}
+
+
+export function useUpdateNotificationPreferences(profile: SettingsProfile | null) {
+  const mutation = useProfileFieldUpdate(profile);
+  return {
+    updateAsync: (data: { notificationPreferences: string }) => mutation.mutateAsync(data),
     isLoading: mutation.isPending,
     isSuccess: mutation.isSuccess,
   };

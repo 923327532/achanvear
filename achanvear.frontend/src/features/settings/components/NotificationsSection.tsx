@@ -3,6 +3,8 @@
 
 import { useState } from "react";
 import { Check, Loader2 } from "lucide-react";
+import { useUpdateNotificationPreferences } from "../hooks/useSettings";
+import type { SettingsProfile } from "../hooks/useSettings";
 
 interface NotificationPref {
   id: string;
@@ -18,6 +20,30 @@ const DEFAULT_PREFS: NotificationPref[] = [
   { id: "match",      label: "Proyectos similares a mi perfil",         description: "Notificarme cuando haya empleos o proyectos que coincidan con mis habilidades y experiencia", enabled: true },
 ];
 
+// El servidor guarda las preferencias como UN texto (campo notificationPreferences del perfil). Se guardan como JSON:
+// {"new_job":true,"interview":false,...}. Si el campo está vacío o trae un texto que no es ese formato, se usan los
+// valores por defecto (todas activadas) en vez de fallar.
+function parseSavedPrefs(raw: string | null | undefined): Record<string, boolean> | null {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      return parsed as Record<string, boolean>;
+    }
+  } catch {
+    // texto con otro formato: se ignora
+  }
+  return null;
+}
+
+function buildInitialPrefs(raw: string | null | undefined): NotificationPref[] {
+  const saved = parseSavedPrefs(raw);
+  return DEFAULT_PREFS.map((pref) => ({
+    ...pref,
+    enabled: typeof saved?.[pref.id] === "boolean" ? (saved[pref.id] as boolean) : pref.enabled,
+  }));
+}
+
 function Toggle({ enabled, onChange }: { enabled: boolean; onChange: (v: boolean) => void }) {
   return (
     <button
@@ -31,22 +57,35 @@ function Toggle({ enabled, onChange }: { enabled: boolean; onChange: (v: boolean
   );
 }
 
-export function NotificationsSection() {
-  const [prefs, setPrefs] = useState<NotificationPref[]>(DEFAULT_PREFS);
-  const [isSaving, setIsSaving] = useState(false);
+interface Props {
+  profile: SettingsProfile | null;
+}
+
+export function NotificationsSection({ profile }: Props) {
+  const [prefs, setPrefs] = useState<NotificationPref[]>(() => buildInitialPrefs(profile?.notificationPreferences));
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const { updateAsync: updateNotifications, isLoading: isSaving } = useUpdateNotificationPreferences(profile);
 
   const toggle = (id: string, value: boolean) => {
     setPrefs((prev) => prev.map((p) => p.id === id ? { ...p, enabled: value } : p));
   };
 
   const handleSave = async () => {
-    setIsSaving(true);
-    // TODO: conectar con endpoint de preferencias de notificaciones
-    await new Promise((r) => setTimeout(r, 600));
-    setIsSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    setError(null);
+    try {
+      const payload = JSON.stringify(Object.fromEntries(prefs.map((p) => [p.id, p.enabled])));
+      await updateNotifications({ notificationPreferences: payload });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (err) {
+      setError(
+        err instanceof Error && err.message
+          ? err.message
+          : "No se pudieron guardar las preferencias. Intenta de nuevo."
+      );
+    }
   };
 
   return (
@@ -66,11 +105,13 @@ export function NotificationsSection() {
         ))}
       </div>
 
-      {/* RESPONSIVE: botones apilados a ancho completo en celular (Guardar arriba), en fila a la derecha desde sm */}
+      {error && (
+        <div role="alert" className="rounded-lg bg-red-50 border border-red-100 px-4 py-3 text-xs text-red-600 break-words">
+          {error}
+        </div>
+      )}
+
       <div className="flex flex-col-reverse gap-3 pt-4 border-t border-gray-100 sm:flex-row sm:items-center sm:justify-end">
-        <button className="text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors">
-          Cancelar
-        </button>
         <button
           onClick={handleSave}
           disabled={isSaving}
