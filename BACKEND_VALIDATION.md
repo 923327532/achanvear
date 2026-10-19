@@ -46,6 +46,27 @@ como cliente. La resena del mismo autor se actualiza al repetirla. Las consultas
 
 ## Ejecutar
 
+### Entrevista práctica en producción
+
+Diagnóstico de achanvear.site: su frontend tiene configurado el agente en
+https://api.achanvear.site. Las rutas /practical-interview/start y /health devuelven
+404 de Java, mientras /api/v1/actuator/health devuelve UP. La práctica necesita
+que el proxy enrute sus rutas HTTP y WebSocket a Python; ver
+deploy/nginx/agent-routes.conf y DOCKER_DEPLOY.md.
+
+Además, edge-tts 7.0.0 devolvía 403 al sintetizar voz. La prueba aislada con 7.3.1
+generó audio correctamente. Se actualizó la dependencia y se limitó la espera de
+síntesis a 8 segundos. El frontend ofrece activar la voz cuando el navegador
+bloquea reproducción automática, y muestra errores de conexión sin espera infinita.
+
+Prueba local posterior: dos pruebas de conexión aprobadas; saludo por WebSocket
+recibido inmediatamente y audio real a los 2,84 segundos. Una respuesta del
+candidato recibió texto y audio del entrevistador. Compilación de producción del
+frontend aprobada.
+
+Estos cambios requieren actualizar el agente y el proxy del servidor y desplegar
+el frontend. La validación local no sustituye comprobar el endpoint público.
+
 ```powershell
 docker compose up -d --build
 docker compose ps

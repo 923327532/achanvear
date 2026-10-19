@@ -84,9 +84,27 @@ docker compose logs -f backend
 docker compose logs -f ai-agent
 ```
 
-The frontend is deployed separately on Vercel. Configure its `NEXT_PUBLIC_API_URL`
-in Vercel to point to the backend URL, for example:
-`http://SERVER_IP_OR_DOMAIN:8081/api/v1`.
+The frontend is deployed separately on Vercel. For the public HTTPS site configure:
 
-Also configure the AI agent URL for the practical voice interview:
-`NEXT_PUBLIC_AGENT_API_URL=http://SERVER_IP_OR_DOMAIN:8001`.
+```env
+NEXT_PUBLIC_API_URL=https://api.achanvear.site/api/v1
+NEXT_PUBLIC_AGENT_API_URL=https://api.achanvear.site
+```
+
+The API reverse proxy must route `/api/v1/` to Java (8081) and
+`/practical-interview/`, its WebSocket, and `/code-runner/` to Python (8001).
+An Nginx include for the Python routes is provided in
+`deploy/nginx/agent-routes.conf`; include it inside the existing HTTPS server
+block. Validate with `sudo nginx -t` before reloading Nginx. If Nginx itself runs
+in Docker, use the agent's Docker service address instead of 127.0.0.1:8001.
+
+After deploying, `/agent-health` must return the Python health response and
+`/practical-interview/start` must reach FastAPI (a GET returns 405, not Java 404).
+WebSocket upgrade headers must reach Python for voice conversation to work.
+
+Rebuild the agent to install edge-tts 7.3.1 and redeploy the frontend to load
+changed NEXT_PUBLIC environment values. A frontend redeploy alone does not
+update the server proxy or the Python image.
+
+Use `http://localhost:8001` only for local development. Production requires an
+HTTPS agent endpoint with WSS support; HTTPS pages cannot use an HTTP agent.

@@ -60,6 +60,8 @@ export function PracticalVoiceInterviewRoom({
   const recorderRef = useRef<MediaRecorder | null>(null);
   const recognitionRef = useRef<any>(null);
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
+  const lastAgentTextRef = useRef("");
+  const voiceActivationTimerRef = useRef<number | null>(null);
   const chunksRef = useRef<BlobPart[]>([]);
   const transcriptRef = useRef<TranscriptLine[]>([]);
   const workspaceRef = useRef<Record<string, unknown>>({});
@@ -91,6 +93,7 @@ export function PracticalVoiceInterviewRoom({
   const [result, setResult] = useState<FinishPracticalResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [voiceStatus, setVoiceStatus] = useState<VoiceStatus>("idle");
+  const [audioNeedsActivation, setAudioNeedsActivation] = useState(false);
   const [timeLeft, setTimeLeft] = useState(20 * 60);
   const [timerActive, setTimerActive] = useState(false);
   const [exitCountdown, setExitCountdown] = useState<number | null>(null);
@@ -164,6 +167,7 @@ export function PracticalVoiceInterviewRoom({
 
   useEffect(() => {
     let mounted = true;
+    let connectionTimeout: number | undefined;
 
     async function boot() {
       try {
@@ -191,15 +195,27 @@ export function PracticalVoiceInterviewRoom({
         setCodeLanguage(starterLanguage);
 
         const ws = new WebSocket(practicalWsUrl(started.websocket_url));
+        connectionTimeout = window.setTimeout(() => {
+          if (mounted && ws.readyState !== WebSocket.OPEN) {
+            setError("El agente de entrevista no respondio. Vuelve a entrar o revisa la conexion.");
+            ws.close();
+          }
+        }, 10000);
         ws.binaryType = "arraybuffer";
         ws.onopen = () => {
+          window.clearTimeout(connectionTimeout);
+          setError(null);
           setStatus("ready");
           sendWsJson({ type: "workspace_state", payload: workspaceRef.current });
         };
         ws.onmessage = (event) => handleWsMessage(event.data);
         ws.onerror = () => setError("Se perdio la conexion con el agente de voz");
         ws.onclose = () => {
-          if (mounted && status !== "finished") setStatus("ready");
+          window.clearTimeout(connectionTimeout);
+          if (mounted && !finishingRef.current) {
+            setVoice("idle");
+            setError("Se cerro la conexion con el agente de entrevista. Vuelve a entrar para reconectar.");
+          }
         };
         wsRef.current = ws;
       } catch (err: any) {
@@ -210,6 +226,7 @@ export function PracticalVoiceInterviewRoom({
     boot();
     return () => {
       mounted = false;
+      window.clearTimeout(connectionTimeout);
       stopBrowserSpeech();
       recorderRef.current?.stream.getTracks().forEach((track) => track.stop());
       wsRef.current?.close();
@@ -316,11 +333,14 @@ export function PracticalVoiceInterviewRoom({
     if (data.type === "agent_text") {
       setStatus((current) => current === "recording" ? "recording" : "ready");
       appendTranscript("agent", data.text);
-      speakInBrowser(data.text);
+      lastAgentTextRef.current = data.text;
       if (shouldStartTimer(data.text)) setTimerActive(true);
     }
     if (data.type === "agent_audio") {
       playBase64Audio(data.audio_base64, data.format);
+    }
+    if (data.type === "tts_unavailable") {
+      speakInBrowser(lastAgentTextRef.current);
     }
     if (data.type === "stt_started") {
       setStatus((current) => current === "recording" ? "recording" : "thinking");
@@ -344,13 +364,18 @@ export function PracticalVoiceInterviewRoom({
   }
 
   function stopBrowserSpeech() {
+    if (voiceActivationTimerRef.current !== null) window.clearTimeout(voiceActivationTimerRef.current);
     if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
     window.speechSynthesis.cancel();
     if (voiceStatusRef.current === "speaking") setVoice("idle");
   }
 
   function speakInBrowser(text: string) {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    if (!text) return;
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
+      setError("Este navegador no permite reproducir la voz. Puedes leer los mensajes de la entrevista.");
+      return;
+    }
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = "es-PE";
@@ -361,10 +386,33 @@ export function PracticalVoiceInterviewRoom({
       voices.find((voice) => voice.lang.toLowerCase().startsWith("es-pe")) ||
       voices.find((voice) => voice.lang.toLowerCase().startsWith("es-")) ||
       null;
-    utterance.onstart = () => setVoice("speaking");
+    let started = false;
+    utterance.onstart = () => {
+      started = true;
+      setAudioNeedsActivation(false);
+      setVoice("speaking");
+    };
     utterance.onend = () => setVoice("idle");
-    utterance.onerror = () => setVoice("idle");
+    utterance.onerror = () => {
+      setVoice("idle");
+      setAudioNeedsActivation(true);
+    };
     window.speechSynthesis.speak(utterance);
+    voiceActivationTimerRef.current = window.setTimeout(() => {
+      if (!started) setAudioNeedsActivation(true);
+    }, 2000);
+  }
+
+  function activateVoice() {
+    const audio = currentAudioRef.current;
+    if (audio) {
+      audio.play().then(() => {
+        setAudioNeedsActivation(false);
+        setVoice("speaking");
+      }).catch(() => speakInBrowser(lastAgentTextRef.current));
+    } else {
+      speakInBrowser(lastAgentTextRef.current);
+    }
   }
 
   function sendWsJson(payload: Record<string, unknown>) {
@@ -619,8 +667,15 @@ export function PracticalVoiceInterviewRoom({
     currentAudioRef.current = audio;
     setVoice("speaking");
     audio.onended = () => setVoice("idle");
-    audio.onerror = () => setVoice("idle");
-    audio.play().catch(() => undefined);
+    audio.onerror = () => {
+      currentAudioRef.current = null;
+      setVoice("idle");
+      speakInBrowser(lastAgentTextRef.current);
+    };
+    audio.play().then(() => setAudioNeedsActivation(false)).catch(() => {
+      setVoice("idle");
+      setAudioNeedsActivation(true);
+    });
   }
 
   function inferEditorLanguage(file: PracticalCodeFile | undefined) {
@@ -1242,6 +1297,11 @@ export function PracticalVoiceInterviewRoom({
             )}
           </div>
           <div className="flex shrink-0 items-center gap-1.5">
+            {audioNeedsActivation && (
+              <button onClick={activateVoice} className="rounded-lg bg-emerald-500 px-3 py-2 text-xs font-semibold text-slate-950">
+                Activar voz
+              </button>
+            )}
             <button
               onClick={() => setShowCase((current) => !current)}
               className={headerButtonClass}

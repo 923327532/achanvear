@@ -67,7 +67,20 @@ export interface FinishPracticalResponse {
 
 const AGENT_BASE_URL = process.env.NEXT_PUBLIC_AGENT_API_URL ?? "http://localhost:8001";
 
+function validateAgentConnection() {
+  if (typeof window === "undefined") return;
+  const agent = new URL(AGENT_BASE_URL);
+  const localPage = ["localhost", "127.0.0.1", "[::1]"].includes(window.location.hostname);
+  if (!localPage && ["localhost", "127.0.0.1", "[::1]"].includes(agent.hostname)) {
+    throw new Error("La entrevista no puede conectarse: falta configurar la direccion publica del agente de IA en el despliegue.");
+  }
+  if (window.location.protocol === "https:" && agent.protocol !== "https:") {
+    throw new Error("La entrevista necesita una conexion segura al agente de IA. Configura su direccion HTTPS en el despliegue.");
+  }
+}
+
 export function practicalWsUrl(path: string) {
+  validateAgentConnection();
   const base = AGENT_BASE_URL.replace(/^http/, "ws").replace(/\/$/, "");
   return `${base}${path}`;
 }
@@ -75,11 +88,18 @@ export function practicalWsUrl(path: string) {
 export async function startPracticalInterview(
   request: StartPracticalRequest
 ): Promise<StartPracticalResponse> {
-  const response = await fetch(`${AGENT_BASE_URL}/practical-interview/start`, {
+  validateAgentConnection();
+  let response: Response;
+  try {
+    response = await fetch(`${AGENT_BASE_URL}/practical-interview/start`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(request),
-  });
+      signal: AbortSignal.timeout(15000),
+    });
+  } catch {
+    throw new Error("No se pudo conectar con el agente de IA en 15 segundos. Revisa tu conexion o vuelve a intentar.");
+  }
   if (!response.ok) throw new Error("No se pudo iniciar la entrevista practica");
   return response.json();
 }

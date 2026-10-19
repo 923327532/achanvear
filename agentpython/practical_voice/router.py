@@ -1,4 +1,5 @@
 from typing import Any, Dict, List
+import asyncio
 
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 from starlette.websockets import WebSocketDisconnected
@@ -254,6 +255,8 @@ async def practical_voice_ws(websocket: WebSocket, session_id: str):
                 message = await websocket.receive()
             except WebSocketDisconnected:
                 return
+            if message.get("type") == "websocket.disconnect":
+                return
 
             if "text" in message and message["text"] is not None:
                 data = websocket_json(message["text"])
@@ -363,7 +366,7 @@ def is_finish_intent(text: str) -> bool:
 
 async def safe_tts(text: str, voice: str | None = None) -> str | None:
     try:
-        return await tts.synthesize_base64(text, voice)
+        return await asyncio.wait_for(tts.synthesize_base64(text, voice), timeout=8)
     except Exception as exc:
         print(f"TTS failed without closing websocket: {type(exc).__name__}: {exc}")
         return None
