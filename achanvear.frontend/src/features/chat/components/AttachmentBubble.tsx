@@ -1,13 +1,13 @@
 // features/chat/components/AttachmentBubble.tsx
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { FileText, FileSpreadsheet, FileArchive, File, Download, ImageIcon, FileType } from "lucide-react";
+import { chatApi } from "../api/chatApi";
 import type { Attachment } from "../types/chat.types";
 
 interface Props {
   attachment: Attachment;
 }
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -39,13 +39,20 @@ function isImage(mimeType: string): boolean {
   return mimeType.startsWith("image/");
 }
 
-// ─── Image Preview ────────────────────────────────────────────────────────────
-
-function ImagePreview({ url, originalName }: { url: string; originalName: string }) {
+function ImagePreview({ attachmentId, originalName }: { attachmentId: string; originalName: string }) {
   const [loaded, setLoaded] = useState(false);
-  const [error, setError] = useState(false);
+  const [imgError, setImgError] = useState(false);
 
-  if (error) {
+  const { data, isError } = useQuery({
+    queryKey: ["chat", "attachment-url", attachmentId],
+    queryFn: () => chatApi.getDownloadUrl(attachmentId),
+    staleTime: 1000 * 60 * 50,
+    retry: 1,
+  });
+
+  const url = data?.downloadUrl;
+
+  if (isError || imgError) {
     return (
       <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
         <ImageIcon className="w-8 h-8 text-slate-400" />
@@ -59,96 +66,98 @@ function ImagePreview({ url, originalName }: { url: string; originalName: string
 
   return (
     <div className="relative group">
-      <img
-        src={url}
-        alt={originalName}
-        onLoad={() => setLoaded(true)}
-        onError={() => setError(true)}
-        className={`max-w-full rounded-lg cursor-pointer transition-all hover:opacity-95 ${
-          loaded ? "block" : "hidden"
-        }`}
-        style={{ maxHeight: "300px", objectFit: "contain" }}
-        loading="lazy"
-      />
+      {url && (
+        <img
+          src={url}
+          alt={originalName}
+          onLoad={() => setLoaded(true)}
+          onError={() => setImgError(true)}
+          className={`max-w-full rounded-lg cursor-pointer transition-all hover:opacity-95 ${
+            loaded ? "block" : "hidden"
+          }`}
+          style={{ maxHeight: "300px", objectFit: "contain" }}
+          loading="lazy"
+        />
+      )}
       {!loaded && (
         <div className="flex items-center justify-center h-32 bg-slate-100 rounded-lg animate-pulse">
           <ImageIcon className="w-6 h-6 text-slate-300" />
         </div>
       )}
-      {/* Click to open in new tab */}
-      <a
-        href={url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="absolute inset-0 cursor-pointer"
-        title="Abrir imagen"
-      />
+      {url && (
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="absolute inset-0 cursor-pointer"
+          title="Abrir imagen"
+        />
+      )}
     </div>
   );
 }
 
-// ─── Document Card ────────────────────────────────────────────────────────────
-
 function DocumentCard({ attachment }: { attachment: Attachment }) {
   const [downloading, setDownloading] = useState(false);
+  const [openError, setOpenError] = useState(false);
 
   const handleDownload = async () => {
     setDownloading(true);
+    setOpenError(false);
+    const win = window.open("", "_blank");
     try {
-      // Intentar descargar directamente desde la URL pública
-      const response = await fetch(attachment.url);
-      const blob = await response.blob();
-      const blobUrl = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = blobUrl;
-      a.download = attachment.originalName;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(blobUrl);
+      const { downloadUrl } = await chatApi.getDownloadUrl(attachment.id);
+      if (win) {
+        win.location.href = downloadUrl;
+      } else {
+        window.open(downloadUrl, "_blank");
+      }
     } catch {
-      // Fallback: abrir en nueva pestaña
-      window.open(attachment.url, "_blank");
+      win?.close();
+      setOpenError(true);
     } finally {
       setDownloading(false);
     }
   };
 
   return (
-    <button
-      onClick={handleDownload}
-      disabled={downloading}
-      className="flex items-center gap-3 w-full text-left p-3 bg-white rounded-lg border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-all group"
-    >
-      <div className="flex-shrink-0">
-        {getFileIcon(attachment.mimeType)}
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-xs font-medium text-slate-700 truncate group-hover:text-slate-900">
-          {attachment.originalName}
-        </p>
-        <div className="flex items-center gap-2 mt-0.5">
-          <span className="text-[10px] text-slate-400">{formatFileSize(attachment.fileSize)}</span>
-          <span className="text-[10px] text-slate-300">•</span>
-          <span className="text-[10px] text-slate-400">{getFileExtension(attachment.originalName)}</span>
+    <div>
+      <button
+        onClick={handleDownload}
+        disabled={downloading}
+        className="flex items-center gap-3 w-full text-left p-3 bg-white rounded-lg border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-all group"
+      >
+        <div className="flex-shrink-0">
+          {getFileIcon(attachment.mimeType)}
         </div>
-      </div>
-      <div className="flex-shrink-0">
-        {downloading ? (
-          <div className="w-5 h-5 border-2 border-[#075e54] border-t-transparent rounded-full animate-spin" />
-        ) : (
-          <Download className="w-4 h-4 text-slate-400 group-hover:text-[#075e54] transition-colors" />
-        )}
-      </div>
-    </button>
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-medium text-slate-700 truncate group-hover:text-slate-900">
+            {attachment.originalName}
+          </p>
+          <div className="flex items-center gap-2 mt-0.5">
+            <span className="text-[10px] text-slate-400">{formatFileSize(attachment.fileSize)}</span>
+            <span className="text-[10px] text-slate-300">•</span>
+            <span className="text-[10px] text-slate-400">{getFileExtension(attachment.originalName)}</span>
+          </div>
+        </div>
+        <div className="flex-shrink-0">
+          {downloading ? (
+            <div className="w-5 h-5 border-2 border-[#075e54] border-t-transparent rounded-full animate-spin" />
+          ) : (
+            <Download className="w-4 h-4 text-slate-400 group-hover:text-[#075e54] transition-colors" />
+          )}
+        </div>
+      </button>
+      {openError && (
+        <p className="text-[10px] text-red-500 mt-1">No se pudo abrir el archivo. Inténtalo de nuevo.</p>
+      )}
+    </div>
   );
 }
 
-// ─── Main Component ───────────────────────────────────────────────────────────
-
 export function AttachmentBubble({ attachment }: Props) {
   if (isImage(attachment.mimeType)) {
-    return <ImagePreview url={attachment.url} originalName={attachment.originalName} />;
+    return <ImagePreview attachmentId={attachment.id} originalName={attachment.originalName} />;
   }
 
   return <DocumentCard attachment={attachment} />;

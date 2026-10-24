@@ -226,7 +226,7 @@ function VirtualProfileView({ profile }: { profile: any }) {
                   <div className="flex flex-wrap items-center gap-3 shrink-0 pt-1 w-full lg:w-auto justify-center lg:justify-end">
                     <button
                       onClick={() => {
-                        const sections = document.querySelector('.space-y-4');
+                        const sections = document.getElementById("profile-sections");
                         if (sections) sections.scrollIntoView({ behavior: 'smooth', block: 'start' });
                       }}
                       className="inline-flex w-full sm:w-auto items-center justify-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl border-2 border-[#1e3a8a] text-[#1e3a8a] text-sm font-semibold hover:bg-blue-50 transition-all shadow-sm">
@@ -323,7 +323,7 @@ function VirtualProfileView({ profile }: { profile: any }) {
               <div className="mt-4">
                 <button
                   onClick={() => {
-                    const sections = document.querySelector('.space-y-4');
+                    const sections = document.getElementById("profile-sections");
                     if (sections) sections.scrollIntoView({ behavior: 'smooth', block: 'start' });
                   }}
                   className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#1e3a8a] text-white text-sm font-semibold hover:bg-[#1e3a8a]/90 transition-all shadow-sm">
@@ -429,7 +429,7 @@ export function ProfilePage() {
         ) : (
           <ProfileHeader profile={effectiveProfile} />
         )}
-        <div className="mt-4 sm:mt-6 lg:mt-8 space-y-4 sm:space-y-6 lg:space-y-8">
+        <div id="profile-sections" className="mt-4 sm:mt-6 lg:mt-8 space-y-4 sm:space-y-6 lg:space-y-8">
           <SkillsSection profile={effectiveProfile} />
           <AchievementsSection profile={effectiveProfile} />
           <CertificationsSection profile={effectiveProfile} />

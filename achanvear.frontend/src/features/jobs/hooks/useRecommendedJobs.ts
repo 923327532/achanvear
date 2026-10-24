@@ -30,23 +30,26 @@ export function useRecommendedJobs(limit = 4) {
   const industry = profileQuery.data?.industry ?? null;
   const allJobs  = jobsQuery.data?.items ?? [];
 
+  const industryJobs: Job[] = industry
+    ? allJobs.filter(
+        (job) =>
+          job.company?.industry?.toLowerCase().trim() ===
+          industry.toLowerCase().trim()
+      )
+    : [];
+
   // Filtrar por industria del freelancer
   let recommended: Job[] = allJobs;
 
   if (industry) {
-    const sameIndustry = allJobs.filter(
-      (job) =>
-        job.company?.industry?.toLowerCase().trim() ===
-        industry.toLowerCase().trim()
-    );
-
     // Si hay al menos 2 coincidencias mostramos solo esos,
     // si no completamos con todos para no dejar la sección vacía
-    recommended = sameIndustry.length >= 2 ? sameIndustry : allJobs;
+    recommended = industryJobs.length >= 2 ? industryJobs : allJobs;
   }
 
   return {
     jobs:       recommended.slice(0, limit),
+    industryJobs,
     industry,
     isLoading:  profileQuery.isLoading || jobsQuery.isLoading,
     // true cuando efectivamente se está filtrando por industria

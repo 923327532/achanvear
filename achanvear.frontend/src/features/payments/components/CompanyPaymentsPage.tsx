@@ -310,9 +310,9 @@ export function CompanyPaymentsPage() {
                 <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
                 Finanzas de empresa
               </div>
-              <h1 className="text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">Gestion financiera</h1>
+              <h1 className="text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">Gestión financiera</h1>
               <p className="mt-1 max-w-2xl text-sm text-slate-500">
-                Controla metodos de pago, fondos retenidos y facturacion desde una vista operativa.
+                Controla metodos de pago, fondos retenidos y facturación desde una vista operativa.
               </p>
             </div>
             <button onClick={() => setShowAddMethodModal(true)} className="inline-flex items-center justify-center gap-2 rounded-lg bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800">
@@ -403,7 +403,7 @@ export function CompanyPaymentsPage() {
                   <FileText className="h-5 w-5" />
                 </div>
                 <div>
-                  <h2 className="text-base font-bold text-slate-950">Facturacion</h2>
+                  <h2 className="text-base font-bold text-slate-950">Facturación</h2>
                   <p className="mt-1 text-sm text-slate-500">Historial de comisiones y comprobantes.</p>
                 </div>
               </div>

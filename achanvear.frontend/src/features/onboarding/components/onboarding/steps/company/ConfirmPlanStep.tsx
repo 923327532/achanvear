@@ -97,7 +97,7 @@ export function ConfirmPlanStep({ data, onUpdate, onNext, onBack }: ConfirmPlanS
 
       <div className="bg-slate-50 rounded-2xl p-6 mb-6">
         <div className="flex justify-between items-center mb-4">
-          <span className="text-slate-700">Ciclo de facturacion:</span>
+          <span className="text-slate-700">Ciclo de facturación:</span>
           <span className="font-semibold text-slate-900">
             {data.billingCycle === "monthly" ? "Mensual" : "Anual"}
           </span>
@@ -113,7 +113,7 @@ export function ConfirmPlanStep({ data, onUpdate, onNext, onBack }: ConfirmPlanS
       {selectedPlan.price > 0 && (
         <div className="bg-blue-50 rounded-2xl p-4 mb-6 border border-blue-200">
           <p className="text-sm text-blue-800">
-            <strong>Nota:</strong> Tu plan se activara inmediatamente despues de completar la configuracion de pago.
+            <strong>Nota:</strong> Tu plan se activara inmediatamente despues de completar la configuración de pago.
           </p>
         </div>
       )}

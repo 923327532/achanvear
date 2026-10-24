@@ -3,6 +3,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useQueryClient } from "@tanstack/react-query";
 import { X, Star, Clock, DollarSign, MessageSquare, Phone, ChevronDown, ChevronUp } from "lucide-react";
 import { CATEGORY_LABELS, CATEGORY_COLORS } from "../types/service.types";
 import type { ExploreService } from "../types/service.types";
@@ -29,10 +30,8 @@ function getAvatarColor(name: string) {
 export function ExploreDetailModal({ open, service, onClose, onHire }: Props) {
   const [rateModalOpen, setRateModalOpen] = useState(false);
   const [showAllReviews, setShowAllReviews] = useState(false);
+  const queryClient = useQueryClient();
 
-  // FIX (pendiente front): antes pedía las reseñas con api.get directo dentro de un useEffect (salteándose la capa
-  // API → hook → componente), con un estado "loadingRatings" que nunca se mostraba y un import sin uso (ApiError).
-  // Ahora la petición vive en serviceApi.getFreelancerRatings y se consulta con el hook useFreelancerComments.
   const { ratings } = useFreelancerComments(service?.freelancer?.id, open);
 
   if (!open || !service) return null;
@@ -48,9 +47,6 @@ export function ExploreDetailModal({ open, service, onClose, onHire }: Props) {
         <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
 
         <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-          {/* Header
-              RESPONSIVE: paddings fijos de 24px en el header, el cuerpo y el
-              pie dejaban ~200px de contenido a 284px de pantalla. */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 sticky top-0 bg-white rounded-t-2xl sm:px-6 sm:py-4">
             <h2 className="text-base font-bold text-[#1B3A6B]">Detalle del Servicio</h2>
             <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl transition-colors">
@@ -59,9 +55,6 @@ export function ExploreDetailModal({ open, service, onClose, onHire }: Props) {
           </div>
 
           <div className="p-4 space-y-5 sm:p-6">
-            {/* Freelancer
-                RESPONSIVE: nombre y badge de categoría en la misma fila se
-                apretaban; en celular el badge baja a su propia línea. */}
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex min-w-0 items-center gap-3">
                 <div className={`w-11 h-11 shrink-0 rounded-full flex items-center justify-center text-white font-bold ${getAvatarColor(freelancer.name)}`}>
@@ -82,13 +75,11 @@ export function ExploreDetailModal({ open, service, onClose, onHire }: Props) {
               </span>
             </div>
 
-            {/* Title + description */}
             <div>
               <h3 className="text-lg font-bold text-[#1B3A6B] mb-2 leading-snug break-words sm:text-xl">{service.title}</h3>
               <p className="break-words text-sm text-gray-500 leading-relaxed">{service.description}</p>
             </div>
 
-            {/* Rating */}
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
               {[1, 2, 3, 4, 5].map((s) => (
                 <Star key={s} className={`w-4 h-4 ${s <= Math.floor(service.rating) ? "fill-amber-400 text-amber-400" : "fill-gray-200 text-gray-200"}`} />
@@ -97,10 +88,6 @@ export function ExploreDetailModal({ open, service, onClose, onHire }: Props) {
               <span className="text-sm text-gray-400">— {service.reviewCount > 0 ? `${service.reviewCount} reseñas verificadas` : "Sin reseñas"}</span>
             </div>
 
-            {/* Price + delivery
-                RESPONSIVE: dos cajas en una fila daban ~90px cada una y
-                "S/. 500" / "40 días" se partían en dos líneas. Apiladas hasta
-                ~400px de ancho, en 2 columnas desde ahí. */}
             <div className="grid grid-cols-1 gap-3 min-[400px]:grid-cols-2">
               <div className="bg-gray-50 rounded-xl p-3 sm:p-4">
                 <p className="text-xs text-gray-400 mb-1">Precio desde</p>
@@ -117,7 +104,6 @@ export function ExploreDetailModal({ open, service, onClose, onHire }: Props) {
               </div>
             </div>
 
-            {/* Escrow placeholder — se conectará con features/payments/ */}
             <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4 flex gap-3">
               <DollarSign className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" />
               <div className="min-w-0">
@@ -128,7 +114,6 @@ export function ExploreDetailModal({ open, service, onClose, onHire }: Props) {
               </div>
             </div>
 
-            {/* Reviews / Comments Section */}
             {ratings.length > 0 && (
               <div className="border-t border-gray-100 pt-4">
                 <div className="flex items-center justify-between mb-3">
@@ -162,7 +147,6 @@ export function ExploreDetailModal({ open, service, onClose, onHire }: Props) {
                   ))}
                 </div>
 
-                {/* Show more / less button */}
                 {hasMoreRatings && (
                   <button
                     onClick={() => setShowAllReviews(!showAllReviews)}
@@ -178,11 +162,6 @@ export function ExploreDetailModal({ open, service, onClose, onHire }: Props) {
               </div>
             )}
 
-            {/* Actions: WhatsApp + Message + Rate
-                RESPONSIVE: 3 botones en una fila no tenían ancho para sus
-                íconos y el texto tocaba los bordes. Apilados hasta sm.
-                <a href> interno → <Link> (evita recarga completa y el error de
-                build no-html-link-for-pages). */}
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
               {freelancer.whatsapp || freelancer.phone ? (
                 <a
@@ -212,10 +191,6 @@ export function ExploreDetailModal({ open, service, onClose, onHire }: Props) {
             </div>
           </div>
 
-          {/* Footer
-              RESPONSIVE: "Contratar Servicio" se partía en dos líneas. En
-              celular el texto se acorta a "Contratar" y los botones siguen en
-              una sola fila. */}
           <div className="flex items-center gap-3 px-4 py-3 border-t border-gray-100 sticky bottom-0 bg-white rounded-b-2xl sm:px-6 sm:py-4">
             <button
               onClick={onClose}
@@ -223,7 +198,6 @@ export function ExploreDetailModal({ open, service, onClose, onHire }: Props) {
             >
               Cerrar
             </button>
-            {/* TODO: conectar con features/payments/ cuando esté listo */}
             <button
               onClick={() => { onClose(); onHire(service); }}
               className="flex-1 flex items-center justify-center gap-2 text-sm font-semibold text-white bg-[#1B3A6B] rounded-xl py-2.5 hover:bg-[#0EA5A0] transition-colors"
@@ -240,7 +214,8 @@ export function ExploreDetailModal({ open, service, onClose, onHire }: Props) {
         freelancerName={freelancer.name}
         onClose={() => setRateModalOpen(false)}
         onSuccess={() => {
-          // Refetch services to update rating
+          queryClient.invalidateQueries({ queryKey: ["services", "freelancer-ratings", freelancer.id] });
+          queryClient.invalidateQueries({ queryKey: ["services", "explore"] });
         }}
       />
     </>

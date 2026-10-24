@@ -11,6 +11,8 @@ interface CustomizeProfileStepProps {
   onUpdate: (updates: Partial<CustomizeProfileStepProps["data"]>) => void;
   onNext: () => void;
   onBack: () => void;
+  isLoading?: boolean;
+  error?: string | null;
 }
 
 const MIN_BIO_LENGTH = 100;
@@ -20,6 +22,8 @@ export function CustomizeProfileStep({
   onUpdate,
   onNext,
   onBack,
+  isLoading = false,
+  error = null,
 }: CustomizeProfileStepProps) {
   const [newPortfolioUrl, setNewPortfolioUrl] = useState("");
   const [newAchievement, setNewAchievement] = useState("");
@@ -218,6 +222,12 @@ export function CustomizeProfileStep({
         </div>
       </div>
 
+      {error && (
+        <div className="mt-6 rounded-lg bg-rose-50 px-4 py-3 text-sm text-rose-600">
+          {error}
+        </div>
+      )}
+
       <div className="mt-6 grid grid-cols-2 gap-3">
         <button
           type="button"
@@ -229,10 +239,10 @@ export function CustomizeProfileStep({
         <button
           type="button"
           onClick={onNext}
-          disabled={!canContinue}
+          disabled={!canContinue || isLoading}
           className="rounded-xl bg-[#4A5568] py-3 text-sm font-semibold text-white transition hover:bg-[#2D3748] disabled:cursor-not-allowed disabled:opacity-40"
         >
-          Continuar
+          {isLoading ? "Guardando..." : "Continuar"}
         </button>
       </div>
     </div>

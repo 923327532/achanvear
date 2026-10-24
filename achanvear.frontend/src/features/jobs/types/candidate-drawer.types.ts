@@ -1,18 +1,17 @@
 // features/jobs/types/candidate-drawer.types.ts
-// ─── Tipos para el Drawer de detalle de candidato ──────────────────────────────
 
 export type ProcessContextType = "JOB" | "PROJECT";
 
 export type JobStage =
-  | "APPLIED"
+  | "SUBMITTED"
   | "SCREENING"
-  | "SELECTED_FOR_INTERVIEW"
+  | "SCREENING_REVIEW"
   | "THEORY_INTERVIEW"
-  | "THEORY_PASSED"
   | "TECHNICAL_INTERVIEW"
-  | "EVALUATION_COMPLETED"
-  | "DISCARDED"
-  | "HIRED";
+  | "UNDER_REVIEW"
+  | "APPROVED"
+  | "HIRED"
+  | "REJECTED";
 
 export type ProjectStage =
   | "APPLIED"
@@ -22,28 +21,22 @@ export type ProjectStage =
   | "SELECTED"
   | "DISCARDED";
 
-// ─── Scores ────────────────────────────────────────────────────────────────────
-
 export interface CandidateScores {
-  screening: number | null;      // 0-100 o null si no existe
-  theory: number | null;         // 0-100 o null si no existe
-  technical: number | null;      // 0-100 o null si no existe
-  softSkills: number | null;     // 0-100 o null si no existe
-  overall: number | null;        // Score general ponderado
+  screening: number | null;
+  theory: number | null;
+  technical: number | null;
+  softSkills: number | null;
+  overall: number | null;
 }
-
-// ─── Entrevista ────────────────────────────────────────────────────────────────
 
 export interface InterviewInfo {
   exists: boolean;
   status: "PENDING" | "IN_PROGRESS" | "COMPLETED" | null;
   theoryScore: number | null;
   technicalScore: number | null;
-  recordingUrl: string | null;   // URL de S3 si existe grabación
+  recordingUrl: string | null;
   recordedAt: string | null;
 }
-
-// ─── Reporte Ejecutivo ─────────────────────────────────────────────────────────
 
 export interface ExecutiveReport {
   available: boolean;
@@ -55,8 +48,6 @@ export interface ExecutiveReport {
   generatedAt: string | null;
 }
 
-// ─── Información general del candidato ─────────────────────────────────────────
-
 export interface CandidateGeneralInfo {
   location: string;
   experience: string;
@@ -66,10 +57,7 @@ export interface CandidateGeneralInfo {
   stageLabel: string;
 }
 
-// ─── Respuesta completa del endpoint agregador ─────────────────────────────────
-
 export interface CandidateDrawerDetail {
-  // Identidad
   id: string;
   processId: string;
   candidateUserId: string;
@@ -78,33 +66,25 @@ export interface CandidateDrawerDetail {
   title: string;
   avatar: string;
 
-  // Contexto del proceso
   contextType: ProcessContextType;
   jobTitle?: string;
   projectTitle?: string;
 
-  // CV
   cvUrl: string | null;
   coverLetter: string | null;
 
-  // Scores
   scores: CandidateScores;
 
-  // Información general
   generalInfo: CandidateGeneralInfo;
 
-  // Entrevista
   interview: InterviewInfo;
 
-  // Reporte ejecutivo
   report: ExecutiveReport;
 
-  // Fases del proceso
   stages: string[];
+  stageStatuses?: string[];
   currentStageIndex: number;
 }
-
-// ─── Payload para avanzar/descartar ────────────────────────────────────────────
 
 export interface AdvanceCandidatePayload {
   processId: string;

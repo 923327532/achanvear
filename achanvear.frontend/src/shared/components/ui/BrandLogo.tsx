@@ -28,10 +28,7 @@ const SIZE_MAP: Record<
   lg: { mark: "h-12 w-12", text: "text-2xl", gap: "gap-3" },
 };
 
-/**
- * Marca de Achanvear: usa el logo oficial en `public/logo/logo-512.png`
- * junto con el wordmark opcional. Reemplaza la antigua caja con la letra "A".
- */
+
 export function BrandLogo({
   href = "/",
   size = "md",

@@ -6,8 +6,6 @@ import type {
   AdvanceCandidatePayload,
 } from "../types/candidate-drawer.types";
 
-// ─── Tipo de la respuesta del backend ──────────────────────────────────────────
-
 interface BackendCandidateDrawerDetail {
   applicationId: string;
   candidateUserId: string;
@@ -63,23 +61,18 @@ function extractS3FileKey(urlOrKey: string): string {
   }
 }
 
-// ─── Mapper: Backend → Frontend ─────────────────────────────────────────────────
-
 function mapBackendToFrontend(
   backend: BackendCandidateDrawerDetail,
   jobTitle?: string
 ): CandidateDrawerDetail {
-  // Calcular score general ponderado
   const scores = [backend.screeningScore, backend.theoryInterviewScore, backend.technicalInterviewScore, backend.softSkillsScore];
   const validScores = scores.filter((s): s is number => s !== null);
   const overall = validScores.length > 0
     ? Math.round(validScores.reduce((a, b) => a + b, 0) / validScores.length)
     : null;
 
-  // Encontrar índice de la etapa actual
   const currentStageIndex = backend.stages.findIndex((s) => s.status === "CURRENT");
 
-  // Mapa de labels para las etapas
   const stageLabels: Record<string, string> = {};
   backend.stages.forEach((s) => {
     stageLabels[s.stage] = s.label;
@@ -130,16 +123,12 @@ function mapBackendToFrontend(
       generatedAt: null,
     },
     stages: backend.stages.map((s) => s.label),
+    stageStatuses: backend.stages.map((s) => s.status),
     currentStageIndex: currentStageIndex >= 0 ? currentStageIndex : 0,
   };
 }
 
 export const candidateDrawerApi = {
-  /**
-   * GET /jobs/{jobId}/applicants/{applicationId}/detail
-   * Endpoint agregador que devuelve el detalle completo del candidato
-   * para el drawer lateral.
-   */
   getDetail: async (
     jobId: string,
     applicationId: string
@@ -151,10 +140,6 @@ export const candidateDrawerApi = {
     return mapBackendToFrontend(backendData);
   },
 
-  /**
-   * POST /jobs/{jobId}/applicants/{applicationId}/advance
-   * Avanzar o descartar un candidato en el pipeline
-   */
   advanceCandidate: async (
     jobId: string,
     applicationId: string,

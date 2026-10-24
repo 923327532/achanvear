@@ -12,14 +12,16 @@ import { useMyInterviews } from "../hooks/useFreelancerInterviews";
 import { useAuthContext } from "@/providers/AuthProvider";
 import { scheduleApi, type InterviewScheduleResponse } from "../api/scheduleApi";
 import { jobApi } from "@/features/jobs/api/jobApi";
+import { useRecommendedJobs } from "@/features/jobs/hooks/useRecommendedJobs";
+import { useAppliedJobIds } from "@/features/jobs/hooks/useAppliedJobIds";
 import type { MyJobApplicationResponse } from "@/features/jobs/api/jobApi";
 import type { InterviewSummaryResponse, InterviewReportResponse } from "../types/interview.types";
 
 const getInterviewTypeMeta = (type: string) => {
   const isTheory = type === "THEORY";
   return {
-    label: isTheory ? "Teorica" : "Practica",
-    fullLabel: isTheory ? "Entrevista teorica" : "Entrevista practica",
+    label: isTheory ? "Teórica" : "Técnica",
+    fullLabel: isTheory ? "Entrevista teórica" : "Entrevista técnica",
     Icon: isTheory ? BookOpen : Code2,
     badge: isTheory ? "bg-sky-50 text-sky-700 border-sky-200" : "bg-violet-50 text-violet-700 border-violet-200",
     accent: isTheory ? "border-l-sky-500" : "border-l-violet-500",
@@ -135,7 +137,7 @@ function PendingScheduleCard({
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-5 flex-1">
         {availableSlots.slice(0, 3).map((slot) => (
           <div key={slot.index} className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
-            <p className="text-[11px] font-semibold text-slate-500">Opcion {slot.index + 1}</p>
+            <p className="text-[11px] font-semibold text-slate-500">Opción {slot.index + 1}</p>
             <p className="mt-1 text-xs font-semibold text-slate-800 leading-tight">{formatScheduleDateTime(slot.dateTime)}</p>
           </div>
         ))}
@@ -166,10 +168,6 @@ function PendingScheduleCard({
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// CARD: Horario ya elegido (confirmacion siempre visible)
-// ═══════════════════════════════════════════════════════════════════════════════
-
 function ConfirmedScheduleCard({ schedule, expired = false }: { schedule: InterviewScheduleResponse; expired?: boolean }) {
   const [jobTitle, setJobTitle] = useState<string>("");
   const typeMeta = getInterviewTypeMeta(schedule.interviewType);
@@ -184,7 +182,6 @@ function ConfirmedScheduleCard({ schedule, expired = false }: { schedule: Interv
     }
   }, [schedule.jobId]);
 
-  // El slot elegido queda como RESERVED dentro de proposedSlots
   const chosenSlot = getReservedSlot(schedule);
 
   return (
@@ -222,24 +219,20 @@ function ConfirmedScheduleCard({ schedule, expired = false }: { schedule: Interv
           <Clock className="w-4 h-4 text-gray-400 flex-shrink-0" />
           <span>
             {expired
-              ? "Este horario ya paso. La entrevista queda vencida y no aparece como pendiente."
-              : "Tu horario quedo reservado. No se puede cambiar."}
+              ? "Este horario ya pasó. La entrevista queda vencida y no aparece como pendiente."
+              : "Tu horario quedó reservado. No se puede cambiar."}
           </span>
         </div>
       </div>
 
       <p className="text-xs text-slate-400 text-center">
         {expired
-          ? "Si necesitas otra oportunidad, espera que la empresa reprograme o solicita una nueva postulacion."
-          : "El boton para iniciar aparece en \"Entrevistas Programadas\"."}
+          ? "Si necesitas otra oportunidad, espera que la empresa reprograme o solicita una nueva postulación."
+          : "El botón para iniciar aparece en \"Entrevistas Programadas\"."}
       </p>
     </div>
   );
 }
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// CARD: Entrevista Programada (con ID visible)
-// ═══════════════════════════════════════════════════════════════════════════════
 
 function ScheduledCard({ interview, onStart }: { interview: InterviewSummaryResponse; onStart: (interview: InterviewSummaryResponse) => void }) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -271,7 +264,6 @@ function ScheduledCard({ interview, onStart }: { interview: InterviewSummaryResp
           }`}>
             {isAborted ? "No disponible" : "Programada"}
           </span>
-          {/* 3 dots menu */}
           <div className="relative">
             <button onClick={() => setMenuOpen(!menuOpen)} className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors">
               <svg className="w-5 h-5 text-slate-400" fill="currentColor" viewBox="0 0 24 24">
@@ -300,7 +292,6 @@ function ScheduledCard({ interview, onStart }: { interview: InterviewSummaryResp
         </div>
       </div>
 
-      {/* Fecha y hora */}
       {interview.date && (
         <div className="flex items-center gap-2 text-sm mb-3">
           <Calendar className="w-4 h-4 text-slate-400 flex-shrink-0" />
@@ -337,10 +328,6 @@ function ScheduledCard({ interview, onStart }: { interview: InterviewSummaryResp
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// EMPTY STATE
-// ═══════════════════════════════════════════════════════════════════════════════
-
 function EmptyState({ icon: Icon, title, description, actionLabel, onAction }: {
   icon: React.ElementType; title: string; description: string; actionLabel?: string; onAction?: () => void;
 }) {
@@ -358,11 +345,71 @@ function EmptyState({ icon: Icon, title, description, actionLabel, onAction }: {
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// MAIN COMPONENT
-// ═══════════════════════════════════════════════════════════════════════════════
+const interviewTypeWord = (type: string) => (type === "THEORY" ? "teórica" : "técnica");
 
-function ApplicationFeedbackCard({ application }: { application: MyJobApplicationResponse }) {
+type InterviewOutcome = {
+  kind: "failed" | "aborted" | "passed";
+  label: string;
+  reason: string;
+};
+
+function getInterviewOutcome(
+  application: MyJobApplicationResponse,
+  interviews: InterviewSummaryResponse[]
+): InterviewOutcome | null {
+  const done = interviews.filter((i) => i.position === application.jobTitle);
+  if (done.length === 0) return null;
+
+  const failed = done.find((i) => i.status === "COMPLETED" && !i.passed);
+  if (failed) {
+    return {
+      kind: "failed",
+      label: `No superaste la entrevista ${interviewTypeWord(failed.interviewType)} (${failed.score ?? "—"}/${failed.maxScore})`,
+      reason: failed.abortReason?.trim() || "Tu puntaje no alcanzó el mínimo para aprobar.",
+    };
+  }
+
+  const aborted = done.find((i) => i.status === "ABORTED");
+  if (aborted) {
+    return {
+      kind: "aborted",
+      label: `Entrevista ${interviewTypeWord(aborted.interviewType)} no disponible`,
+      reason: aborted.abortReason?.trim() || "La entrevista se canceló antes de completarse.",
+    };
+  }
+
+  if (application.status === "REJECTED") {
+    return {
+      kind: "failed",
+      label: "La empresa no continuó con tu postulación",
+      reason: "Aprobaste tus entrevistas, pero la empresa decidió no continuar con tu postulación.",
+    };
+  }
+
+  const technicalPassed = done.some((i) => i.interviewType !== "THEORY" && i.passed);
+  if (technicalPassed) {
+    return {
+      kind: "passed",
+      label: "Completaste tus entrevistas",
+      reason: "La empresa revisará tus resultados y te informará su decisión.",
+    };
+  }
+
+  return {
+    kind: "passed",
+    label: "Entrevista teórica aprobada",
+    reason: "Sigue la entrevista técnica. Revisa si ya aparece para agendar.",
+  };
+}
+
+function ApplicationFeedbackCard({
+  application,
+  interviews,
+}: {
+  application: MyJobApplicationResponse;
+  interviews: InterviewSummaryResponse[];
+}) {
+  const outcome = getInterviewOutcome(application, interviews);
   const isManualApplication = application.selectionMode === "MANUAL";
   const appliedAtTime = new Date(application.appliedAt).getTime();
   const evaluationTookTooLong = Number.isFinite(appliedAtTime) && Date.now() - appliedAtTime > 60_000;
@@ -371,34 +418,40 @@ function ApplicationFeedbackCard({ application }: { application: MyJobApplicatio
   const isCompanyReview = isManualApplication || (application.screeningResult == null && application.status === "IN_REVIEW");
   const isEvaluationDelayed = !isManualApplication && application.screeningResult == null && application.status === "SUBMITTED" && evaluationTookTooLong;
   const isShortlisted = application.screeningResult === true || application.status === "SHORTLISTED";
-  const statusLabel = didNotQualify
-    ? "No clasificaste a entrevista teorica"
-    : isWaitingForAi
-      ? "Evaluando tu perfil con IA"
-      : isCompanyReview
-        ? "Postulacion en revision"
-        : isEvaluationDelayed
-          ? "Evaluacion IA demorada"
-        : isShortlisted
-          ? "Perfil recomendado por IA"
-          : "Postulacion en revision";
+  const isNegative = outcome ? outcome.kind !== "passed" : didNotQualify;
+  const statusLabel = outcome
+    ? outcome.label
+    : didNotQualify
+      ? application.screeningResult === false
+        ? "No clasificaste a entrevista teórica"
+        : "La empresa no continuó con tu postulación"
+      : isWaitingForAi
+        ? "Evaluando tu perfil con IA"
+        : isCompanyReview
+          ? "Postulación en revisión"
+          : isEvaluationDelayed
+            ? "Evaluación IA demorada"
+            : isShortlisted
+              ? "Perfil recomendado por IA"
+              : "Postulación en revisión";
   const scoreLabel = isWaitingForAi
     ? "Evaluando"
     : application.screeningScore == null
       ? "Pendiente"
       : `${Math.round(application.screeningScore)}/100`;
-  const reason = application.screeningSummary?.trim()
+  const reason = outcome?.reason
+    || application.screeningSummary?.trim()
     || (isWaitingForAi
-      ? "La IA esta revisando tu CV, biografia y carta de presentacion. Esto normalmente termina en menos de un minuto."
+      ? "La IA está revisando tu CV, biografía y carta de presentación. Esto normalmente termina en menos de un minuto."
       : isCompanyReview
-        ? "Tu postulacion quedo en revision manual. La empresa revisara tu CV, biografia y carta, y puede contactarte directamente."
+        ? "Tu postulación quedó en revisión manual. La empresa revisará tu CV, biografía y carta, y puede contactarte directamente."
         : isEvaluationDelayed
-          ? "La evaluacion IA esta tardando mas de lo esperado. Refresca la pagina; si sigue igual, la empresa podra revisar tu postulacion manualmente."
-        : didNotQualify
-          ? "La empresa o la IA aun no registro un motivo detallado para esta postulacion."
-          : isShortlisted
-            ? "Tu perfil supero el screening. Si el cronograma aun no aparece, espera unos minutos o refresca la pagina."
-          : "Tu postulacion sigue en evaluacion.");
+          ? "La evaluación IA está tardando más de lo esperado. Refresca la página; si sigue igual, la empresa podrá revisar tu postulación manualmente."
+          : didNotQualify
+            ? "La empresa o la IA aún no registró un motivo detallado para esta postulación."
+            : isShortlisted
+              ? "Tu perfil superó el screening. Si el cronograma aún no aparece, espera unos minutos o refresca la página."
+              : "Tu postulación sigue en evaluación.");
   const appliedDate = new Date(application.appliedAt).toLocaleDateString("es-PE", {
     year: "numeric",
     month: "long",
@@ -407,7 +460,7 @@ function ApplicationFeedbackCard({ application }: { application: MyJobApplicatio
 
   return (
     <div className={`rounded-xl border p-4 ${
-      didNotQualify ? "border-red-100 bg-red-50/40" : "border-amber-100 bg-amber-50/30"
+      isNegative ? "border-red-100 bg-red-50/40" : "border-amber-100 bg-amber-50/30"
     }`}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
@@ -415,13 +468,13 @@ function ApplicationFeedbackCard({ application }: { application: MyJobApplicatio
           <p className="text-xs text-slate-500 mt-0.5">{application.companyName} · {appliedDate}</p>
         </div>
         <span className={`inline-flex shrink-0 items-center rounded-full px-2.5 py-1 text-xs font-semibold ${
-          didNotQualify ? "bg-red-100 text-red-700" : "bg-amber-50 text-amber-700"
+          isNegative ? "bg-red-100 text-red-700" : "bg-amber-50 text-amber-700"
         }`}>
           {scoreLabel}
         </span>
       </div>
       <div className="mt-3">
-        <p className={`text-xs font-semibold ${didNotQualify ? "text-red-700" : "text-slate-700"}`}>
+        <p className={`text-xs font-semibold ${isNegative ? "text-red-700" : "text-slate-700"}`}>
           {statusLabel}
         </p>
         <p className="mt-1 text-sm leading-relaxed text-slate-600">{reason}</p>
@@ -444,8 +497,12 @@ export function InterviewsPage() {
     enabled: !!candidateId,
     staleTime: 1000 * 60 * 2,
   });
+  const { industryJobs, isLoading: opportunitiesLoading } = useRecommendedJobs();
+  const { appliedJobIds } = useAppliedJobIds();
+  const openOpportunities = opportunitiesLoading
+    ? 0
+    : industryJobs.filter((job) => !appliedJobIds.includes(job.id)).length;
 
-  // Schedules pendientes (sin horario elegido aun)
   const [schedules, setSchedules] = useState<InterviewScheduleResponse[]>([]);
   const [confirmedSchedules, setConfirmedSchedules] = useState<InterviewScheduleResponse[]>([]);
   const [expiredSchedules, setExpiredSchedules] = useState<InterviewScheduleResponse[]>([]);
@@ -464,13 +521,11 @@ export function InterviewsPage() {
           matchingApplication &&
           i.position === matchingApplication.jobTitle;
       }));
-      // Pendientes: aun no eligio horario
       setSchedules(activeSchedules.filter(s => s.status === "PENDING_SELECTION" || s.status === "PENDING"));
       const chosenSchedules = activeSchedules.filter(s => s.status === "RESERVED" || s.status === "CHOSEN");
       setConfirmedSchedules(chosenSchedules.filter(s => !isScheduleExpired(s)));
       setExpiredSchedules(chosenSchedules.filter(isScheduleExpired));
     } catch {
-      // Silenciar error
     } finally {
       setSchedulesLoading(false);
     }
@@ -501,8 +556,8 @@ export function InterviewsPage() {
 
   const handleScheduleChosen = () => {
     setSelectedSchedule(null);
-    fetchSchedules(); // Refrescar schedules
-    refetch(); // Refrescar entrevistas
+    fetchSchedules();
+    refetch();
   };
 
   const handleChooseNow = async (schedule: InterviewScheduleResponse) => {
@@ -529,7 +584,6 @@ export function InterviewsPage() {
   return (
     <div className="min-h-screen bg-[#F8FAFC]">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-10 space-y-8">
-        {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">Centro de Evaluación IA</h1>
@@ -539,12 +593,13 @@ export function InterviewsPage() {
             <button onClick={() => window.location.href = "/freelancer/jobs"}
               className="relative inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors">
               <Play className="w-4 h-4" /> Ver Oportunidades
-              <span className="absolute -top-1.5 -right-1.5 inline-flex items-center justify-center w-5 h-5 rounded-full bg-orange-500 text-white text-[10px] font-bold">3</span>
+              {openOpportunities > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 inline-flex items-center justify-center min-w-5 h-5 px-1 rounded-full bg-orange-500 text-white text-[10px] font-bold">{openOpportunities}</span>
+              )}
             </button>
           </div>
         </div>
 
-        {/* Sección: Elegir horario (schedules pendientes) */}
         {hasPendingSchedules && (
           <section>
             <h2 className="text-lg font-bold text-slate-900 mb-5">Pendientes de Agendar</h2>
@@ -562,7 +617,6 @@ export function InterviewsPage() {
           </section>
         )}
 
-        {/* Sección: Horarios confirmados (siempre visibles) */}
         {confirmedSchedules.length > 0 && (
           <section>
             <h2 className="text-lg font-bold text-slate-900 mb-5">Horarios Confirmados</h2>
@@ -592,7 +646,6 @@ export function InterviewsPage() {
             </div>
           </section>
         )}
-        {/* Sección: Entrevistas Programadas */}
         <section>
           <h2 className="text-lg font-bold text-slate-900 mb-5">Entrevistas Programadas</h2>
           {scheduled.length === 0 ? (
@@ -608,12 +661,11 @@ export function InterviewsPage() {
           )}
         </section>
 
-        {/* Sección: Historial de Evaluaciones */}
         <section>
           <div className="flex items-center justify-between gap-3 mb-5">
             <div>
               <h2 className="text-lg font-bold text-slate-900">Historial de Evaluaciones</h2>
-              <p className="text-sm text-slate-500 mt-1">Las entrevistas finalizadas se guardan aqui y ya no aparecen como pendientes.</p>
+              <p className="text-sm text-slate-500 mt-1">Las entrevistas finalizadas se guardan aquí y ya no aparecen como pendientes.</p>
             </div>
             <span className="hidden sm:inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600">
               <ClipboardCheck className="w-3.5 h-3.5" /> {evaluations.length} registros
@@ -681,11 +733,11 @@ export function InterviewsPage() {
             <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 mt-4">
               <div className="mb-4">
                 <h3 className="text-sm font-bold text-slate-900">Historial de postulaciones</h3>
-                <p className="text-xs text-slate-500 mt-1">Revisa si tu perfil sigue en evaluacion o por que no avanzaste a entrevista teorica.</p>
+                <p className="text-xs text-slate-500 mt-1">Revisa si tu perfil sigue en evaluación o por qué no avanzaste en el proceso.</p>
               </div>
               <div className="grid grid-cols-1 gap-3">
                 {applicationFeedbackItems.map((application) => (
-                  <ApplicationFeedbackCard key={application.id} application={application} />
+                  <ApplicationFeedbackCard key={application.id} application={application} interviews={evaluations} />
                 ))}
               </div>
             </div>
@@ -702,7 +754,6 @@ export function InterviewsPage() {
         onStatusChange={() => { refetch(); }}
       />
 
-      {/* Modal elegir horario */}
       {selectedSchedule && (
         <ChooseSlotModal
           schedule={selectedSchedule}
@@ -713,10 +764,6 @@ export function InterviewsPage() {
     </div>
   );
 }
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// MODAL: Acceder a entrevista
-// ═══════════════════════════════════════════════════════════════════════════════
 
 function AccessInterviewModal({
   open,
@@ -794,7 +841,7 @@ function AccessInterviewModal({
                 <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Contexto detectado</p>
                 <h3 className="mt-1 text-sm font-bold text-slate-950">{interviewContext.position}</h3>
                 <p className="mt-1 text-xs text-slate-500">
-                  {interviewContext.company} · El agente usara este puesto para preparar preguntas y casos especificos.
+                  {interviewContext.company} · El agente usará este puesto para preparar preguntas y casos específicos.
                 </p>
               </div>
             )}
@@ -816,19 +863,19 @@ function AccessInterviewModal({
             {interviewType === "TECHNICAL" && (
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">Area practica</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">Área técnica</label>
                   <select
                     value={practicalCareer}
                     onChange={(e) => setPracticalCareer(e.target.value)}
                     className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#1B3A6B]/20 focus:border-[#1B3A6B]"
                   >
-                    <option value="software">Tecnologia / Software</option>
-                    <option value="marketing">Marketing / Comunicacion</option>
+                    <option value="software">Tecnología / Software</option>
+                    <option value="marketing">Marketing / Comunicación</option>
                     <option value="sales">Ventas / Comercial</option>
                     <option value="contabilidad">Contabilidad / Finanzas</option>
                     <option value="legal">Legal / Compliance</option>
-                    <option value="salud">Salud / Clinica</option>
-                    <option value="general">Otra area</option>
+                    <option value="salud">Salud / Clínica</option>
+                    <option value="general">Otra área</option>
                   </select>
                 </div>
                 <div>

@@ -97,8 +97,6 @@ function PlanCard({
   const publicationLimit = isFree ? FREE_JOB_LIMIT : plan.maxProjects;
   const publicationLabel = plan.maxProjects >= 999999 ? "Ilimitadas" : publicationLimit.toLocaleString("es-PE");
 
-  // El plan gratuito queda bloqueado para siempre una vez que la empresa
-  // se suscribe a un plan de pago: no se puede volver a FREE.
   const isLocked = Boolean(locked) && isFree;
   const isDisabled = isFree;
 
@@ -129,7 +127,6 @@ function PlanCard({
     >
       <div className={`absolute inset-x-0 top-0 h-20 bg-gradient-to-b ${accent.glow}`} />
 
-      {/* Sello de plan bloqueado (una vez usado, no se puede volver) */}
       {isLocked && (
         <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
           <span className="-rotate-[18deg] rounded-md border-[3px] border-red-500/70 bg-white/70 px-4 py-1.5 text-sm font-black uppercase tracking-[0.2em] text-red-600/90 shadow-sm backdrop-blur-[1px]">
@@ -161,10 +158,6 @@ function PlanCard({
         <h3 className="text-base font-bold text-slate-950">{plan.displayName}</h3>
         <p className="mt-1 line-clamp-2 min-h-[36px] text-xs leading-relaxed text-slate-500">{plan.description}</p>
 
-        {/* RESPONSIVE: precio y caja "Empleos" en una grilla de dos columnas
-            dejaban al precio ~75px cuando la caja decía "Ilimitadas" ("S/ 299"
-            se partía). Con flex-wrap, si no caben juntos la caja baja a su
-            propia línea. */}
         <div className="my-4 flex flex-wrap items-end justify-between gap-x-3 gap-y-3">
           <div>
             {isFree ? (
@@ -292,10 +285,8 @@ export function CompanyBillingSection() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
-  // Método de pago elegido en la ficha: "SAVED_<id>" = método guardado, "NEW" = tokenizar con Culqi
   const [payMethod, setPayMethod] = useState<string>("NEW");
   const [showNewMethod, setShowNewMethod] = useState(false);
-  // Checkout de suscripción (Culqi): se abre al confirmar el pago de un plan con tarjeta nueva
   const [showChargeModal, setShowChargeModal] = useState(false);
 
   const activePlans = useMemo(() => plans.filter((plan) => plan.isActive), [plans]);
@@ -304,8 +295,8 @@ export function CompanyBillingSection() {
   const selectedPackageData = activePackages.find((pkg) => pkg.id === selectedPackage) ?? null;
 
   const isLoading = isLoadingPlans || isLoadingCreditPackages || isLoadingCurrentPlan || isLoadingOverview || isLoadingWallet;
-  const published = overview?.publishedProjectsCount ?? 0;
-  const remaining = overview?.remainingFreeProjects ?? Math.max(0, FREE_JOB_LIMIT - published);
+  const publishedLabel = overview ? String(overview.publishedProjectsCount) : "—";
+  const remainingLabel = overview ? String(overview.remainingFreeProjects) : "—";
   const currentPlanType = currentPlan?.planType ?? overview?.currentPlan ?? "FREE";
   const currentPlanName =
     activePlans.find((plan) => plan.planType === currentPlanType)?.displayName ??
@@ -323,7 +314,6 @@ export function CompanyBillingSection() {
     setError(null);
   };
 
-  // Métodos guardados (tarjetas Culqi + billeteras Yape/Plin) disponibles para pagar la selección.
   const savedMethods = useMemo(
     () => [
       ...savedCards.map((card) => ({
@@ -356,13 +346,12 @@ export function CompanyBillingSection() {
 
   const handleCheckout = async () => {
     if (!billingEmail.trim()) {
-      setError("Ingresa un correo de facturacion para continuar.");
+      setError("Ingresa un correo de facturación para continuar.");
       return;
     }
 
     setError(null);
 
-    // Suscripción a un plan: requiere tokenizar la tarjeta con Culqi
     if (selectedPlanData || selectedPackageData) {
       setShowChargeModal(true);
       return;
@@ -370,7 +359,6 @@ export function CompanyBillingSection() {
 
   };
 
-  // Culqi tokeniza la tarjeta de la suscripción y aquí cobramos el plan
   const handleCulqiTokenized = async ({ token, email }: { token: string; email: string }) => {
     setError(null);
     try {
@@ -439,12 +427,6 @@ export function CompanyBillingSection() {
         </div>
       )}
 
-      {/* RESPONSIVE (causa raíz del contenido cortado): esta grilla y las
-          siguientes solo definían columnas desde lg (o md/xl). En celular la
-          columna implícita toma el ancho de su contenido más ancho, y textos
-          con `truncate` (que no se parten) la hacían más ancha que la pantalla;
-          el overflow-hidden de la tarjeta recortaba lo que sobraba. Con
-          grid-cols-1 la columna es minmax(0,1fr) y puede encogerse. */}
       <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="grid grid-cols-1 gap-0 lg:grid-cols-[minmax(0,1.25fr)_minmax(320px,0.75fr)]">
           <div className="min-w-0 p-4 sm:p-6">
@@ -464,11 +446,11 @@ export function CompanyBillingSection() {
               </div>
               <div className="rounded-lg bg-slate-50 p-4">
                 <p className="text-xs font-medium text-slate-500">Publicados</p>
-                <p className="mt-1 text-lg font-bold text-slate-950">{published}</p>
+                <p className="mt-1 text-lg font-bold text-slate-950">{publishedLabel}</p>
               </div>
               <div className="rounded-lg bg-slate-50 p-4">
                 <p className="text-xs font-medium text-slate-500">Gratis restantes</p>
-                <p className="mt-1 text-lg font-bold text-slate-950">{remaining}</p>
+                <p className="mt-1 text-lg font-bold text-slate-950">{remainingLabel}</p>
               </div>
             </div>
           </div>
@@ -479,7 +461,9 @@ export function CompanyBillingSection() {
               </div>
               <div className="min-w-0">
                 <p className="text-sm text-white/60">Balance operativo</p>
-                <p className="text-2xl font-bold">{isLoadingWallet ? "..." : formatMoney(wallet?.balance)}</p>
+                <p className="text-2xl font-bold">
+                  {isLoadingWallet ? "..." : wallet ? formatMoney(wallet.balance) : "No disponible"}
+                </p>
               </div>
             </div>
             <div className="mt-6 rounded-lg border border-white/10 bg-white/5 p-4">
@@ -556,7 +540,6 @@ export function CompanyBillingSection() {
             }`}
           >
             <div className="grid grid-cols-1 gap-0 lg:grid-cols-[minmax(0,1fr)_minmax(360px,0.82fr)]">
-              {/* Resumen de la seleccion */}
               <div className="min-w-0 bg-white p-4 sm:p-6">
                 <span
                   className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${

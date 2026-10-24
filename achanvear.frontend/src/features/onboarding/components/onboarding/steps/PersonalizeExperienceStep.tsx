@@ -46,6 +46,8 @@ interface PersonalizeExperienceStepProps {
   onUpdate: (updates: any) => void;
   onNext: () => void;
   onBack: () => void;
+  isLoading?: boolean;
+  error?: string | null;
 }
 
 export function PersonalizeExperienceStep({
@@ -53,6 +55,8 @@ export function PersonalizeExperienceStep({
   onUpdate,
   onNext,
   onBack,
+  isLoading = false,
+  error = null,
 }: PersonalizeExperienceStepProps) {
   const [industries, setIndustries] = useState<string[]>([]);
   const [specialties, setSpecialties] = useState<string[]>([]);
@@ -172,6 +176,12 @@ export function PersonalizeExperienceStep({
         </div>
       )}
 
+      {error && (
+        <div className="mb-4 rounded-lg bg-rose-50 px-4 py-3 text-sm text-rose-600">
+          {error}
+        </div>
+      )}
+
       {/* Botones */}
       <div className="grid grid-cols-2 gap-3">
         <button
@@ -184,10 +194,10 @@ export function PersonalizeExperienceStep({
         <button
           type="button"
           onClick={onNext}
-          disabled={!data.industry || !data.speciality || loadingIndustries || loadingSpecialties}
+          disabled={!data.industry || !data.speciality || loadingIndustries || loadingSpecialties || isLoading}
           className="rounded-xl bg-[#4A5568] py-3 text-sm font-semibold text-white transition hover:bg-[#2D3748] disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          Continuar
+          {isLoading ? "Guardando..." : "Continuar"}
         </button>
       </div>
     </div>

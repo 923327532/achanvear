@@ -25,18 +25,18 @@ export function ChatPage({ initialUserId }: ChatPageProps) {
   // When initialUserId is provided, auto-start or find the conversation
   useEffect(() => {
     if (!initialUserId || hasInitialized.current) return;
+    hasInitialized.current = true;
 
     const initConversation = async () => {
-      if (isStarting) return;
       setIsStarting(true);
       setInitError(null);
       try {
         // startConversation now returns existing conversation if it already exists
         const conv = await chatApi.startConversation(initialUserId);
         setActiveConversation(conv);
-        hasInitialized.current = true;
       } catch (err: any) {
         console.error("Error al iniciar conversación:", err);
+        hasInitialized.current = false;
         setInitError("No se pudo iniciar la conversación");
       } finally {
         setIsStarting(false);

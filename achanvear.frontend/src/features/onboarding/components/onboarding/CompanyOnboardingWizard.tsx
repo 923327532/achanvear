@@ -1,13 +1,14 @@
 // src/features/onboarding/components/CompanyOnboardingWizard.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { BrandLogo } from "@/shared/components/ui/BrandLogo";
 import { Alert } from "@/components/ui/Alert";
 import type { CompanyOnboardingData } from "@/features/onboarding/types/onboarding.types";
 import { onboardingService } from "@/features/onboarding/api/onboardingApi";
+import { companySettingsApi } from "@/features/settings/api/companySettingsApi";
 import { ConfigureCompanyStep } from "./steps/company/ConfigureCompanyStep";
 import { CompanySpecialityStep } from "./steps/company/CompanySpecialityStep";
 import { CorporateProfileStep } from "./steps/company/CorporateProfileStep";
@@ -31,6 +32,8 @@ export function CompanyOnboardingWizard() {
     return null;
   });
   const [isInitializing, setIsInitializing] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const savingRef = useRef(false);
 
   const getSavedData = (): Partial<CompanyOnboardingData> => {
     try {
@@ -125,7 +128,11 @@ export function CompanyOnboardingWizard() {
    * Maneja el avance entre pasos, guardando en backend cada paso.
    */
   const handleNext = async () => {
+    if (savingRef.current) return;
+    savingRef.current = true;
+    setIsSaving(true);
     setSubmitError(null);
+    let leaving = false;
 
     try {
       switch (currentStep) {
@@ -221,9 +228,25 @@ export function CompanyOnboardingWizard() {
         }
         case 7: {
           // PASO 7: Finalizar onboarding
+          if (onboardingData.selectedAgent) {
+            let matchScoreThreshold = 70;
+            try {
+              const current = await companySettingsApi.getAgentSettings();
+              if (typeof current?.matchScoreThreshold === "number") {
+                matchScoreThreshold = current.matchScoreThreshold;
+              }
+            } catch {
+              matchScoreThreshold = 70;
+            }
+            await companySettingsApi.updateAgentSettings({
+              selectedAgentId: onboardingData.selectedAgent,
+              matchScoreThreshold,
+            });
+          }
           await onboardingService.completeOnboarding({});
           sessionStorage.removeItem("company_onboarding_data");
           sessionStorage.removeItem(COMPANY_ID_KEY);
+          leaving = true;
           router.push("/company");
           return;
         }
@@ -233,6 +256,11 @@ export function CompanyOnboardingWizard() {
       setCurrentStep((prev) => prev + 1);
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : "Error al guardar datos");
+    } finally {
+      if (!leaving) {
+        savingRef.current = false;
+        setIsSaving(false);
+      }
     }
   };
 
@@ -294,6 +322,14 @@ export function CompanyOnboardingWizard() {
         {submitError && <Alert message={submitError} />}
         {renderStep()}
       </div>
+      {isSaving && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-white/60 backdrop-blur-sm">
+          <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-6 py-4 shadow-xl">
+            <div className="h-5 w-5 animate-spin rounded-full border-2 border-blue-900 border-t-transparent" />
+            <span className="text-sm font-semibold text-slate-700">Guardando...</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

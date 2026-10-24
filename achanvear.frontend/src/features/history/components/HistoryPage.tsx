@@ -58,6 +58,17 @@ const TYPE_CONFIG: Record<
   },
 };
 
+const STATUS_LABELS: Record<string, string> = {
+  ACTIVE: "Activo",
+  COMPLETED: "Completado",
+  APPROVED: "Aprobado",
+  ACCEPTED: "Aceptado",
+  PENDING: "Pendiente",
+  IN_PROGRESS: "En curso",
+  REJECTED: "Rechazado",
+  CANCELLED: "Cancelado",
+};
+
 function HistorySkeleton() {
   return (
     <div className="space-y-4 animate-pulse">
@@ -97,6 +108,7 @@ function HistoryCard({ item }: { item: HistoryItem }) {
       case "ACTIVE":
       case "COMPLETED":
       case "APPROVED":
+      case "ACCEPTED":
         return "text-green-600 bg-green-50";
       case "PENDING":
       case "IN_PROGRESS":
@@ -112,19 +124,17 @@ function HistoryCard({ item }: { item: HistoryItem }) {
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-md transition-all duration-200">
       <div className="flex items-start gap-4">
-        {/* Icon */}
         <div className={`w-10 h-10 rounded-xl ${config.bg} flex items-center justify-center flex-shrink-0`}>
           <Icon className={`w-5 h-5 ${config.color}`} />
         </div>
 
-        {/* Content */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
             <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${config.bg} ${config.color}`}>
               {config.label}
             </span>
             <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${getStatusColor(item.status)}`}>
-              {item.status}
+              {STATUS_LABELS[item.status] ?? item.status}
             </span>
           </div>
           <h3 className="text-sm font-semibold text-gray-800 mb-1">{item.title}</h3>
@@ -140,7 +150,7 @@ function HistoryCard({ item }: { item: HistoryItem }) {
                 {item.freelancerName}
               </span>
             )}
-            {item.amount && (
+            {typeof item.amount === "number" && item.amount > 0 && (
               <span className="font-medium text-gray-600">
                 S/. {item.amount.toLocaleString("es-PE")}
               </span>
@@ -200,19 +210,16 @@ export function HistoryPage({ companyId }: Props) {
 
   return (
     <div className="space-y-4">
-      {/* Header */}
       <div className="flex items-center justify-between mb-2">
         <p className="text-sm text-gray-500">
           {total} actividades registradas
         </p>
       </div>
 
-      {/* Lista de items con key único compuesto (id + index para evitar duplicados) */}
       {items.map((item, index) => (
         <HistoryCard key={`${item.id}-${index}`} item={item} />
       ))}
 
-      {/* Paginación */}
       {totalPages > 1 && (
         <div className="flex items-center justify-center gap-3 pt-4">
           <button

@@ -13,7 +13,7 @@ interface PlanSelectionStepProps {
   onBack: () => void;
 }
 
-export function PlanSelectionStep({ data, onUpdate, onNext, onBack }: PlanSelectionStepProps) {
+export function PlanSelectionStep({ onUpdate, onNext, onBack }: PlanSelectionStepProps) {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -56,7 +56,7 @@ export function PlanSelectionStep({ data, onUpdate, onNext, onBack }: PlanSelect
 
   const handleSelectPlan = (plan: Plan) => {
     if (plan.id === "FREE") {
-      onUpdate({ selectedPlan: plan.id, billingCycle: "monthly" });
+      onUpdate({ selectedPlan: plan.id });
       onNext();
     } else {
       setSelectedPlanId(plan.id);
@@ -78,16 +78,10 @@ export function PlanSelectionStep({ data, onUpdate, onNext, onBack }: PlanSelect
     if (!selectedPlanForConfirm) return;
     onUpdate({
       selectedPlan: selectedPlanForConfirm.id,
-      billingCycle: data.billingCycle,
       planConfirmed: true,
     });
     setSelectedPlanForConfirm(null);
     onNext();
-  };
-
-  const getSavings = (plan: Plan) => {
-    if (plan.price <= 0) return 0;
-    return (plan.price * 12) - Math.round(plan.price * 12 * 0.8);
   };
 
   if (loading) {
@@ -121,44 +115,12 @@ export function PlanSelectionStep({ data, onUpdate, onNext, onBack }: PlanSelect
         </p>
       </div>
 
-      {/* Billing Toggle */}
-      <div className="px-8 pb-6">
-        <div className="inline-flex items-center justify-center gap-2 p-1.5 bg-white rounded-2xl border border-slate-200 shadow-sm w-full">
-          <button
-            onClick={() => onUpdate({ billingCycle: "monthly" })}
-            className={`flex-1 px-6 py-3 rounded-xl transition-all text-sm font-bold ${
-              data.billingCycle === "monthly"
-                ? "bg-gradient-to-r from-[#1B3A6B] to-[#0EA5A0] text-white shadow-md"
-                : "text-slate-500 hover:text-slate-700"
-            }`}
-          >
-            Facturación Mensual
-          </button>
-          <button
-            onClick={() => onUpdate({ billingCycle: "yearly" })}
-            className={`flex-1 px-6 py-3 rounded-xl transition-all text-sm font-bold relative ${
-              data.billingCycle === "yearly"
-                ? "bg-gradient-to-r from-[#1B3A6B] to-[#0EA5A0] text-white shadow-md"
-                : "text-slate-500 hover:text-slate-700"
-            }`}
-          >
-            Facturación Anual
-            <span className="absolute -top-2 -right-2 bg-[#10B981] text-white text-xs font-bold px-2 py-0.5 rounded-full">
-              -20%
-            </span>
-          </button>
-        </div>
-      </div>
-
       {/* Plans Grid — 4 planes: Free, Basic, Premium, Enterprise */}
       <div className="px-8 pb-4">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {plans.map((plan) => {
             const colors = getPlanColor(plan.id);
-            const price = data.billingCycle === "yearly" && plan.price > 0
-              ? Math.round(plan.price * 12 * 0.8 / 12)
-              : plan.price;
-            const savings = getSavings(plan);
+            const price = plan.price;
 
             return (
               <div
@@ -195,18 +157,6 @@ export function PlanSelectionStep({ data, onUpdate, onNext, onBack }: PlanSelect
                         <span className="text-sm font-bold text-[#64748B]">S/.</span>
                         <span className="text-4xl font-extrabold text-[#0F172A]">{Math.round(price)}</span>
                         <span className="text-[#64748B] font-bold">/mes</span>
-                      </div>
-                    )}
-                    {data.billingCycle === "yearly" && price > 0 && (
-                      <div className="mt-1 space-y-1">
-                        <p className="text-xs text-[#64748B]">
-                          Facturado S/. {Math.round(plan.price * 12 * 0.8)} al año
-                        </p>
-                        {savings > 0 && (
-                          <span className="inline-block bg-[#10B981]/10 text-[#10B981] text-xs font-bold px-2 py-0.5 rounded-full">
-                            Ahorras S/. {savings} al año
-                          </span>
-                        )}
                       </div>
                     )}
                   </div>
@@ -253,9 +203,7 @@ export function PlanSelectionStep({ data, onUpdate, onNext, onBack }: PlanSelect
                   </div>
                   <div>
                     <h3 className="text-xl font-bold">{plans.find(p => p.id === selectedPlanId)?.name}</h3>
-                    <p className="text-white/80 text-sm">
-                      {data.billingCycle === "yearly" ? "Facturación Anual - Ahorras 20%" : "Facturación Mensual"}
-                    </p>
+                    <p className="text-white/80 text-sm">Facturación Mensual</p>
                   </div>
                 </div>
                 <button
@@ -286,16 +234,11 @@ export function PlanSelectionStep({ data, onUpdate, onNext, onBack }: PlanSelect
                   </thead>
                   <tbody>
                     {[
-                      { label: "Publicaciones activas", get: (p: Plan) => p.maxActiveJobs === -1 ? "Ilimitado" : p.maxActiveJobs.toString() },
-                      { label: "Entrevistas con IA", get: (p: Plan) => p.maxInterviews === -1 ? "Ilimitadas" : p.maxInterviews === 0 ? "—" : `${p.maxInterviews}/mes` },
-                      { label: "Agentes IA disponibles", get: (p: Plan) => p.availableAgents.length === 0 ? "—" : `${p.availableAgents.length} (Todos)` },
-                      { label: "Proctoring anti-fraude", get: (p: Plan) => p.proctoringLevel === "none" ? "—" : "✓" },
-                      { label: "Reportes ejecutivos IA", get: (p: Plan) => p.hasExecutiveReports ? "✓" : "—" },
-                      { label: "Pipeline Kanban visual", get: (p: Plan) => p.hasKanbanPipeline ? "✓" : "—" },
-                      { label: "White-label (marca propia)", get: (p: Plan) => p.hasWhiteLabel ? "✓" : "—" },
-                      { label: "API de reportes", get: (p: Plan) => p.hasReportsApi ? "✓" : "—" },
-                      { label: "Account Manager", get: (p: Plan) => p.hasAccountManager ? "✓" : "—" },
-                      { label: "Soporte", get: (p: Plan) => p.supportLevel === "email" ? "Email" : p.supportLevel === "chat" ? "Chat + Email" : p.supportLevel === "24/7" ? "24/7 Prioritario" : "—" },
+                      { label: "Proyectos activos", get: (p: Plan) => p.maxActiveJobs >= 999999 ? "Ilimitados" : p.maxActiveJobs.toString() },
+                      { label: "Invitaciones directas", get: (p: Plan) => p.maxInterviews > 0 ? p.maxInterviews.toString() : "—" },
+                      { label: "Proyectos destacados", get: (p: Plan) => p.features.some((f) => /destacad/i.test(f)) ? "✓" : "—" },
+                      { label: "Gestor de cuenta dedicado", get: (p: Plan) => p.features.some((f) => /gestor/i.test(f)) ? "✓" : "—" },
+                      { label: "Soporte", get: (p: Plan) => p.features.find((f) => /^soporte/i.test(f)) ?? "—" },
                     ].map((row, i) => (
                       <tr key={i} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
                         <td className="py-3 px-4 text-slate-700 font-semibold">{row.label}</td>
@@ -389,25 +332,14 @@ export function PlanSelectionStep({ data, onUpdate, onNext, onBack }: PlanSelect
             <div className="bg-slate-50 rounded-xl p-6 mb-6 border border-slate-200">
               <div className="flex justify-between items-center mb-4">
                 <span className="text-slate-500">Ciclo de facturación:</span>
-                <span className="text-[#0F172A] font-bold">
-                  {data.billingCycle === "monthly" ? "Mensual" : "Anual"}
-                </span>
+                <span className="text-[#0F172A] font-bold">Mensual</span>
               </div>
               <div className="flex justify-between items-center text-lg">
                 <span className="text-slate-500">Total:</span>
                 <span className="text-[#0EA5A0] font-bold">
-                  {selectedPlanForConfirm.price === 0 ? "Gratis" : `S/. ${
-                    data.billingCycle === "yearly" && selectedPlanForConfirm.price > 0
-                      ? Math.round(selectedPlanForConfirm.price * 12 * 0.8)
-                      : selectedPlanForConfirm.price
-                  } ${data.billingCycle === "monthly" ? "/mes" : "/año"}`}
+                  {selectedPlanForConfirm.price === 0 ? "Gratis" : `S/. ${selectedPlanForConfirm.price} /mes`}
                 </span>
               </div>
-              {data.billingCycle === "yearly" && selectedPlanForConfirm.price > 0 && (
-                <p className="text-sm text-[#10B981] mt-2 text-center font-semibold">
-                  ✓ Ahorras 20% con facturación anual
-                </p>
-              )}
             </div>
 
             <div className="flex gap-3">

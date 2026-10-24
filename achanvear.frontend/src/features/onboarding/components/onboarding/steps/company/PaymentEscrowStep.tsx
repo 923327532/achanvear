@@ -2,9 +2,7 @@
 
 import { useState } from "react";
 import { Shield, CheckCircle2, CreditCard, Landmark, Info, ArrowRight } from "lucide-react";
-import { ApiError } from "@/lib/errors";
 import { Alert } from "@/components/ui/Alert";
-import { onboardingService } from "@/features/onboarding/api/onboardingApi";
 import type { CompanyOnboardingData } from "@/features/onboarding/types/onboarding.types";
 
 interface PaymentEscrowStepProps {
@@ -16,15 +14,15 @@ interface PaymentEscrowStepProps {
 
 export function PaymentEscrowStep({ data, onUpdate, onNext, onBack }: PaymentEscrowStepProps) {
   const [error, setError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = () => {
+    setError(null);
     if (!data.paymentMethod) {
-      setError("Debes seleccionar un metodo de pago");
+      setError("Debes seleccionar un método de pago");
       return;
     }
     if (!data.acceptEscrowTerms) {
-      setError("Debes aceptar los terminos del sistema de Escrow");
+      setError("Debes aceptar los términos del sistema de Escrow");
       return;
     }
     onNext();
@@ -103,13 +101,13 @@ export function PaymentEscrowStep({ data, onUpdate, onNext, onBack }: PaymentEsc
         <h3 className="text-lg font-bold text-slate-900 mb-4">Métodos de Pago</h3>
         <div className="grid md:grid-cols-2 gap-3">
           {[
-            { value: "card", label: "Tarjeta de Crédito/Débito", desc: "Visa, Mastercard, American Express", icon: <CreditCard className="w-8 h-8" /> },
-            { value: "transfer", label: "Transferencia Bancaria", desc: "Depósito directo desde tu banco", icon: <Landmark className="w-8 h-8" /> },
+            { value: "credit_card", label: "Tarjeta de Crédito/Débito", desc: "Visa, Mastercard, American Express", icon: <CreditCard className="w-8 h-8" /> },
+            { value: "bank_transfer", label: "Transferencia Bancaria", desc: "Depósito directo desde tu banco", icon: <Landmark className="w-8 h-8" /> },
           ].map(({ value, label, desc, icon }) => (
             <button
               key={value}
               type="button"
-              onClick={() => onUpdate({ paymentMethod: value })}
+              onClick={() => { onUpdate({ paymentMethod: value }); setError(null); }}
               className={`w-full p-5 rounded-2xl border-2 transition-all text-left ${
                 data.paymentMethod === value
                   ? "border-teal-600 bg-teal-50 ring-2 ring-teal-200"
@@ -141,7 +139,7 @@ export function PaymentEscrowStep({ data, onUpdate, onNext, onBack }: PaymentEsc
           <input
             type="checkbox"
             checked={data.acceptEscrowTerms}
-            onChange={(e) => onUpdate({ acceptEscrowTerms: e.target.checked })}
+            onChange={(e) => { onUpdate({ acceptEscrowTerms: e.target.checked }); setError(null); }}
             className="w-5 h-5 text-teal-600 rounded border-slate-300 focus:ring-teal-600 mt-0.5"
           />
           <span className="text-sm text-amber-800">
@@ -152,11 +150,11 @@ export function PaymentEscrowStep({ data, onUpdate, onNext, onBack }: PaymentEsc
 
       <div className="flex gap-4">
         <button type="button" onClick={onBack} className="flex-1 border border-slate-300 text-slate-700 font-semibold py-3 rounded-2xl hover:bg-slate-50 transition">
-          Atras
+          Atrás
         </button>
-        <button type="button" onClick={handleSubmit} disabled={isSubmitting} className="flex-1 bg-gradient-to-r from-blue-900 to-teal-600 text-white font-semibold py-3 rounded-2xl hover:from-blue-800 hover:to-teal-500 transition-all disabled:opacity-50 flex items-center justify-center gap-2">
-          {isSubmitting ? "Guardando..." : "Continuar"}
-          {!isSubmitting && <ArrowRight className="w-5 h-5" />}
+        <button type="button" onClick={handleSubmit} className="flex-1 bg-gradient-to-r from-blue-900 to-teal-600 text-white font-semibold py-3 rounded-2xl hover:from-blue-800 hover:to-teal-500 transition-all flex items-center justify-center gap-2">
+          Continuar
+          <ArrowRight className="w-5 h-5" />
         </button>
       </div>
     </div>

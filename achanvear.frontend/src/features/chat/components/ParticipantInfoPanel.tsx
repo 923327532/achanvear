@@ -1,10 +1,12 @@
 // features/chat/components/ParticipantInfoPanel.tsx
 "use client";
 
-import { useState, useEffect } from "react";
-import { X, Building2, User, Clock, Loader2, Eye, Briefcase, FileText } from "lucide-react";
+import { useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { X, Building2, User, Clock, Eye, Briefcase, FileText, Loader2 } from "lucide-react";
 import { chatApi } from "../api/chatApi";
-import type { Conversation } from "../types/chat.types";
+import { useMessages } from "../hooks/useChat";
+import type { Conversation, FreelancerProfileResponse } from "../types/chat.types";
 
 interface Props {
   conversation: Conversation | null;
@@ -19,7 +21,21 @@ function formatDate(dateStr: string) {
   });
 }
 
-// ─── Modal base ───────────────────────────────────────────────────────────────
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function getInitials(name: string) {
+  return name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
+}
+
+function ratingText(profile: FreelancerProfileResponse) {
+  const rep = profile.reputationScore;
+  if (!rep || rep.totalRatings === 0) return "Sin calificaciones";
+  return `${rep.averageStars.toFixed(1)} (${rep.totalRatings})`;
+}
 
 function Modal({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {
   return (
@@ -40,10 +56,85 @@ function Modal({ title, children, onClose }: { title: string; children: React.Re
   );
 }
 
-// ─── Modal: Ver Perfil ────────────────────────────────────────────────────────
-// Se mantiene porque ya es honesto sobre su propia limitación: avisa
-// explícitamente que el detalle completo requiere un dato que el backend aún
-// no envía (participantId). No inventa datos falsos, solo explica el estado.
+function FieldBlock({ label, value }: { label: string; value?: string | null }) {
+  if (!value) return null;
+  return (
+    <div className="bg-[#F8FAFC] rounded-lg p-3">
+      <p className="text-[10px] font-semibold text-[#64748B] uppercase tracking-wider mb-0.5">{label}</p>
+      <p className="text-xs text-[#0F172A] leading-relaxed whitespace-pre-wrap break-words">{value}</p>
+    </div>
+  );
+}
+
+function SkillChips({ profile }: { profile: FreelancerProfileResponse }) {
+  if (!profile.skills || profile.skills.length === 0) return null;
+  return (
+    <div className="bg-[#F8FAFC] rounded-lg p-3">
+      <p className="text-[10px] font-semibold text-[#64748B] uppercase tracking-wider mb-1.5">Habilidades</p>
+      <div className="flex flex-wrap gap-1.5">
+        {profile.skills.map((s, i) => (
+          <span key={`${s.name}-${i}`} className="text-[11px] text-[#0F172A] bg-white border border-[#E2E8F0] rounded-full px-2 py-0.5">
+            {s.name}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function FreelancerProfileModal({
+  conversation,
+  profile,
+  onClose,
+}: {
+  conversation: Conversation;
+  profile: FreelancerProfileResponse;
+  onClose: () => void;
+}) {
+  return (
+    <Modal title={`Perfil de ${conversation.participantName}`} onClose={onClose}>
+      <div className="flex flex-col items-center text-center mb-5">
+        <div className="w-20 h-20 rounded-full flex items-center justify-center text-white text-2xl font-bold mb-3 bg-[#0EA5A0]">
+          {getInitials(conversation.participantName)}
+        </div>
+        <h4 className="text-base font-semibold text-[#0F172A]">{conversation.participantName}</h4>
+        <p className="text-xs text-[#64748B] mt-0.5">Freelancer</p>
+      </div>
+
+      <div className="space-y-3">
+        <FieldBlock label="Rubro" value={profile.industry} />
+        <FieldBlock label="Especialidad" value={profile.specialty} />
+        <FieldBlock label="Biografía" value={profile.biography} />
+        <FieldBlock label="Logros" value={profile.achievements} />
+        <SkillChips profile={profile} />
+        <FieldBlock label="Calificación" value={ratingText(profile)} />
+        {profile.portfolioItems && profile.portfolioItems.length > 0 && (
+          <div className="bg-[#F8FAFC] rounded-lg p-3">
+            <p className="text-[10px] font-semibold text-[#64748B] uppercase tracking-wider mb-1.5">Portafolio</p>
+            <div className="space-y-2">
+              {profile.portfolioItems.map((item: any, i: number) => (
+                <div key={`${item.title}-${i}`}>
+                  <p className="text-xs font-medium text-[#0F172A]">{item.title}</p>
+                  {item.description && <p className="text-[11px] text-[#64748B]">{item.description}</p>}
+                  {item.projectUrl && (
+                    <a
+                      href={item.projectUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[11px] text-[#2563EB] break-all hover:underline"
+                    >
+                      {item.projectUrl}
+                    </a>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </Modal>
+  );
+}
 
 function ViewProfileModal({ conversation, onClose }: { conversation: Conversation; onClose: () => void }) {
   const isCompany = conversation.participantRole === "COMPANY";
@@ -54,7 +145,7 @@ function ViewProfileModal({ conversation, onClose }: { conversation: Conversatio
         <div className={`w-20 h-20 rounded-full flex items-center justify-center text-white text-2xl font-bold mb-3 ${
           isCompany ? "bg-[#2563EB]" : "bg-[#0EA5A0]"
         }`}>
-          {conversation.participantName.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()}
+          {getInitials(conversation.participantName)}
         </div>
         <h4 className="text-base font-semibold text-[#0F172A]">{conversation.participantName}</h4>
         <p className="text-xs text-[#64748B] mt-0.5">{isCompany ? "Empresa" : "Freelancer"}</p>
@@ -90,12 +181,6 @@ function ViewProfileModal({ conversation, onClose }: { conversation: Conversatio
   );
 }
 
-// ─── Modal: Ver Proyecto ──────────────────────────────────────────────────────
-// FIX: antes mostraba "Mock projects" (dos proyectos inventados con montos y
-// estados falsos) como si fueran reales. Ahora, mientras no exista un
-// endpoint real de proyectos/servicios compartidos entre ambos participantes,
-// se muestra un estado vacío honesto en vez de datos de relleno.
-
 function ViewProjectModal({ conversation, onClose }: { conversation: Conversation; onClose: () => void }) {
   const isCompany = conversation.participantRole === "COMPANY";
 
@@ -116,61 +201,37 @@ function ViewProjectModal({ conversation, onClose }: { conversation: Conversatio
   );
 }
 
-// ─── Componente Principal ─────────────────────────────────────────────────────
-
 export function ParticipantInfoPanel({ conversation, onClose }: Props) {
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  // Modal states
-  // FIX: se quitaron "Contratar" y "Crear contrato" (y sus modales HireModal/
-  // CreateContractModal) — ambos mostraban un mensaje de éxito ("¡Solicitud
-  // enviada!", "Contrato creado") sin llamar a ningún endpoint real; el
-  // usuario creía que algo había pasado de verdad cuando el botón solo
-  // cambiaba de pantalla internamente (setStep("done")). Confirmado en
-  // Swagger: chat-controller no tiene ningún endpoint para contratar ni crear
-  // contratos. Se dejan "Ver perfil" y "Ver proyecto" porque esos sí son
-  // honestos sobre su límite actual.
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showProjectModal, setShowProjectModal] = useState(false);
+  const { messages } = useMessages(conversation?.id ?? null);
 
-  const isCompany = conversation?.participantRole === "COMPANY";
+  const isFreelancerParticipant = !!conversation && conversation.participantRole !== "COMPANY";
 
-  useEffect(() => {
-    if (!conversation) return;
-    setError(null);
-    setIsLoading(false);
+  const profileQuery = useQuery({
+    queryKey: ["chat", "participant-profile", conversation?.participantId],
+    queryFn: () => chatApi.getFreelancerProfile(conversation!.participantId),
+    enabled: isFreelancerParticipant && !!conversation?.participantId,
+    staleTime: 1000 * 60 * 5,
+    retry: 1,
+  });
 
-    // ── Pendiente de backend: GET /chat/conversations no incluye
-    // participantId en su respuesta (confirmado en Swagger). Sin ese campo
-    // es imposible llamar a chatApi.getFreelancerProfile()/getCompanyProfile()
-    // para traer el perfil real — ambos métodos ya existen y funcionan, solo
-    // falta el dato para poder usarlos. Reactivar este bloque en cuanto el
-    // backend agregue el campo:
-    //
-    // const fetchProfile = async () => {
-    //   setIsLoading(true);
-    //   try {
-    //     if (isCompany) {
-    //       await chatApi.getCompanyProfile(conversation.participantId);
-    //     } else {
-    //       await chatApi.getFreelancerProfile(conversation.participantId);
-    //     }
-    //   } catch {
-    //     setError("No se pudo cargar la información del perfil");
-    //   } finally {
-    //     setIsLoading(false);
-    //   }
-    // };
-    // fetchProfile();
-  }, [conversation?.id, conversation?.participantRole]);
+  const sharedFiles = useMemo(
+    () =>
+      messages
+        .flatMap((m) => m.attachments ?? [])
+        .sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime()),
+    [messages]
+  );
 
   if (!conversation) return null;
+
+  const isCompany = conversation.participantRole === "COMPANY";
+  const profile = profileQuery.data;
 
   return (
     <>
       <div className="w-[320px] flex-shrink-0 border-l border-[#E5E7EB] bg-white overflow-y-auto animate-in slide-in-from-right duration-250">
-        {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-[#E5E7EB]">
           <h3 className="text-sm font-semibold text-[#0F172A]">Información</h3>
           <button
@@ -181,121 +242,156 @@ export function ParticipantInfoPanel({ conversation, onClose }: Props) {
           </button>
         </div>
 
-        {isLoading ? (
-          <div className="flex items-center justify-center py-16">
-            <Loader2 className="w-6 h-6 animate-spin text-[#2563EB]" />
-          </div>
-        ) : error ? (
-          <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
-            <p className="text-xs text-[#EF4444]">{error}</p>
-          </div>
-        ) : (
-          <div className="p-4 space-y-5">
-            {/* ── Participant Profile ── */}
-            <div className="flex flex-col items-center text-center">
-              <div className={`w-16 h-16 rounded-full flex items-center justify-center text-white text-xl font-bold mb-3 ${
-                isCompany ? "bg-[#2563EB]" : "bg-[#0EA5A0]"
-              }`}>
-                {conversation.participantName.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()}
-              </div>
-              <h4 className="text-sm font-semibold text-[#0F172A]">{conversation.participantName}</h4>
-              <p className="text-xs text-[#64748B] mt-0.5">
-                {isCompany ? "Empresa" : "Freelancer"}
-              </p>
-              <div className="flex items-center gap-1 mt-1.5">
-                <span className="flex items-center gap-1 text-[11px] text-[#64748B]">
-                  <Clock className="w-3 h-3" />
-                  Último mensaje: {formatDate(conversation.lastMessageAt)}
-                </span>
-              </div>
+        <div className="p-4 space-y-5">
+          <div className="flex flex-col items-center text-center">
+            <div className={`w-16 h-16 rounded-full flex items-center justify-center text-white text-xl font-bold mb-3 ${
+              isCompany ? "bg-[#2563EB]" : "bg-[#0EA5A0]"
+            }`}>
+              {getInitials(conversation.participantName)}
             </div>
-
-            {/* ── Stats ──
-                Ya estaban honestamente marcados como "—" (sin datos), no se
-                tocó — solo se mantiene a la espera del participantId. */}
-            <div className="grid grid-cols-3 gap-3">
-              <div className="bg-[#F8FAFC] rounded-lg p-2.5 text-center">
-                <p className="text-lg font-bold text-[#0F172A]">—</p>
-                <p className="text-[10px] text-[#64748B]">Contrataciones</p>
-              </div>
-              <div className="bg-[#F8FAFC] rounded-lg p-2.5 text-center">
-                <p className="text-lg font-bold text-[#0F172A]">—</p>
-                <p className="text-[10px] text-[#64748B]">Proyectos</p>
-              </div>
-              <div className="bg-[#F8FAFC] rounded-lg p-2.5 text-center">
-                <p className="text-lg font-bold text-[#0F172A]">—</p>
-                <p className="text-[10px] text-[#64748B]">Calificación</p>
-              </div>
+            <h4 className="text-sm font-semibold text-[#0F172A]">{conversation.participantName}</h4>
+            <p className="text-xs text-[#64748B] mt-0.5">
+              {isCompany ? "Empresa" : "Freelancer"}
+            </p>
+            <div className="flex items-center gap-1 mt-1.5">
+              <span className="flex items-center gap-1 text-[11px] text-[#64748B]">
+                <Clock className="w-3 h-3" />
+                Último mensaje: {formatDate(conversation.lastMessageAt)}
+              </span>
             </div>
+          </div>
 
-            {/* ── Información del participante ──
-                FIX: antes mostraba datos inventados con apariencia de reales
-                ("Lima, Perú", "RUC: —" mezclado con datos falsos, "3+ años de
-                experiencia", "Tecnología / Desarrollo") iguales para
-                cualquier persona. Eso es peor que no mostrar nada, porque
-                parece información verificada sin serlo. Se reemplaza por un
-                aviso honesto hasta que el backend mande el participantId. */}
+          {isCompany ? (
+            <>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="bg-[#F8FAFC] rounded-lg p-2.5 text-center">
+                  <p className="text-lg font-bold text-[#0F172A]">—</p>
+                  <p className="text-[10px] text-[#64748B]">Contrataciones</p>
+                </div>
+                <div className="bg-[#F8FAFC] rounded-lg p-2.5 text-center">
+                  <p className="text-lg font-bold text-[#0F172A]">—</p>
+                  <p className="text-[10px] text-[#64748B]">Proyectos</p>
+                </div>
+                <div className="bg-[#F8FAFC] rounded-lg p-2.5 text-center">
+                  <p className="text-lg font-bold text-[#0F172A]">—</p>
+                  <p className="text-[10px] text-[#64748B]">Calificación</p>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <h4 className="text-xs font-semibold text-[#0F172A] uppercase tracking-wider">
+                  Información de la empresa
+                </h4>
+                <div className="bg-[#F8FAFC] rounded-lg p-3">
+                  <p className="text-xs text-[#64748B] leading-relaxed">
+                    Esta información aún no está disponible desde el chat. Puedes ver el perfil completo
+                    desde la sección correspondiente una vez que el backend incluya el identificador del
+                    participante en la conversación.
+                  </p>
+                </div>
+              </div>
+            </>
+          ) : profileQuery.isLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="w-5 h-5 animate-spin text-[#2563EB]" />
+            </div>
+          ) : profile ? (
+            <>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="bg-[#F8FAFC] rounded-lg p-2.5 text-center">
+                  <p className="text-sm font-bold text-[#0F172A] leading-6">{ratingText(profile)}</p>
+                  <p className="text-[10px] text-[#64748B]">Calificación</p>
+                </div>
+                <div className="bg-[#F8FAFC] rounded-lg p-2.5 text-center">
+                  <p className="text-lg font-bold text-[#0F172A]">{profile.skills?.length ?? 0}</p>
+                  <p className="text-[10px] text-[#64748B]">Habilidades</p>
+                </div>
+                <div className="bg-[#F8FAFC] rounded-lg p-2.5 text-center">
+                  <p className="text-lg font-bold text-[#0F172A]">{profile.portfolioItems?.length ?? 0}</p>
+                  <p className="text-[10px] text-[#64748B]">Portafolio</p>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <h4 className="text-xs font-semibold text-[#0F172A] uppercase tracking-wider">
+                  Información del freelancer
+                </h4>
+                <FieldBlock label="Rubro" value={profile.industry} />
+                <FieldBlock label="Especialidad" value={profile.specialty} />
+                <FieldBlock label="Biografía" value={profile.biography} />
+                <FieldBlock label="Logros" value={profile.achievements} />
+                <SkillChips profile={profile} />
+              </div>
+            </>
+          ) : (
             <div className="space-y-2">
               <h4 className="text-xs font-semibold text-[#0F172A] uppercase tracking-wider">
-                {isCompany ? "Información de la empresa" : "Información del freelancer"}
+                Información del freelancer
               </h4>
               <div className="bg-[#F8FAFC] rounded-lg p-3">
-                <p className="text-xs text-[#64748B] leading-relaxed">
-                  Esta información aún no está disponible desde el chat. Puedes ver el perfil completo
-                  desde la sección correspondiente una vez que el backend incluya el identificador del
-                  participante en la conversación.
+                <p className="text-xs text-[#EF4444] leading-relaxed">
+                  No se pudo cargar la información del perfil.
                 </p>
               </div>
             </div>
+          )}
 
-            {/* ── Archivos compartidos ──
-                FIX: antes listaba 3 archivos inventados (contrato.pdf,
-                propuesta.pdf, reporte.docx) con links a rutas que no existen
-                (/files/contrato-ejemplo.pdf). Se reemplaza por un estado
-                vacío honesto; los adjuntos reales ya viven en cada Message
-                (Message.attachments) y se muestran dentro de la conversación
-                misma — faltaría un endpoint que agregue todos los adjuntos de
-                una conversación para listarlos aquí de verdad. */}
-            <div className="space-y-2">
-              <h4 className="text-xs font-semibold text-[#0F172A] uppercase tracking-wider">Archivos compartidos</h4>
+          <div className="space-y-2">
+            <h4 className="text-xs font-semibold text-[#0F172A] uppercase tracking-wider">
+              Archivos compartidos{sharedFiles.length > 0 ? ` (${sharedFiles.length})` : ""}
+            </h4>
+            {sharedFiles.length === 0 ? (
               <div className="flex flex-col items-center text-center py-4 bg-[#F8FAFC] rounded-lg">
                 <FileText className="w-6 h-6 text-[#CBD5E1] mb-1.5" />
                 <p className="text-[11px] text-[#94A3B8]">
                   Los archivos que se compartan en la conversación aparecerán aquí
                 </p>
               </div>
-            </div>
-
-            {/* ── Quick Actions ──
-                FIX: se quitaron "Contratar" y "Crear contrato" (mostraban
-                éxito falso sin llamar al backend). Solo quedan las dos
-                acciones que son honestas sobre su propia limitación. */}
-            <div className="space-y-2">
-              <h4 className="text-xs font-semibold text-[#0F172A] uppercase tracking-wider">Acciones</h4>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={() => setShowProfileModal(true)}
-                  className="flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-[#2563EB] bg-[#EFF6FF] rounded-lg hover:bg-[#DBEAFE] transition-colors"
-                >
-                  <Eye className="w-3.5 h-3.5" />
-                  Ver perfil
-                </button>
-                <button
-                  onClick={() => setShowProjectModal(true)}
-                  className="flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-[#0EA5A0] bg-[#F0FDFA] rounded-lg hover:bg-[#CCFBF1] transition-colors"
-                >
-                  <Briefcase className="w-3.5 h-3.5" />
-                  Ver proyecto
-                </button>
+            ) : (
+              <div className="space-y-1.5 max-h-64 overflow-y-auto">
+                {sharedFiles.map((file) => (
+                  <div key={file.id} className="flex items-center gap-2.5 bg-[#F8FAFC] rounded-lg p-2.5">
+                    <FileText className="w-5 h-5 text-[#64748B] flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium text-[#0F172A] truncate">{file.originalName}</p>
+                      <p className="text-[10px] text-[#64748B]">
+                        {formatFileSize(file.fileSize)} • {formatDate(file.uploadedAt)}
+                      </p>
+                    </div>
+                  </div>
+                ))}
               </div>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <h4 className="text-xs font-semibold text-[#0F172A] uppercase tracking-wider">Acciones</h4>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => setShowProfileModal(true)}
+                className="flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-[#2563EB] bg-[#EFF6FF] rounded-lg hover:bg-[#DBEAFE] transition-colors"
+              >
+                <Eye className="w-3.5 h-3.5" />
+                Ver perfil
+              </button>
+              <button
+                onClick={() => setShowProjectModal(true)}
+                className="flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-[#0EA5A0] bg-[#F0FDFA] rounded-lg hover:bg-[#CCFBF1] transition-colors"
+              >
+                <Briefcase className="w-3.5 h-3.5" />
+                Ver proyecto
+              </button>
             </div>
           </div>
-        )}
+        </div>
       </div>
 
-      {/* ── Modals ── */}
       {showProfileModal && (
-        <ViewProfileModal conversation={conversation} onClose={() => setShowProfileModal(false)} />
+        profile && !isCompany ? (
+          <FreelancerProfileModal conversation={conversation} profile={profile} onClose={() => setShowProfileModal(false)} />
+        ) : (
+          <ViewProfileModal conversation={conversation} onClose={() => setShowProfileModal(false)} />
+        )
       )}
       {showProjectModal && (
         <ViewProjectModal conversation={conversation} onClose={() => setShowProjectModal(false)} />

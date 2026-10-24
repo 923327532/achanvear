@@ -15,8 +15,7 @@ interface Props {
   conversation: Conversation | null;
   onConversationDeleted: () => void;
   onToggleInfoPanel?: () => void;
-  // RESPONSIVE: en celular el chat reemplaza a la lista; este botón (solo
-  // visible hasta md) devuelve a la lista de conversaciones.
+
   onBack?: () => void;
 }
 
@@ -33,11 +32,6 @@ function getAvatarColor(name: string) {
   return AVATAR_COLORS[name.charCodeAt(0) % AVATAR_COLORS.length];
 }
 
-// FIX: "Hoy"/"Ayer" se calculaba con horas transcurridas (diff / 24h): un
-// mensaje de ayer a las 11pm visto hoy a la 1am daba "Hoy", y uno con sentAt
-// apenas adelantado respecto al reloj del navegador caía en la fecha larga.
-// Además los mensajes se agrupan por día calendario, así que el rótulo tenía
-// que usar el mismo criterio. Ahora se comparan los días de calendario.
 function formatDate(dateStr: string) {
   const date = new Date(dateStr);
   const now = new Date();

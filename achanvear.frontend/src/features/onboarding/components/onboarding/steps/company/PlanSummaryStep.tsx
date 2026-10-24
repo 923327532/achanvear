@@ -1,10 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { FileText, Building, Rocket, Crown, CheckCircle2, Bot, Shield, MessageCircle, Eye, TrendingUp, Users, ArrowRight, Star, Zap, Video, Brain, GraduationCap, Code, Scale } from "lucide-react";
-import { ApiError } from "@/lib/errors";
+import { Building, Rocket, Crown, CheckCircle2, Star } from "lucide-react";
 import { Alert } from "@/components/ui/Alert";
-import { Button } from "@/components/ui/Button";
 import { onboardingService } from "@/features/onboarding/api/onboardingApi";
 import { CulqiCardForm } from "@/features/payments/components/CulqiCardForm";
 import type { CompanyOnboardingData, Plan } from "@/features/onboarding/types/onboarding.types";
@@ -14,6 +12,43 @@ interface PlanSummaryStepProps {
   onUpdate: (updates: Partial<CompanyOnboardingData>) => void;
   onNext: (fromStep?: number) => void;
   onBack: () => void;
+}
+
+const FEATURE_TONES = {
+  free: {
+    card: "p-4 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl text-left",
+    icon: "p-2 bg-white rounded-lg text-[#1B3A6B] flex-shrink-0",
+  },
+  basic: {
+    card: "p-5 bg-white border border-[#E2E8F0] hover:border-[#3B82F6]/30 rounded-xl transition-colors",
+    icon: "p-3 bg-[#EBF0F7] rounded-xl text-[#3B82F6] flex-shrink-0",
+  },
+  premium: {
+    card: "p-5 bg-white border-2 border-[#0EA5A0]/20 hover:border-[#0EA5A0] rounded-xl transition-colors",
+    icon: "p-3 bg-gradient-to-br from-[#0EA5A0]/10 to-[#0EA5A0]/5 rounded-xl text-[#0EA5A0] flex-shrink-0",
+  },
+  enterprise: {
+    card: "p-5 bg-gradient-to-br from-white to-[#FFFBEB] border-2 border-[#F59E0B]/20 hover:border-[#F59E0B] rounded-xl transition-all",
+    icon: "p-3 bg-gradient-to-br from-[#F59E0B] to-[#D97706] rounded-xl text-white flex-shrink-0 shadow-md",
+  },
+};
+
+function FeatureGrid({ items, tone }: { items: string[]; tone: keyof typeof FEATURE_TONES }) {
+  const styles = FEATURE_TONES[tone];
+  return (
+    <div className="grid md:grid-cols-2 gap-4">
+      {items.map((item, i) => (
+        <div key={i} className={styles.card}>
+          <div className="flex items-center gap-3">
+            <div className={styles.icon}>
+              <CheckCircle2 className="w-5 h-5" />
+            </div>
+            <p className="font-semibold text-[#0F172A]">{item}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 export function PlanSummaryStep({ data, onUpdate, onNext, onBack }: PlanSummaryStepProps) {
@@ -95,17 +130,7 @@ export function PlanSummaryStep({ data, onUpdate, onNext, onBack }: PlanSummaryS
     );
   }
 
-  const price = data.billingCycle === "yearly" && selectedPlan.price > 0
-    ? Math.round(selectedPlan.price * 12 * 0.8)
-    : selectedPlan.price;
-
-  const pricePerMonth = data.billingCycle === "yearly" && selectedPlan.price > 0
-    ? Math.round(selectedPlan.price * 12 * 0.8 / 12)
-    : selectedPlan.price;
-
-  const savings = selectedPlan.price > 0
-    ? (selectedPlan.price * 12) - Math.round(selectedPlan.price * 12 * 0.8)
-    : 0;
+  const price = selectedPlan.price;
 
   // Checkout de Culqi para planes pagados (misma pasarela que el resto de pagos)
   if (showCheckout && selectedPlan.price > 0) {
@@ -116,7 +141,7 @@ export function PlanSummaryStep({ data, onUpdate, onNext, onBack }: PlanSummaryS
             Pago de tu plan {selectedPlan.name}
           </h2>
           <p className="text-sm text-[#64748B] mb-6">
-            Se cobrará S/. {price} {data.billingCycle === "yearly" ? "al año" : "al mes"}. El pago se
+            Se cobrará S/. {price} al mes. El pago se
             procesa de forma segura con Culqi.
           </p>
 
@@ -152,34 +177,19 @@ export function PlanSummaryStep({ data, onUpdate, onNext, onBack }: PlanSummaryS
               </div>
             </div>
             <div className="inline-block bg-[#64748B]/10 text-[#64748B] text-xs font-bold px-3 py-1 rounded-full border border-[#64748B]/20 mb-4">
-              Plan Gratuito
+              Plan {selectedPlan.name}
             </div>
             <h1 className="text-4xl font-bold text-[#0F172A] mb-4">
               ¡Bienvenido a Achanvear!
             </h1>
             <p className="text-lg text-[#64748B] mb-8 max-w-2xl mx-auto">
-              Tu cuenta está lista. Estás en el <strong>Plan Free</strong> y puedes empezar a publicar vacantes ahora mismo.
+              Tu cuenta está lista. Estás en el <strong>Plan {selectedPlan.name}</strong> y puedes empezar a publicar vacantes ahora mismo.
             </p>
-            <div className="grid md:grid-cols-2 gap-4 mb-8">
-              {[
-                { icon: <FileText className="w-5 h-5" />, text: `${selectedPlan.maxActiveJobs === -1 ? "Publicaciones ilimitadas" : `${selectedPlan.maxActiveJobs} publicación activa`}`, desc: "Publica una vacante a la vez" },
-                { icon: <Users className="w-5 h-5" />, text: "Match básico con candidatos", desc: "Encuentra candidatos compatibles" },
-                { icon: <Eye className="w-5 h-5" />, text: "Ver perfiles públicos", desc: "Acceso a perfiles de profesionales" },
-                { icon: <MessageCircle className="w-5 h-5" />, text: `Mensajería limitada (${selectedPlan.maxInterviews > 0 ? `${selectedPlan.maxInterviews}/mes` : "5/mes"})`, desc: "Contacta a candidatos" },
-              ].map((feature, i) => (
-                <div key={i} className="p-4 bg-[#F8FAFC] border border-[#E2E8F0] rounded-xl text-left">
-                  <div className="flex items-start gap-3">
-                    <div className="p-2 bg-white rounded-lg text-[#1B3A6B]">
-                      {feature.icon}
-                    </div>
-                    <div>
-                      <p className="font-semibold text-[#0F172A] mb-1">{feature.text}</p>
-                      <p className="text-sm text-[#64748B]">{feature.desc}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+            {selectedPlan.features.length > 0 && (
+              <div className="mb-8">
+                <FeatureGrid items={selectedPlan.features} tone="free" />
+              </div>
+            )}
             <div className="bg-gradient-to-r from-[#EBF0F7] to-[#DBEAFE] border-2 border-[#3B82F6]/20 rounded-xl p-6 mb-8 text-left">
               <div className="flex items-center gap-3">
                 <Star className="w-6 h-6 text-[#3B82F6] flex-shrink-0" />
@@ -213,43 +223,21 @@ export function PlanSummaryStep({ data, onUpdate, onNext, onBack }: PlanSummaryS
                 </div>
               </div>
               <div className="inline-block bg-[#3B82F6]/10 text-[#3B82F6] text-xs font-bold px-3 py-1 rounded-full border border-[#3B82F6]/20 mb-4">
-                Plan Beginner
+                Plan {selectedPlan.name}
               </div>
               <h1 className="text-4xl font-bold text-[#0F172A] mb-3">Perfecto para MYPES y Startups</h1>
               <p className="text-lg text-[#64748B] mb-6">Comienza a automatizar tu proceso de reclutamiento con IA</p>
               <div className="inline-block p-6 bg-gradient-to-br from-[#EBF0F7] to-[#DBEAFE] rounded-2xl border-2 border-[#3B82F6]/20">
                 <div className="flex items-baseline gap-2 justify-center mb-2">
                   <span className="text-sm font-semibold text-[#64748B]">S/.</span>
-                  <span className="text-5xl font-extrabold text-[#1B3A6B]">{pricePerMonth}</span>
+                  <span className="text-5xl font-extrabold text-[#1B3A6B]">{price}</span>
                   <span className="text-lg text-[#64748B]">/mes</span>
                 </div>
-                {data.billingCycle === "yearly" && (
-                  <p className="text-sm text-[#10B981] font-semibold">Facturado S/. {price} al año • Ahorras 20%</p>
-                )}
               </div>
             </div>
             <div className="mb-8">
               <h2 className="text-2xl font-bold text-[#0F172A] mb-6 text-center">Todo lo que incluye tu plan</h2>
-              <div className="grid md:grid-cols-2 gap-4">
-                {[
-                  { icon: <FileText className="w-5 h-5" />, title: `${selectedPlan.maxActiveJobs === -1 ? "Publicaciones ilimitadas" : `${selectedPlan.maxActiveJobs} Publicaciones Activas`}`, desc: "Publica vacantes simultáneas" },
-                  { icon: <Bot className="w-5 h-5" />, title: "Agente Carlos (Screening)", desc: "Entrevistas automáticas de screening inicial" },
-                  { icon: <Zap className="w-5 h-5" />, title: `${selectedPlan.maxInterviews === -1 ? "Entrevistas Ilimitadas" : `${selectedPlan.maxInterviews} Entrevistas IA/mes`}`, desc: "Evaluaciones por voz con IA" },
-                  { icon: <Shield className="w-5 h-5" />, title: "Proctoring Básico", desc: "Verificación básica de identidad" },
-                  { icon: <MessageCircle className="w-5 h-5" />, title: "Mensajería Ilimitada", desc: "Contacta candidatos sin límites" },
-                  { icon: <FileText className="w-5 h-5" />, title: "Soporte por Email", desc: "Asistencia vía correo electrónico" },
-                ].map((feature, i) => (
-                  <div key={i} className="p-5 bg-white border border-[#E2E8F0] hover:border-[#3B82F6]/30 rounded-xl transition-colors">
-                    <div className="flex items-start gap-4">
-                      <div className="p-3 bg-[#EBF0F7] rounded-xl text-[#3B82F6] flex-shrink-0">{feature.icon}</div>
-                      <div>
-                        <p className="font-bold text-[#0F172A] mb-1">{feature.title}</p>
-                        <p className="text-sm text-[#64748B]">{feature.desc}</p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <FeatureGrid items={selectedPlan.features} tone="basic" />
             </div>
             <div className="bg-gradient-to-r from-[#FFFBEB] to-[#FEF3C7] border-2 border-[#F59E0B]/20 rounded-xl p-6 mb-8">
               <div className="flex items-start gap-3">
@@ -293,74 +281,21 @@ export function PlanSummaryStep({ data, onUpdate, onNext, onBack }: PlanSummaryS
                 </div>
               </div>
               <div className="inline-block bg-[#0EA5A0]/20 text-[#0EA5A0] text-xs font-bold px-3 py-1 rounded-full border border-[#0EA5A0]/30 mb-4">
-                Plan Profesional - Más Popular
+                Plan {selectedPlan.name}{selectedPlan.isPopular ? " - Más Popular" : ""}
               </div>
               <h1 className="text-4xl font-bold text-[#0F172A] mb-3">La Solución Completa de Reclutamiento IA</h1>
               <p className="text-lg text-[#64748B] mb-6">Todo lo que necesitas para optimizar tu proceso de selección</p>
               <div className="inline-block p-6 bg-gradient-to-br from-[#D1FAE5] to-[#A7F3D0] rounded-2xl border-2 border-[#0EA5A0]/30">
                 <div className="flex items-baseline gap-2 justify-center mb-2">
                   <span className="text-sm font-semibold text-[#64748B]">S/.</span>
-                  <span className="text-5xl font-extrabold text-[#0EA5A0]">{pricePerMonth}</span>
+                  <span className="text-5xl font-extrabold text-[#0EA5A0]">{price}</span>
                   <span className="text-lg text-[#64748B]">/mes</span>
                 </div>
-                {data.billingCycle === "yearly" && (
-                  <p className="text-sm text-[#059669] font-semibold">Facturado S/. {price} al año • Ahorras 20%</p>
-                )}
               </div>
             </div>
             <div className="mb-8">
-              <h2 className="text-2xl font-bold text-[#0F172A] mb-4 text-center">Acceso a los 4 Agentes IA</h2>
-              <div className="grid md:grid-cols-4 gap-4 mb-6">
-                {[
-                  { name: "Carlos", role: "Screening", icon: <Brain className="w-8 h-8 text-[#1B3A6B]" />, color: "bg-[#DBEAFE]" },
-                  { name: "Ana", role: "Teórica", icon: <GraduationCap className="w-8 h-8 text-[#7C3AED]" />, color: "bg-[#F3E8FF]" },
-                  { name: "Diego", role: "Técnica", icon: <Code className="w-8 h-8 text-[#D97706]" />, color: "bg-[#FEF3C7]" },
-                  { name: "Sofía", role: "Legal", icon: <Scale className="w-8 h-8 text-[#059669]" />, color: "bg-[#D1FAE5]" },
-                ].map((agent, i) => (
-                  <div key={i} className={`${agent.color} p-4 rounded-xl text-center border-0`}>
-                    <div className="flex justify-center mb-2">{agent.icon}</div>
-                    <p className="font-bold text-[#0F172A] mb-1">{agent.name}</p>
-                    <p className="text-sm text-[#64748B]">{agent.role}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="mb-8">
-              <h2 className="text-2xl font-bold text-[#0F172A] mb-6 text-center">Funcionalidades Premium Incluidas</h2>
-              <div className="grid md:grid-cols-2 gap-4">
-                {[
-                  { icon: <FileText className="w-5 h-5" />, title: `${selectedPlan.maxActiveJobs === -1 ? "Publicaciones Ilimitadas" : `${selectedPlan.maxActiveJobs} Publicaciones Activas`}`, desc: "Gestiona múltiples vacantes simultáneamente" },
-                  { icon: <Bot className="w-5 h-5" />, title: "4 Agentes IA Completos", desc: "Carlos, Ana, Diego y Sofía a tu disposición" },
-                  { icon: <Zap className="w-5 h-5" />, title: "Entrevistas Ilimitadas", desc: "Sin límites en evaluaciones con IA" },
-                  { icon: <Shield className="w-5 h-5" />, title: "Proctoring Anti-fraude Avanzado", desc: "Máxima seguridad en entrevistas" },
-                  { icon: <Video className="w-5 h-5" />, title: "Videos S3 Ilimitados", desc: "Descarga y almacenamiento sin límites" },
-                  { icon: <TrendingUp className="w-5 h-5" />, title: "Reportes Ejecutivos IA", desc: "Analytics avanzados con inteligencia artificial" },
-                ].map((feature, i) => (
-                  <div key={i} className="p-5 bg-white border-2 border-[#0EA5A0]/20 hover:border-[#0EA5A0] rounded-xl transition-colors">
-                    <div className="flex items-start gap-4">
-                      <div className="p-3 bg-gradient-to-br from-[#0EA5A0]/10 to-[#0EA5A0]/5 rounded-xl text-[#0EA5A0] flex-shrink-0">{feature.icon}</div>
-                      <div className="flex-1">
-                        <p className="font-bold text-[#0F172A] mb-1">{feature.title}</p>
-                        <p className="text-sm text-[#64748B]">{feature.desc}</p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="bg-gradient-to-r from-[#DBEAFE] to-[#EBF0F7] border-2 border-[#3B82F6]/20 rounded-xl p-6 mb-8">
-              <div className="flex items-start gap-3">
-                <CheckCircle2 className="w-6 h-6 text-[#0EA5A0] flex-shrink-0 mt-1" />
-                <div>
-                  <p className="font-bold text-[#0F172A] mb-3">¿Por qué elegir el Plan Profesional?</p>
-                  <ul className="text-sm text-[#64748B] space-y-2">
-                    <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-[#10B981]" /> Acceso completo a todas las herramientas de IA sin restricciones</li>
-                    <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-[#10B981]" /> Ahorra tiempo con evaluaciones automáticas ilimitadas</li>
-                    <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-[#10B981]" /> Toma decisiones basadas en datos con reportes ejecutivos</li>
-                    <li className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-[#10B981]" /> Gestiona múltiples procesos de selección simultáneamente</li>
-                  </ul>
-                </div>
-              </div>
+              <h2 className="text-2xl font-bold text-[#0F172A] mb-6 text-center">Todo lo que incluye tu plan</h2>
+              <FeatureGrid items={selectedPlan.features} tone="premium" />
             </div>
             {paymentError && <Alert message={paymentError} />}
             <div className="flex gap-4">
@@ -391,64 +326,21 @@ export function PlanSummaryStep({ data, onUpdate, onNext, onBack }: PlanSummaryS
                 </div>
               </div>
               <div className="inline-block bg-gradient-to-r from-[#F59E0B]/10 to-[#D97706]/10 text-[#F59E0B] text-xs font-bold px-3 py-1 rounded-full border border-[#F59E0B]/20 mb-4">
-                Plan Enterprise - Corporativo
+                Plan {selectedPlan.name}
               </div>
               <h1 className="text-4xl font-bold text-[#0F172A] mb-3">Solución Enterprise Premium</h1>
               <p className="text-lg text-[#64748B] mb-6">Para corporaciones que requieren máxima personalización y soporte dedicado</p>
               <div className="inline-block p-6 bg-gradient-to-br from-[#FFFBEB] to-[#FDE68A] rounded-2xl border-2 border-[#F59E0B]/30">
                 <div className="flex items-baseline gap-2 justify-center mb-2">
                   <span className="text-sm font-semibold text-[#64748B]">S/.</span>
-                  <span className="text-5xl font-extrabold text-[#F59E0B]">{pricePerMonth}</span>
+                  <span className="text-5xl font-extrabold text-[#F59E0B]">{price}</span>
                   <span className="text-lg text-[#64748B]">/mes</span>
-                </div>
-                {data.billingCycle === "yearly" && (
-                  <p className="text-sm text-[#92400E] font-semibold">Facturado S/. {price} al año • Ahorras 20%</p>
-                )}
-                <div className="mt-2 bg-white/80 text-[#F59E0B] text-xs font-bold px-2 py-0.5 rounded-full inline-block">
-                  Incluye todo del Plan Profesional
                 </div>
               </div>
             </div>
             <div className="mb-8">
-              <h2 className="text-2xl font-bold text-[#0F172A] mb-6 text-center">Funcionalidades Enterprise Exclusivas</h2>
-              <div className="grid md:grid-cols-2 gap-4">
-                {[
-                  { icon: <Star className="w-5 h-5" />, title: "Publicaciones Ilimitadas", desc: "Sin límites en vacantes activas" },
-                  { icon: <Users className="w-5 h-5" />, title: "White-label Personalizado", desc: "Plataforma con tu marca corporativa" },
-                  { icon: <TrendingUp className="w-5 h-5" />, title: "API Completa de Reportes", desc: "Integración total con tus sistemas" },
-                  { icon: <Shield className="w-5 h-5" />, title: "Soporte 24/7 Prioritario", desc: "Asistencia inmediata en todo momento" },
-                ].map((feature, i) => (
-                  <div key={i} className="p-5 bg-gradient-to-br from-white to-[#FFFBEB] border-2 border-[#F59E0B]/20 hover:border-[#F59E0B] rounded-xl transition-all">
-                    <div className="flex items-start gap-4">
-                      <div className="p-3 bg-gradient-to-br from-[#F59E0B] to-[#D97706] rounded-xl text-white flex-shrink-0 shadow-md">{feature.icon}</div>
-                      <div className="flex-1">
-                        <p className="font-bold text-[#0F172A] mb-1 text-lg">{feature.title}</p>
-                        <p className="text-sm text-[#64748B]">{feature.desc}</p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="bg-gradient-to-r from-[#1B3A6B] to-[#0EA5A0] rounded-xl p-8 mb-8 text-white">
-              <div className="flex items-center gap-6">
-                <div className="p-4 bg-white/20 rounded-2xl backdrop-blur-sm">
-                  <Shield className="w-12 h-12" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-2xl font-bold mb-2">Soporte Premium 24/7</h3>
-                  <p className="text-white/90 mb-4">Tu Account Manager dedicado y equipo de soporte disponible en todo momento.</p>
-                  <div className="flex items-center gap-6 text-sm">
-                    <div className="flex items-center gap-2">
-                      <span>Respuesta en menos de 1 hora</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Shield className="w-4 h-4" />
-                      <span>SLA Garantizado 99.9%</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <h2 className="text-2xl font-bold text-[#0F172A] mb-6 text-center">Todo lo que incluye tu plan</h2>
+              <FeatureGrid items={selectedPlan.features} tone="enterprise" />
             </div>
             {paymentError && <Alert message={paymentError} />}
             <div className="flex gap-4">

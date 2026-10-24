@@ -10,11 +10,11 @@ interface Props {
 }
 
 const ITEMS: { id: CompanySettingsSection; label: string; description: string; icon: React.ElementType }[] = [
-  { id: "billing", label: "Facturacion", description: "Planes, creditos y pagos", icon: CreditCard },
+  { id: "billing", label: "Facturación", description: "Planes, créditos y pagos", icon: CreditCard },
   { id: "team", label: "Equipo", description: "Colaboradores y accesos", icon: Users },
-  { id: "agent", label: "Agente IA", description: "Automatizacion y umbrales", icon: Bot },
+  { id: "agent", label: "Agente IA", description: "Automatización y umbrales", icon: Bot },
   { id: "privacy", label: "Privacidad", description: "Visibilidad de empresa", icon: Eye },
-  { id: "security", label: "Seguridad", description: "Cuenta y autenticacion", icon: Shield },
+  { id: "security", label: "Seguridad", description: "Cuenta y autenticación", icon: Shield },
   { id: "general", label: "General", description: "Idioma y zona horaria", icon: Settings },
 ];
 

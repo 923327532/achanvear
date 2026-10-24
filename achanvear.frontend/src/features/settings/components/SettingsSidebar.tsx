@@ -10,7 +10,7 @@ interface Props {
 }
 
 const ITEMS: { id: SettingsSection; label: string; icon: React.ElementType }[] = [
-  { id: "general", label: "Configuracion General", icon: Settings },
+  { id: "general", label: "Configuración General", icon: Settings },
   { id: "work", label: "Preferencias de Trabajo", icon: Briefcase },
   { id: "finances", label: "Finanzas y Pagos", icon: DollarSign },
   { id: "security", label: "Seguridad y Proctoring", icon: Shield },

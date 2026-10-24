@@ -1028,7 +1028,7 @@ export default function CreateJobPostPage() {
                       <hr className="border-slate-100" />
                       <div className="space-y-1.5">
                         <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
-                          Configuracion de IA:
+                          Configuración de IA:
                         </p>
                         <div className="text-xs text-slate-600 space-y-1">
                           <p>

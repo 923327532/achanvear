@@ -21,12 +21,18 @@ import {
   useDeactivateCollaborator,
 } from "../hooks/useCompanySettings";
 import { ConfirmModal } from "@/shared/components/ui/ConfirmModal";
+import { ApiError } from "@/lib/errors";
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function getErrorMessage(err: unknown, fallback: string) {
+  return err instanceof ApiError && err.message ? err.message : fallback;
+}
 
 export function CompanyTeamSection() {
   const {
     collaborators,
     isLoading: isLoadingCollaborators,
-    refetch: refetchCollaborators,
   } = useCollaborators();
   const { inviteAsync, isLoading: isInviting } = useInviteCollaborator();
   const { removeAsync } = useRemoveCollaborator();
@@ -35,24 +41,38 @@ export function CompanyTeamSection() {
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteName, setInviteName] = useState("");
+  const [credentialsEmail, setCredentialsEmail] = useState("");
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
   const [tempPassword, setTempPassword] = useState("");
   const [showCredentials, setShowCredentials] = useState(false);
   const [pendingAction, setPendingAction] = useState<{ kind: "remove" | "deactivate"; id: string; name: string } | null>(null);
   const [actionError, setActionError] = useState("");
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  const closeInviteModal = () => {
+    setShowInviteModal(false);
+    setError("");
+    setInviteEmail("");
+    setInviteName("");
+  };
 
   const handleInviteMember = async () => {
     setError("");
-    if (!inviteEmail || !inviteName) {
+    const email = inviteEmail.trim();
+    const name = inviteName.trim();
+    if (!email || !name) {
       setError("Completa todos los campos");
       return;
     }
+    if (!EMAIL_REGEX.test(email)) {
+      setError("Escribe un correo válido");
+      return;
+    }
     try {
-      const result = await inviteAsync({ email: inviteEmail, fullName: inviteName });
-      setShowInviteModal(false);
-      setInviteEmail("");
-      setInviteName("");
+      const result = await inviteAsync({ email, fullName: name });
+      setCredentialsEmail(email);
+      closeInviteModal();
       if (result.tempPassword) {
         setTempPassword(result.tempPassword);
         setShowCredentials(true);
@@ -61,8 +81,7 @@ export function CompanyTeamSection() {
         setTimeout(() => setSaved(false), 2000);
       }
     } catch (err: unknown) {
-      const axiosError = err as { response?: { data?: { message?: string } } };
-      setError(axiosError?.response?.data?.message || "Error al invitar colaborador");
+      setError(getErrorMessage(err, "Error al invitar colaborador"));
     }
   };
 
@@ -71,6 +90,7 @@ export function CompanyTeamSection() {
     const current = pendingAction;
     setPendingAction(null);
     setActionError("");
+    setBusyId(current.id);
     try {
       if (current.kind === "remove") {
         await removeAsync(current.id);
@@ -78,11 +98,14 @@ export function CompanyTeamSection() {
         await deactivateAsync(current.id);
       }
     } catch (err: unknown) {
-      const axiosError = err as { response?: { data?: { message?: string } } };
       setActionError(
-        axiosError?.response?.data?.message ||
-          (current.kind === "remove" ? "No se pudo eliminar al colaborador" : "No se pudo desactivar al colaborador")
+        getErrorMessage(
+          err,
+          current.kind === "remove" ? "No se pudo eliminar al colaborador" : "No se pudo desactivar al colaborador"
+        )
       );
+    } finally {
+      setBusyId(null);
     }
   };
 
@@ -109,6 +132,19 @@ export function CompanyTeamSection() {
     return (
       <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${r.className}`}>
         {r.label}
+      </span>
+    );
+  };
+
+  const getStatusBadge = (status: string) => {
+    const isActive = status === "ACTIVE";
+    const label = isActive ? "Activo" : status === "INACTIVE" ? "Desactivado" : status;
+    return (
+      <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${
+        isActive ? "bg-emerald-50 text-emerald-700" : "bg-gray-100 text-gray-500"
+      }`}>
+        {isActive ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
+        {label}
       </span>
     );
   };
@@ -170,52 +206,45 @@ export function CompanyTeamSection() {
                 </td>
               </tr>
             ) : (
-              collaborators.map((member) => (
-                <tr key={member.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
-                  <td className="py-3 px-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-[#1B3A6B]/10 flex items-center justify-center">
-                        <User className="w-4 h-4 text-[#1B3A6B]" />
+              collaborators.map((member) => {
+                const isBusy = busyId === member.id;
+                return (
+                  <tr key={member.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
+                    <td className="py-3 px-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-[#1B3A6B]/10 flex items-center justify-center">
+                          <User className="w-4 h-4 text-[#1B3A6B]" />
+                        </div>
+                        <span className="text-sm font-medium text-gray-700">{member.fullName}</span>
                       </div>
-                      <span className="text-sm font-medium text-gray-700">{member.fullName}</span>
-                    </div>
-                  </td>
-                  <td className="py-3 px-4 text-sm text-gray-500">{member.email}</td>
-                  <td className="py-3 px-4">{getRoleBadge(member.role)}</td>
-                  <td className="py-3 px-4 text-center">
-                    <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${
-                      member.status === "ACTIVE"
-                        ? "bg-emerald-50 text-emerald-700"
-                        : "bg-gray-100 text-gray-500"
-                    }`}>
-                      {member.status === "ACTIVE" ? (
-                        <CheckCircle2 className="w-3 h-3" />
-                      ) : (
-                        <XCircle className="w-3 h-3" />
-                      )}
-                      {member.status === "ACTIVE" ? "Activo" : "Pendiente"}
-                    </span>
-                  </td>
-                  <td className="py-3 px-4 text-center">
-                    <div className="flex items-center justify-center gap-2">
-                      {member.status === "ACTIVE" && (
+                    </td>
+                    <td className="py-3 px-4 text-sm text-gray-500">{member.email}</td>
+                    <td className="py-3 px-4">{getRoleBadge(member.role)}</td>
+                    <td className="py-3 px-4 text-center">{getStatusBadge(member.status)}</td>
+                    <td className="py-3 px-4 text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        {isBusy && <Loader2 className="w-3.5 h-3.5 text-gray-400 animate-spin" />}
+                        {member.status === "ACTIVE" && (
+                          <button
+                            onClick={() => setPendingAction({ kind: "deactivate", id: member.id, name: member.fullName })}
+                            disabled={isBusy}
+                            className="text-xs font-medium text-amber-500 hover:text-amber-600 transition-colors disabled:opacity-50"
+                          >
+                            Desactivar
+                          </button>
+                        )}
                         <button
-                          onClick={() => setPendingAction({ kind: "deactivate", id: member.id, name: member.fullName })}
-                          className="text-xs font-medium text-amber-500 hover:text-amber-600 transition-colors"
+                          onClick={() => setPendingAction({ kind: "remove", id: member.id, name: member.fullName })}
+                          disabled={isBusy}
+                          className="text-xs font-medium text-red-500 hover:text-red-600 transition-colors disabled:opacity-50"
                         >
-                          Desactivar
+                          Eliminar
                         </button>
-                      )}
-                      <button
-                        onClick={() => setPendingAction({ kind: "remove", id: member.id, name: member.fullName })}
-                        className="text-xs font-medium text-red-500 hover:text-red-600 transition-colors"
-                      >
-                        Eliminar
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
@@ -226,7 +255,7 @@ export function CompanyTeamSection() {
           <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md mx-4">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-bold text-[#1B3A6B]">Invitar Colaborador</h3>
-              <button onClick={() => setShowInviteModal(false)} className="text-gray-400 hover:text-gray-600">
+              <button onClick={closeInviteModal} className="text-gray-400 hover:text-gray-600">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -286,18 +315,18 @@ export function CompanyTeamSection() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md mx-4">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-[#1B3A6B]">Colaborador invitado</h3>
+              <h3 className="text-lg font-bold text-[#1B3A6B]">Colaborador agregado</h3>
               <button onClick={() => setShowCredentials(false)} className="text-gray-400 hover:text-gray-600">
                 <X className="w-5 h-5" />
               </button>
             </div>
             <p className="text-sm text-gray-600 mb-4">
-              Se ha enviado un correo con las credenciales. También puedes compartirlas manualmente:
+              Copia estas credenciales y compártelas con el colaborador. Es posible que no reciba un correo con ellas.
             </p>
             <div className="space-y-3 p-4 rounded-xl bg-gray-50 border border-gray-200">
               <div>
                 <p className="text-xs font-semibold text-gray-500 uppercase">Email</p>
-                <p className="text-sm font-medium text-gray-800">{inviteEmail}</p>
+                <p className="text-sm font-medium text-gray-800">{credentialsEmail}</p>
               </div>
               <div>
                 <p className="text-xs font-semibold text-gray-500 uppercase">Contraseña temporal</p>
@@ -308,7 +337,7 @@ export function CompanyTeamSection() {
             </div>
             <button
               onClick={() => {
-                navigator.clipboard.writeText(`Email: ${inviteEmail}\nContraseña: ${tempPassword}`);
+                navigator.clipboard.writeText(`Email: ${credentialsEmail}\nContraseña: ${tempPassword}`);
                 setShowCredentials(false);
               }}
               className="w-full mt-4 py-2.5 rounded-xl bg-[#1B3A6B] text-white text-sm font-semibold hover:bg-[#0EA5A0] transition-colors"
@@ -338,7 +367,7 @@ export function CompanyTeamSection() {
       {saved && (
         <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 px-5 py-3 rounded-2xl bg-emerald-50 border border-emerald-200 shadow-lg">
           <CheckCircle2 className="w-5 h-5 text-emerald-600" />
-          <span className="text-sm font-semibold text-emerald-800">Invitación enviada correctamente</span>
+          <span className="text-sm font-semibold text-emerald-800">Colaborador agregado correctamente</span>
         </div>
       )}
     </div>

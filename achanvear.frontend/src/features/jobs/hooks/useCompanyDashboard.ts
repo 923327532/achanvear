@@ -39,37 +39,19 @@ export function useCompanyDashboard(searchQuery?: string) {
   const isError = jobsQuery.isError || statsQuery.isError || companyQuery.isError;
   const error = jobsQuery.error || statsQuery.error || companyQuery.error;
 
-  // Si no hay compañía (error 404/400), consideramos que es un usuario nuevo
   const hasCompany = companyQuery.isSuccess && !!companyQuery.data;
 
   const data: CompanyDashboardData | undefined = (() => {
-    // Si no hay compañía, devolvemos datos por defecto
-    if (!hasCompany) {
-      return {
-        companyId: "",
-        companyName: "Mi Empresa",
-        companyTradeName: "",
-        companyLogoUrl: null,
-        activeJobs: 0,
-        totalApplications: 0,
-        interviewsInProgress: 0,
-        finalists: 0,
-        recentJobs: [],
-      };
-    }
-
     const jobs = jobsQuery.data?.items ?? [];
     const activeRecentJobs = jobs.filter((job) => job.status === "PUBLISHED");
-    const company = companyQuery.data!;
-
-    // El backend usa PUBLISHED en lugar de ACTIVE
+    const company = hasCompany ? companyQuery.data! : null;
     const stats = statsQuery.data;
 
     return {
-      companyId: company.id,
-      companyName: company.businessName || "Mi Empresa",
-      companyTradeName: company.tradeName || "",
-      companyLogoUrl: company.logoUrl ?? null,
+      companyId: company?.id ?? "",
+      companyName: company?.businessName || "Mi Empresa",
+      companyTradeName: company?.tradeName || "",
+      companyLogoUrl: company?.logoUrl ?? null,
       activeJobs: stats?.activeJobs ?? null,
       totalApplications: stats?.totalApplications ?? null,
       interviewsInProgress: stats?.interviewsInProgress ?? null,
@@ -93,4 +75,4 @@ export function useCompanyDashboard(searchQuery?: string) {
     statsError: statsQuery.isError,
     refetch,
   };
-}
+} 

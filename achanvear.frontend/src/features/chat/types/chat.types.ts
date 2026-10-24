@@ -29,6 +29,7 @@ export const PROJECT_STATUS_COLORS: Record<ProjectStatus, string> = {
 
 export interface Conversation {
   id: string;
+  participantId: string;
   participantName: string;
   participantRole: string;
   lastMessage: string;
@@ -66,8 +67,6 @@ export interface DownloadAttachmentResponse {
   mimeType: string;
   fileSize: number;
 }
-
-// ─── Profile types for ParticipantInfoPanel ──────────────────────────────────
 
 export interface FreelancerProfileResponse {
   id: string | null;

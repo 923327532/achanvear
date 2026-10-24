@@ -1,6 +1,4 @@
 // src/lib/friendlyErrors.ts
-// Centraliza la traducción de errores a mensajes claros y entendibles para el
-// usuario final. Ningún mensaje técnico debería llegar a la interfaz.
 
 import { ApiError } from "@/lib/errors";
 
@@ -22,7 +20,10 @@ const STATUS_MESSAGES: Record<number, string> = {
 
 const DEFAULT_FALLBACK = "Ocurrió un error inesperado. Intenta de nuevo.";
 
-// Patrones de mensajes técnicos o en inglés que nunca deben mostrarse al usuario.
+const MESSAGE_TRANSLATIONS: Record<string, string> = {
+  "this email is already registered as a collaborator": "Este correo ya está registrado como colaborador.",
+};
+
 const TECHNICAL_PATTERNS: RegExp[] = [
   /^Unexpected internal server error/i,
   /^Request failed with status code/i,
@@ -52,21 +53,23 @@ export function isTechnicalMessage(message: string | null | undefined): boolean 
   return TECHNICAL_PATTERNS.some((pattern) => pattern.test(message));
 }
 
-/** Devuelve el mensaje amigable según el código HTTP de estado. */
+export function translateMessage(message: string): string {
+  const key = message.trim().replace(/\.$/, "").toLowerCase();
+  return MESSAGE_TRANSLATIONS[key] ?? message;
+}
+
 export function getStatusMessage(status: number | undefined): string {
   if (!status) return "No pudimos completar la acción. Intenta de nuevo.";
   return STATUS_MESSAGES[status] ?? "No pudimos completar la acción. Intenta de nuevo.";
 }
 
-/** Devuelve el mensaje más claro posible para el error recibido. */
 export function getFriendlyErrorMessage(err: unknown): string {
   if (err instanceof ApiError) {
-    // Errores de servidor (5xx): siempre mensaje genérico, nunca detalles internos.
     if (err.status && err.status >= 500) {
       return STATUS_MESSAGES[err.status] ?? STATUS_MESSAGES[500] ?? DEFAULT_FALLBACK;
     }
     if (err.message && !isTechnicalMessage(err.message)) {
-      return err.message;
+      return translateMessage(err.message);
     }
     if (err.status) {
       return STATUS_MESSAGES[err.status] ?? DEFAULT_FALLBACK;
@@ -75,7 +78,7 @@ export function getFriendlyErrorMessage(err: unknown): string {
   }
 
   if (err instanceof Error && err.message && !isTechnicalMessage(err.message)) {
-    return err.message;
+    return translateMessage(err.message);
   }
 
   return DEFAULT_FALLBACK;

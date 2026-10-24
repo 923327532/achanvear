@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { BrandLogo } from "@/shared/components/ui/BrandLogo";
+import { onboardingService } from "@/features/onboarding/api/onboardingApi";
 import { PersonalizeExperienceStep } from "./steps/PersonalizeExperienceStep";
 import { CustomizeProfileStep } from "./steps/CustomizeProfileStep";
 import { WalletStep } from "./steps/WalletStep";
@@ -21,7 +22,7 @@ type OnboardingData = {
 const TOTAL_STEPS = 3;
 
 export function FreelancerOnboardingWizard() {
-  const { status } = useAuth();
+  const { status, user } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
   const [onboardingData, setOnboardingData] = useState<OnboardingData>({
     industry: "",
@@ -30,6 +31,9 @@ export function FreelancerOnboardingWizard() {
     portfolioLinks: [],
     achievements: [],
   });
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const profileCreated = useRef(false);
 
   useEffect(() => {
     if (status === "UNAUTHENTICATED") {
@@ -51,7 +55,56 @@ export function FreelancerOnboardingWizard() {
 
   const handleBack = () => {
     if (currentStep > 1) {
+      setSaveError(null);
       setCurrentStep((prev) => prev - 1);
+    }
+  };
+
+  const handleSaveExperience = async () => {
+    setIsSaving(true);
+    setSaveError(null);
+    try {
+      await onboardingService.saveIndustry(onboardingData.industry);
+      await onboardingService.saveSpecialty(onboardingData.speciality);
+      handleNext();
+    } catch (err: any) {
+      setSaveError(err.message || "Error al guardar tu industria y especialidad");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    setIsSaving(true);
+    setSaveError(null);
+    try {
+      if (!profileCreated.current) {
+        await onboardingService.createProfile({
+          name: user?.fullName || "",
+          industry: onboardingData.industry,
+          specialty: onboardingData.speciality,
+          profilePhotoUrl: null,
+          biography: onboardingData.biography,
+          achievements: onboardingData.achievements.join("\n"),
+          address: "",
+          paymentMethodType: "BANK_TRANSFER",
+          dni: user?.dni || "",
+          curriculumUrl: null,
+          certifications: [],
+        });
+        profileCreated.current = true;
+      }
+      await onboardingService.personalizeProfile({
+        profilePhotoUrl: null,
+        biography: onboardingData.biography,
+        portfolioLinks: onboardingData.portfolioLinks,
+        achievements: onboardingData.achievements,
+      });
+      handleNext();
+    } catch (err: any) {
+      setSaveError(err.message || "Error al guardar tu perfil");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -62,8 +115,10 @@ export function FreelancerOnboardingWizard() {
           <PersonalizeExperienceStep
             data={onboardingData}
             onUpdate={updateData}
-            onNext={handleNext}
+            onNext={handleSaveExperience}
             onBack={handleBack}
+            isLoading={isSaving}
+            error={saveError}
           />
         );
       case 2:
@@ -71,8 +126,10 @@ export function FreelancerOnboardingWizard() {
           <CustomizeProfileStep
             data={onboardingData}
             onUpdate={updateData}
-            onNext={handleNext}
+            onNext={handleSaveProfile}
             onBack={handleBack}
+            isLoading={isSaving}
+            error={saveError}
           />
         );
       case 3:

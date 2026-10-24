@@ -19,9 +19,9 @@ export function CompanySettingsPage() {
       <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 lg:px-8">
         <div className="mb-6 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Centro de control</p>
-          <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-950">Configuracion de empresa</h1>
+          <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-950">Configuración de empresa</h1>
           <p className="mt-1 max-w-2xl text-sm text-slate-500">
-            Administra equipo, agente IA, facturacion, privacidad y seguridad desde una vista ordenada.
+            Administra equipo, agente IA, facturación, privacidad y seguridad desde una vista ordenada.
           </p>
         </div>
 

@@ -10,6 +10,9 @@ interface Props {
   profile: Profile;
 }
 
+const MIN_BIO_LENGTH = 100;
+const MAX_BIO_LENGTH = 500;
+
 function getInitials(name: string) {
   return name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
 }
@@ -21,6 +24,8 @@ export function ProfileHeader({ profile }: Props) {
   const bannerInputRef = useRef<HTMLInputElement>(null);
   const [photoError, setPhotoError] = useState(false);
   const [bannerError, setBannerError] = useState(false);
+  const [toast, setToast] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { updateAsync, isLoading: isSaving }   = useUpdateProfile();
   const { uploadAsync, isLoading: isUploading } = useUploadFile();
@@ -32,10 +37,29 @@ export function ProfileHeader({ profile }: Props) {
   const bannerUrl = toProfileImageUrl(profile.bannerUrl);
 
 
+  const showToast = (type: "success" | "error", text: string) => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToast({ type, text });
+    toastTimer.current = setTimeout(() => setToast(null), type === "success" ? 2500 : 6000);
+  };
+
+  const bioTooShort = biography.trim().length < MIN_BIO_LENGTH;
+
+  const startEditing = () => {
+    setBiography(profile.biography ?? "");
+    setIsEditing(true);
+  };
+
   const handleSave = async () => {
-    if (!profileId) return;
-    await updateAsync({ profileId, payload: { biography } });
-    setIsEditing(false);
+    if (!profileId || bioTooShort) return;
+    try {
+      await updateAsync({ profileId, payload: { biography: biography.trim() } });
+      setIsEditing(false);
+      showToast("success", "Datos guardados correctamente");
+    } catch (err) {
+      console.error("Error al guardar la biografía:", err);
+      showToast("error", "No se pudo guardar la biografía. Inténtalo de nuevo.");
+    }
   };
 
   const handleCancel = () => {
@@ -44,21 +68,37 @@ export function ProfileHeader({ profile }: Props) {
   };
 
   const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!profileId) return;
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const publicUrl = await uploadAsync({ file, folder: "PROFILE_PHOTO" });
-    setPhotoError(false);
-    await updateAsync({ profileId, payload: { profilePhotoUrl: publicUrl } });
+    const input = e.target;
+    const file = input.files?.[0];
+    if (!profileId || !file) return;
+    try {
+      const publicUrl = await uploadAsync({ file, folder: "PROFILE_PHOTO" });
+      setPhotoError(false);
+      await updateAsync({ profileId, payload: { profilePhotoUrl: publicUrl } });
+      showToast("success", "Datos guardados correctamente");
+    } catch (err) {
+      console.error("Error al subir la foto:", err);
+      showToast("error", "No se pudo subir la foto. Inténtalo de nuevo.");
+    } finally {
+      input.value = "";
+    }
   };
 
   const handleBannerChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!profileId) return;
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const publicUrl = await uploadAsync({ file, folder: "PROFILE_PHOTO" });
-    setBannerError(false);
-    await updateAsync({ profileId, payload: { bannerUrl: publicUrl } });
+    const input = e.target;
+    const file = input.files?.[0];
+    if (!profileId || !file) return;
+    try {
+      const publicUrl = await uploadAsync({ file, folder: "PROFILE_PHOTO" });
+      setBannerError(false);
+      await updateAsync({ profileId, payload: { bannerUrl: publicUrl } });
+      showToast("success", "Datos guardados correctamente");
+    } catch (err) {
+      console.error("Error al subir el banner:", err);
+      showToast("error", "No se pudo subir el banner. Inténtalo de nuevo.");
+    } finally {
+      input.value = "";
+    }
   };
 
   const averageStars  = profile.reputationScore?.averageStars ?? 0;
@@ -131,7 +171,7 @@ export function ProfileHeader({ profile }: Props) {
 
           {!isEditing ? (
             <button
-              onClick={() => setIsEditing(true)}
+              onClick={startEditing}
               disabled={!profileId}
               className="flex flex-shrink-0 items-center gap-1.5 whitespace-nowrap text-sm font-medium text-[#1B3A6B] border border-[#1B3A6B]/30 px-3 py-2 sm:px-4 rounded-xl hover:bg-[#1B3A6B]/5 transition-colors disabled:opacity-40"
             >
@@ -143,7 +183,7 @@ export function ProfileHeader({ profile }: Props) {
                 className="flex items-center gap-1.5 whitespace-nowrap text-sm font-medium text-gray-500 border border-gray-200 px-3 py-2 sm:px-4 rounded-xl hover:bg-gray-50 transition-colors">
                 <X className="w-3.5 h-3.5" /> Cancelar
               </button>
-              <button onClick={handleSave} disabled={isSaving}
+              <button onClick={handleSave} disabled={isSaving || bioTooShort}
                 className="flex items-center gap-1.5 whitespace-nowrap text-sm font-semibold text-white bg-[#1B3A6B] px-3 py-2 sm:px-4 rounded-xl hover:bg-[#0EA5A0] transition-colors disabled:opacity-50">
                 {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
                 Guardar
@@ -173,13 +213,26 @@ export function ProfileHeader({ profile }: Props) {
 
         {/* Biografía */}
         {isEditing ? (
-          <textarea
-            value={biography}
-            onChange={(e) => setBiography(e.target.value)}
-            rows={3}
-            className="w-full min-w-0 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#0EA5A0]/30 focus:border-[#0EA5A0] resize-none mb-3"
-            placeholder="Cuéntanos sobre ti..."
-          />
+          <div className="mb-3">
+            <textarea
+              value={biography}
+              onChange={(e) => setBiography(e.target.value)}
+              maxLength={MAX_BIO_LENGTH}
+              rows={3}
+              className="w-full min-w-0 border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#0EA5A0]/30 focus:border-[#0EA5A0] resize-none"
+              placeholder="Cuéntanos sobre ti..."
+            />
+            <div className="mt-1 flex items-center justify-between">
+              {bioTooShort ? (
+                <p className="text-xs text-red-500">Mínimo {MIN_BIO_LENGTH} caracteres</p>
+              ) : (
+                <span />
+              )}
+              <p className={`text-xs ${bioTooShort ? "text-red-400" : "text-gray-400"}`}>
+                {biography.length}/{MAX_BIO_LENGTH} caracteres
+              </p>
+            </div>
+          </div>
         ) : (
           profile.biography && (
             <p className="text-sm text-gray-600 leading-relaxed mb-4 break-words">{profile.biography}</p>
@@ -260,6 +313,19 @@ export function ProfileHeader({ profile }: Props) {
           </div>
         </div>
       </div>
+
+      {toast && (
+        <div
+          className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 px-5 py-3 rounded-2xl border shadow-lg ${
+            toast.type === "success"
+              ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+              : "bg-red-50 border-red-200 text-red-800"
+          }`}
+        >
+          {toast.type === "success" ? <Check className="w-5 h-5 text-emerald-600" /> : <X className="w-5 h-5 text-red-600" />}
+          <span className="text-sm font-semibold">{toast.text}</span>
+        </div>
+      )}
     </div>
   );
 }

@@ -26,8 +26,6 @@ import {
   CalendarDays,
 } from "lucide-react";
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
 function getStatusBadge(status: string) {
   switch (status) {
     case "PUBLISHED":
@@ -60,11 +58,6 @@ function getStatusBadge(status: string) {
   }
 }
 
-// FIX: mismo bug que JobsManagementTable.tsx, duplicado en este archivo
-// independiente — recibía job.type (FULL_TIME/PART_TIME/...) en vez de
-// job.selectionMode, y los case no coincidían con el enum real
-// (MANUAL/SEMI_AUTOMATED/FULLY_AUTOMATED en job.types.ts). Por eso siempre
-// mostraba "Manual" sin importar el modo configurado al crear el empleo.
 function getSelectionModeBadge(mode?: string) {
   switch (mode) {
     case "FULLY_AUTOMATED":
@@ -105,11 +98,6 @@ function formatDate(dateStr?: string) {
   });
 }
 
-// FIX: "Hace -1 días". Para un empleo creado hace segundos, diff puede salir
-// ligeramente negativo (diferencia de reloj entre el navegador y el servidor,
-// o createdAt con milisegundos posteriores al momento exacto del render).
-// Math.floor() sobre un número negativo pequeño redondea hacia -1 en vez de
-// 0 (ej. Math.floor(-0.0003) = -1). Se evita forzando el mínimo a 0.
 function formatRelativeDate(dateStr?: string) {
   if (!dateStr) return "";
   const date = new Date(dateStr);
@@ -134,13 +122,8 @@ function getJobTypeIcon(type?: string) {
   }
 }
 
-// RESPONSIVE: botones de acción. En celular llevan texto y borde (en pantalla
-// táctil no existe el tooltip "title", así que un ícono suelto no dice qué
-// hace). Desde sm vuelven a ser solo ícono, como antes.
 const ACTION_BASE =
   "inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 transition disabled:opacity-50 sm:gap-0 sm:border-0 sm:p-1.5 sm:font-normal sm:text-slate-400";
-
-// ─── Job Card ──────────────────────────────────────────────────────────────────
 
 function JobCard({
   job,
@@ -155,7 +138,6 @@ function JobCard({
   actionLoading: string | null;
   onViewApplicants: (jobId: string) => void;
   onChangeStatus: (jobId: string, newStatus: string) => void;
-  // "Cerrar" y "Eliminar" no se ejecutan directo: piden confirmación con un cuadro propio (ver JobsManagementPage)
   onRequestClose: (job: Job) => void;
   onRequestDelete: (job: Job) => void;
   onDuplicate: (jobId: string) => void;
@@ -168,20 +150,13 @@ function JobCard({
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all">
       <div className="p-4 sm:p-6">
-        {/* Fila superior: Info + Acciones
-            RESPONSIVE: en celular se apilan (info arriba, acciones abajo).
-            Antes iban lado a lado y la columna de acciones (shrink-0) dejaba
-            a la info sin ancho: el título quedaba tapado por "Ver Postulantes"
-            y cada dato de la metadata en su propia línea. */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          {/* Lado izquierdo - Información */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
               <h3 className="min-w-0 break-words text-base sm:text-lg font-bold text-slate-900">{job.title}</h3>
               {getStatusBadge(job.status || "")}
             </div>
 
-            {/* Metadata */}
             <div className="flex items-center gap-x-3 gap-y-1 mt-2 text-sm text-slate-500 flex-wrap">
               <span className="flex items-center gap-1">
                 <Briefcase className="w-3.5 h-3.5" strokeWidth={1.5} />
@@ -199,13 +174,11 @@ function JobCard({
               </span>
             </div>
 
-            {/* Badge IA */}
             <div className="mt-3">
               {getSelectionModeBadge(job.selectionMode)}
             </div>
           </div>
 
-          {/* Lado derecho - Acciones */}
           <div className="flex flex-col gap-2 sm:items-end sm:shrink-0">
             <button
               onClick={() => onViewApplicants(job.id)}
@@ -289,12 +262,8 @@ function JobCard({
           </div>
         </div>
 
-        {/* Línea divisoria */}
         <div className="border-t border-slate-100 my-4" />
 
-        {/* Métricas
-            RESPONSIVE: 4 columnas a 284px dejaban ~50px por columna y los
-            textos se pisaban. 2x2 en celular, 4 en una fila desde sm. */}
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           <div>
             <p className="text-xs text-slate-500 mb-0.5">Total Postulantes</p>
@@ -326,8 +295,6 @@ function TrashIcon({ className }: { className?: string }) {
   );
 }
 
-// ─── Empty State ───────────────────────────────────────────────────────────────
-
 function EmptyState({ onCreate }: { onCreate: () => void }) {
   return (
     <div className="text-center py-20">
@@ -347,10 +314,6 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
   );
 }
 
-// ─── Página Principal ──────────────────────────────────────────────────────────
-// Ya no arma sidebar/navbar manualmente — app/(dashboard)/company/layout.tsx
-// se encarga de eso. Este componente solo se enfoca en su contenido.
-
 export function JobsManagementPage() {
   useProtectedRoute();
   const router = useRouter();
@@ -360,19 +323,22 @@ export function JobsManagementPage() {
   const [typeFilter, setTypeFilter] = useState<string>("");
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
-  // Acción pendiente de confirmar (cerrar o eliminar una publicación)
   const [pending, setPending] = useState<{ kind: "close" | "delete"; job: Job } | null>(null);
 
-  // Obtener publicaciones
   const jobsQuery = useQuery({
     queryKey: ["my-job-posts", searchQuery],
     queryFn: () => jobApi.getMyPosts({ size: 100, search: searchQuery || undefined }),
     retry: false,
   });
 
+  const statsQuery = useQuery({
+    queryKey: ["company-hiring-stats"],
+    queryFn: () => jobApi.getCompanyHiringStats(),
+    retry: false,
+  });
+
   const allJobs = jobsQuery.data?.items ?? [];
 
-  // Filtrar jobs
   const filteredJobs = useMemo(() => {
     return allJobs.filter((job) => {
       if (statusFilter && job.status !== statusFilter) return false;
@@ -381,37 +347,22 @@ export function JobsManagementPage() {
     });
   }, [allJobs, statusFilter, typeFilter]);
 
-  // Estadísticas
-  const stats = useMemo(() => {
-    const activeJobs = allJobs.filter((j) => j.status === "PUBLISHED").length;
-    const totalApplications = allJobs.reduce((sum, j) => sum + (j.applications?.length ?? 0), 0);
-    const filteredByAI = allJobs.reduce((sum, j) => {
-      return sum + (j.applications?.filter((a) => a.status === "REVIEWING").length ?? 0);
-    }, 0);
-    const finalists = allJobs.reduce((sum, j) => {
-      return sum + (j.applications?.filter((a) => a.status === "ACCEPTED").length ?? 0);
-    }, 0);
-    return { activeJobs, totalApplications, filteredByAI, finalists };
-  }, [allJobs]);
+  const refreshAfterChange = () => {
+    queryClient.invalidateQueries({ queryKey: ["my-job-posts"] });
+    queryClient.invalidateQueries({ queryKey: ["company-hiring-stats"] });
+  };
 
-  // Mutations
   const deleteMutation = useMutation({
     mutationFn: (jobId: string) => jobApi.delete(jobId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["my-job-posts"] });
-    },
+    onSuccess: refreshAfterChange,
   });
 
   const statusMutation = useMutation({
     mutationFn: ({ jobId, newStatus }: { jobId: string; newStatus: string }) =>
       jobApi.changeStatus(jobId, newStatus),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["my-job-posts"] });
-    },
+    onSuccess: refreshAfterChange,
   });
 
-  // FIX: ya no pide confirmación aquí (antes usaba el confirm() nativo del navegador). La confirmación se muestra
-  // antes, con el cuadro propio de más abajo (ConfirmModal), y recién al aceptar se llega a esta función.
   const handleDelete = async (jobId: string) => {
     setActionLoading(jobId);
     setActionError(null);
@@ -436,8 +387,6 @@ export function JobsManagementPage() {
     }
   };
 
-  // El usuario aceptó el cuadro de confirmación: se cierra el cuadro y se ejecuta la acción
-  // (mientras tanto, la tarjeta de esa publicación muestra el indicador de carga).
   const handleConfirmPending = () => {
     if (!pending) return;
     const { kind, job } = pending;
@@ -445,7 +394,6 @@ export function JobsManagementPage() {
     if (kind === "delete") {
       void handleDelete(job.id);
     } else {
-      // FIX: antes "Cerrar" cambiaba el estado a CLOSED directamente, sin preguntar nada
       void handleChangeStatus(job.id, "CLOSED");
     }
   };
@@ -454,7 +402,6 @@ export function JobsManagementPage() {
     setActionLoading(jobId);
     setActionError(null);
     try {
-      // Obtener el job original y crear uno nuevo con los mismos datos
       const originalJob = allJobs.find((j) => j.id === jobId);
       if (!originalJob) throw new Error("Publicación no encontrada");
       await jobApi.create({
@@ -467,12 +414,9 @@ export function JobsManagementPage() {
         currency: originalJob.currency || "PEN",
         vacancies: originalJob.vacancies || 1,
         requirements: originalJob.requirements || "",
-        // FIX: antes forzaba "MANUAL" sin importar el modo real del empleo
-        // original — duplicar un empleo automatizado lo convertía en manual
-        // silenciosamente. Ahora conserva el mismo selectionMode.
         selectionMode: (originalJob.selectionMode as any) || "MANUAL",
       });
-      queryClient.invalidateQueries({ queryKey: ["my-job-posts"] });
+      refreshAfterChange();
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "Error al duplicar");
     } finally {
@@ -480,8 +424,6 @@ export function JobsManagementPage() {
     }
   };
 
-  // Navegación de Next.js (antes window.location.href, que recargaba toda la
-  // página y volvía a pedir layout, sesión y datos).
   const handleViewApplicants = (jobId: string) => {
     router.push(`/company/pipeline/${jobId}`);
   };
@@ -499,9 +441,6 @@ export function JobsManagementPage() {
 
   return (
     <div className="space-y-6 p-4 sm:p-6 lg:p-8">
-      {/* Header
-          RESPONSIVE: el botón "Crear Nueva Publicación" se salía por la
-          derecha. En celular se apila bajo el título y ocupa todo el ancho. */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <h1 className="text-2xl font-bold text-[#1e3a8a]">Mis Publicaciones</h1>
@@ -516,26 +455,27 @@ export function JobsManagementPage() {
         </Link>
       </div>
 
-      {/* Error de acciones */}
       {actionError && (
         <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
           {actionError}
         </div>
       )}
 
-      {/* Stats Cards */}
+      {statsQuery.isError && (
+        <div role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+          No se pudieron cargar las métricas de postulaciones y entrevistas. Intenta recargar la página.
+        </div>
+      )}
+
       <HiringStatsCards
         data={{
-          activeJobs: stats.activeJobs,
-          totalApplications: stats.totalApplications,
-          interviewsInProgress: stats.filteredByAI,
-          finalists: stats.finalists,
+          activeJobs: statsQuery.data?.activeJobs ?? null,
+          totalApplications: statsQuery.data?.totalApplications ?? null,
+          interviewsInProgress: statsQuery.data?.interviewsInProgress ?? null,
+          finalists: statsQuery.data?.finalists ?? null,
         }}
       />
 
-      {/* Filtros
-          RESPONSIVE: buscador + 2 selectores en una fila no cabían (el
-          segundo selector quedaba fuera de pantalla). Apilados en celular. */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="relative w-full sm:max-w-md sm:flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" strokeWidth={1.5} />
@@ -573,7 +513,6 @@ export function JobsManagementPage() {
         </select>
       </div>
 
-      {/* Lista de publicaciones */}
       {filteredJobs.length === 0 ? (
         <EmptyState onCreate={() => router.push("/company/jobs/create")} />
       ) : (
@@ -593,7 +532,6 @@ export function JobsManagementPage() {
         </div>
       )}
 
-      {/* Confirmación de "Cerrar" y "Eliminar" */}
       {pending && (
         <ConfirmModal
           title={pending.kind === "delete" ? "Eliminar publicación" : "Cerrar vacante"}

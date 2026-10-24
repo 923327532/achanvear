@@ -5,18 +5,6 @@ import { useState, useEffect } from "react";
 import { Check, Loader2, AlertCircle } from "lucide-react";
 import { useAiAgentsCatalog, useAgentSettings } from "../hooks/useCompanySettings";
 
-// FIX: antes AGENTES_IA era un array fijo en el frontend, con especialidades
-// que ni siquiera coincidían con los agentes reales del backend (Ana y Diego
-// tenían sus roles invertidos: el hardcode decía que Ana era "Teórica" y
-// Diego "Técnica", cuando en realidad es al revés; Sofía decía "Legal /
-// Contable" cuando en verdad genera reportes ejecutivos). Ahora se trae el
-// catálogo real desde GET /catalog/ai-agents, a través de la capa
-// api/companySettingsApi.ts → hooks/useCompanySettings.ts, igual que el
-// resto de este archivo (antes llamaba a axios directo en el componente).
-//
-// FIX (#1): la selección de agente y el umbral de match ahora se persisten en
-// el backend vía GET/PATCH /companies/agent-settings (useAgentSettings). Antes
-// solo vivían en estado local y se perdían al recargar.
 
 const PERSONALITY_ICON: Record<string, string> = {
   professional: "👔",
