@@ -24,6 +24,10 @@ import {
   Briefcase,
   Sparkles,
   CalendarDays,
+  LayoutGrid,
+  List,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 function getStatusBadge(status: string) {
@@ -127,6 +131,7 @@ const ACTION_BASE =
 
 function JobCard({
   job,
+  viewMode,
   actionLoading,
   onViewApplicants,
   onChangeStatus,
@@ -135,6 +140,7 @@ function JobCard({
   onDuplicate,
 }: {
   job: Job;
+  viewMode: "list" | "cards";
   actionLoading: string | null;
   onViewApplicants: (jobId: string) => void;
   onChangeStatus: (jobId: string, newStatus: string) => void;
@@ -148,16 +154,16 @@ function JobCard({
   const finalists = job.applications?.filter((a) => ["APPROVED", "HIRED"].includes(a.currentStage ?? a.status)).length ?? 0;
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all">
-      <div className="p-4 sm:p-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+    <article className="h-full overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm transition-all hover:border-blue-200 hover:shadow-md">
+      <div className="p-4">
+        <div className={`flex gap-3 ${viewMode === "cards" ? "flex-col" : "flex-col sm:flex-row sm:items-start sm:justify-between"}`}>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-              <h3 className="min-w-0 break-words text-base sm:text-lg font-bold text-slate-900">{job.title}</h3>
+              <h3 className="min-w-0 break-words text-sm sm:text-base font-semibold leading-snug text-slate-900">{job.title}</h3>
               {getStatusBadge(job.status || "")}
             </div>
 
-            <div className="flex items-center gap-x-3 gap-y-1 mt-2 text-sm text-slate-500 flex-wrap">
+            <div className="flex items-center gap-x-3 gap-y-1 mt-2 text-xs text-slate-500 flex-wrap">
               <span className="flex items-center gap-1">
                 <Briefcase className="w-3.5 h-3.5" strokeWidth={1.5} />
                 {getJobTypeIcon(job.type)}
@@ -174,15 +180,15 @@ function JobCard({
               </span>
             </div>
 
-            <div className="mt-3">
+            <div className="mt-2.5">
               {getSelectionModeBadge(job.selectionMode)}
             </div>
           </div>
 
-          <div className="flex flex-col gap-2 sm:items-end sm:shrink-0">
+          <div className={`flex gap-2 ${viewMode === "cards" ? "flex-col" : "flex-col sm:items-end sm:shrink-0"}`}>
             <button
               onClick={() => onViewApplicants(job.id)}
-              className="inline-flex w-full items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-[#1e3a8a] bg-blue-50 border border-blue-200 rounded-xl hover:bg-blue-100 transition-all sm:w-auto"
+              className="inline-flex w-full items-center justify-center gap-2 px-3 py-2 text-xs font-semibold text-[#1e3a8a] bg-blue-50 border border-blue-200 rounded-xl hover:bg-blue-100 transition-all sm:w-auto"
             >
               <Eye className="w-4 h-4" strokeWidth={1.5} />
               Ver Postulantes
@@ -262,9 +268,9 @@ function JobCard({
           </div>
         </div>
 
-        <div className="border-t border-slate-100 my-4" />
+        <div className="border-t border-slate-100 my-3" />
 
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <div className="grid grid-cols-3 gap-3 rounded-xl bg-slate-50/80 p-3">
           <div>
             <p className="text-xs text-slate-500 mb-0.5">Total Postulantes</p>
             <p className="text-lg font-bold text-slate-900">{totalApps}</p>
@@ -277,13 +283,10 @@ function JobCard({
             <p className="text-xs text-slate-500 mb-0.5">Finalistas</p>
             <p className="text-lg font-bold text-emerald-700">{finalists}</p>
           </div>
-          <div>
-            <p className="text-xs text-slate-500 mb-0.5">Publicado</p>
-            <p className="text-lg font-bold text-slate-700">{formatRelativeDate(job.createdAt)}</p>
-          </div>
+
         </div>
       </div>
-    </div>
+    </article>
   );
 }
 
@@ -319,6 +322,9 @@ export function JobsManagementPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
+  const [viewMode, setViewMode] = useState<"list" | "cards">("list");
+  const [page, setPage] = useState(1);
+  const pageSize = 4;
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [typeFilter, setTypeFilter] = useState<string>("");
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -326,8 +332,13 @@ export function JobsManagementPage() {
   const [pending, setPending] = useState<{ kind: "close" | "delete"; job: Job } | null>(null);
 
   const jobsQuery = useQuery({
-    queryKey: ["my-job-posts", searchQuery],
-    queryFn: () => jobApi.getMyPosts({ size: 100, search: searchQuery || undefined }),
+    queryKey: ["my-job-posts", "management"],
+    queryFn: async () => {
+      const first = await jobApi.getMyPosts({ size: 100 });
+      const remaining = await Promise.all(Array.from({ length: Math.max(0, first.totalPages - 1) }, (_, index) =>
+        jobApi.getMyPosts({ page: index + 1, size: 100 })));
+      return { ...first, items: [ ...first.items, ...remaining.flatMap(result => result.items) ] };
+    },
     retry: false,
   });
 
@@ -340,12 +351,17 @@ export function JobsManagementPage() {
   const allJobs = jobsQuery.data?.items ?? [];
 
   const filteredJobs = useMemo(() => {
+    const search = searchQuery.trim().toLocaleLowerCase("es");
     return allJobs.filter((job) => {
+      if (search && ![job.title, job.location, job.company?.industry].filter(Boolean).join(" ").toLocaleLowerCase("es").includes(search)) return false;
       if (statusFilter && job.status !== statusFilter) return false;
       if (typeFilter && job.type !== typeFilter) return false;
       return true;
     });
-  }, [allJobs, statusFilter, typeFilter]);
+  }, [allJobs, statusFilter, typeFilter, searchQuery]);
+  const totalPages = Math.max(1, Math.ceil(filteredJobs.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const paginatedJobs = filteredJobs.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   const refreshAfterChange = () => {
     queryClient.invalidateQueries({ queryKey: ["my-job-posts"] });
@@ -439,7 +455,7 @@ export function JobsManagementPage() {
   }
 
   return (
-    <div className="space-y-6 p-4 sm:p-6 lg:p-8">
+    <div className="mx-auto max-w-7xl space-y-5 p-4 sm:p-5 lg:p-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <h1 className="text-2xl font-bold text-[#1e3a8a]">Mis Publicaciones</h1>
@@ -467,6 +483,7 @@ export function JobsManagementPage() {
       )}
 
       <HiringStatsCards
+        compact
         data={{
           activeJobs: statsQuery.data?.activeJobs ?? null,
           totalApplications: statsQuery.data?.totalApplications ?? null,
@@ -481,7 +498,7 @@ export function JobsManagementPage() {
           <input
             type="text"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
             placeholder="Buscar por título o industria..."
             className="w-full min-w-0 pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-[#1e3a8a] focus:ring-2 focus:ring-blue-100 transition"
           />
@@ -489,7 +506,7 @@ export function JobsManagementPage() {
 
         <select
           value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
+          onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
           className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-[#1e3a8a] focus:ring-2 focus:ring-blue-100 transition sm:w-auto"
         >
           <option value="">Todos los estados</option>
@@ -500,7 +517,7 @@ export function JobsManagementPage() {
 
         <select
           value={typeFilter}
-          onChange={(e) => setTypeFilter(e.target.value)}
+          onChange={(e) => { setTypeFilter(e.target.value); setPage(1); }}
           className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-[#1e3a8a] focus:ring-2 focus:ring-blue-100 transition sm:w-auto"
         >
           <option value="">Todos los tipos</option>
@@ -512,14 +529,41 @@ export function JobsManagementPage() {
         </select>
       </div>
 
-      {filteredJobs.length === 0 ? (
-        <EmptyState onCreate={() => router.push("/company/jobs/create")} />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-slate-500">
+          <span className="font-semibold text-slate-800">{filteredJobs.length}</span> publicaciones
+          {filteredJobs.length > 0 && <span className="ml-2 text-xs text-slate-400">Mostrando {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, filteredJobs.length)}</span>}
+        </p>
+        <div role="group" aria-label="Vista de publicaciones" className="inline-flex rounded-xl border border-slate-200 bg-slate-100/70 p-1">
+          {([{ value: "list", label: "Lista", icon: List }, { value: "cards", label: "Tarjetas", icon: LayoutGrid }] as const).map(({ value, label, icon: Icon }) => (
+            <button key={value} type="button" aria-pressed={viewMode === value} onClick={() => setViewMode(value)}
+              className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold transition ${viewMode === value ? "bg-white text-blue-900 shadow-sm ring-1 ring-slate-200/60" : "text-slate-500 hover:text-slate-800"}`}>
+              <Icon className="h-4 w-4" />{label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {jobsQuery.isError ? (
+        <div role="alert" className="rounded-2xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">
+          No se pudieron cargar las publicaciones.
+          <button type="button" onClick={() => jobsQuery.refetch()} className="ml-2 font-semibold underline">Reintentar</button>
+        </div>
+      ) : filteredJobs.length === 0 ? (
+        allJobs.length > 0 ? (
+          <div className="rounded-2xl border border-dashed border-slate-200 bg-white py-12 text-center">
+            <Search className="mx-auto mb-3 h-7 w-7 text-slate-300" />
+            <p className="font-semibold text-slate-800">No hay publicaciones con esos filtros</p>
+            <button type="button" className="mt-3 text-sm font-semibold text-blue-900" onClick={() => { setSearchQuery(""); setStatusFilter(""); setTypeFilter(""); setPage(1); }}>Limpiar filtros</button>
+          </div>
+        ) : <EmptyState onCreate={() => router.push("/company/jobs/create")} />
       ) : (
-        <div className="space-y-4">
-          {filteredJobs.map((job) => (
+        <div className={viewMode === "cards" ? "grid grid-cols-1 gap-4 md:grid-cols-2" : "space-y-3"}>
+          {paginatedJobs.map((job) => (
             <JobCard
               key={job.id}
               job={job}
+              viewMode={viewMode}
               actionLoading={actionLoading}
               onViewApplicants={handleViewApplicants}
               onChangeStatus={handleChangeStatus}
@@ -529,6 +573,19 @@ export function JobsManagementPage() {
             />
           ))}
         </div>
+      )}
+
+      {!jobsQuery.isError && filteredJobs.length > 0 && (
+        <nav aria-label="Paginación de publicaciones" className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-4">
+          <p className="text-xs text-slate-500">4 publicaciones por página / Página {currentPage} de {totalPages}</p>
+          <div className="flex items-center gap-2">
+            <button type="button" aria-label="Página anterior" disabled={currentPage === 1} onClick={() => setPage(currentPage - 1)}
+              className="inline-flex h-9 items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"><ChevronLeft className="h-4 w-4" />Anterior</button>
+            <span aria-current="page" className="inline-flex h-9 min-w-9 items-center justify-center rounded-lg bg-blue-900 px-3 text-xs font-semibold text-white">{currentPage}</span>
+            <button type="button" aria-label="Página siguiente" disabled={currentPage === totalPages} onClick={() => setPage(currentPage + 1)}
+              className="inline-flex h-9 items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40">Siguiente<ChevronRight className="h-4 w-4" /></button>
+          </div>
+        </nav>
       )}
 
       {pending && (

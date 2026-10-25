@@ -33,23 +33,23 @@ const STATS = [
   },
 ];
 
-export function HiringStatsCards({ data }: { data: StatsData }) {
+export function HiringStatsCards({ data, compact = false }: { data: StatsData; compact?: boolean }) {
   // RESPONSIVE: antes era 1 columna en celular, así que las 4 tarjetas
   // ocupaban 4 filas completas y alargaban mucho la pantalla. Ahora 2x2 desde
   // el ancho más chico, con tarjetas más compactas (padding, ícono y número
   // más chicos) hasta sm; desde ahí vuelven al tamaño original.
   return (
-    <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-4">
+    <div className={`grid grid-cols-2 gap-3 lg:grid-cols-4 ${compact ? "" : "sm:gap-5"}`}>
       {STATS.map((stat) => {
         const Icon = stat.icon;
         const value = data[stat.key];
         return (
           <div
             key={stat.key}
-            className="min-w-0 bg-white rounded-2xl border border-slate-200 p-3 sm:p-5 shadow-sm hover:shadow-md transition-shadow"
+            className={`min-w-0 bg-white rounded-2xl border border-slate-200 p-3 shadow-sm hover:shadow-md transition-shadow ${compact ? "sm:p-4" : "sm:p-5"}`}
           >
             <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center justify-center h-10 w-10 shrink-0 rounded-xl bg-slate-100 sm:h-12 sm:w-12">
+              <div className={`flex items-center justify-center h-9 w-9 shrink-0 rounded-xl bg-slate-100 ${compact ? "" : "sm:h-12 sm:w-12"}`}>
                 <Icon className="w-5 h-5 text-slate-500 sm:w-6 sm:h-6" strokeWidth={1.5} />
               </div>
               <span className="text-xl font-bold text-[#1e3a8a] sm:text-2xl">{value ?? "—"}</span>
