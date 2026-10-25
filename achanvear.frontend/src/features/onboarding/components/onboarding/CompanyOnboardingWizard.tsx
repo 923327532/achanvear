@@ -220,30 +220,15 @@ export function CompanyOnboardingWizard() {
         case 6: {
           // PASO 6: Guardar método de pago
           const paymentMap: Record<string, string> = {
-            bank_transfer: "BANK_TRANSFER", credit_card: "CREDIT_CARD", debit_card: "DEBIT_CARD",
+            card: "CREDIT_CARD", transfer: "BANK_TRANSFER", bank_transfer: "BANK_TRANSFER", credit_card: "CREDIT_CARD", debit_card: "DEBIT_CARD",
             yape: "YAPE", plin: "PLIN",
           };
-          await onboardingService.savePaymentMethod(paymentMap[onboardingData.paymentMethod] || "BANK_TRANSFER");
+          await onboardingService.savePaymentMethod(paymentMap[onboardingData.paymentMethod] || "BANK_TRANSFER", onboardingData.acceptEscrowTerms);
           break;
         }
         case 7: {
           // PASO 7: Finalizar onboarding
-          if (onboardingData.selectedAgent) {
-            let matchScoreThreshold = 70;
-            try {
-              const current = await companySettingsApi.getAgentSettings();
-              if (typeof current?.matchScoreThreshold === "number") {
-                matchScoreThreshold = current.matchScoreThreshold;
-              }
-            } catch {
-              matchScoreThreshold = 70;
-            }
-            await companySettingsApi.updateAgentSettings({
-              selectedAgentId: onboardingData.selectedAgent,
-              matchScoreThreshold,
-            });
-          }
-          await onboardingService.completeOnboarding({});
+          await onboardingService.completeOnboarding({ selectedAgentId: onboardingData.selectedAgent });
           sessionStorage.removeItem("company_onboarding_data");
           sessionStorage.removeItem(COMPANY_ID_KEY);
           leaving = true;

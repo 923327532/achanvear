@@ -31,6 +31,7 @@ import java.util.UUID;
 @Transactional(readOnly = true)
 public class CandidateDrawerDetailService implements GetCandidateDrawerDetailUseCase {
 
+    private final org.springframework.jdbc.core.JdbcTemplate jdbc;
     private final JobPostRepository jobPostRepository;
     private final ApplicationRepository applicationRepository;
     private final HiringProcessRepository hiringProcessRepository;
@@ -42,8 +43,9 @@ public class CandidateDrawerDetailService implements GetCandidateDrawerDetailUse
             ApplicationRepository applicationRepository,
             HiringProcessRepository hiringProcessRepository,
             InterviewRepository interviewRepository,
-            IdentityCandidateLookupPort identityCandidateLookupPort
+            IdentityCandidateLookupPort identityCandidateLookupPort, org.springframework.jdbc.core.JdbcTemplate jdbc
     ) {
+        this.jdbc = jdbc;
         this.jobPostRepository = jobPostRepository;
         this.applicationRepository = applicationRepository;
         this.hiringProcessRepository = hiringProcessRepository;
@@ -70,6 +72,9 @@ public class CandidateDrawerDetailService implements GetCandidateDrawerDetailUse
         JobApplication application = applicationRepository.findById(UUID.fromString(applicationId))
                 .orElseThrow(() -> new ResourceNotFoundException("Application not found"));
 
+        if (!application.getJobPostId().toString().equals(jobId)) {
+            throw new ResourceNotFoundException("Application does not belong to this job");
+        }
         // 3. Get candidate info
         IdentityCandidateLookupPort.CandidateSummary candidate =
                 identityCandidateLookupPort.findById(application.getCandidateUserId());
@@ -143,6 +148,14 @@ public class CandidateDrawerDetailService implements GetCandidateDrawerDetailUse
                 currentStage,
                 screeningScore != null
         );
+        java.util.Map<String, Instant> completionDates = new java.util.HashMap<>();
+        jdbc.query("SELECT stage, completed_at FROM hiring_stage_completions WHERE job_id = ? AND candidate_id = ?",
+                (org.springframework.jdbc.core.RowCallbackHandler) rs -> completionDates.put(rs.getString("stage"), rs.getTimestamp("completed_at").toInstant()),
+                application.getJobPostId(), application.getCandidateUserId());
+        completionDates.put("SUBMITTED", application.getAppliedAt());
+        stages = stages.stream().map(stage -> new CandidateDrawerDetailResponse.StageTimeline(
+                stage.stage(), stage.label(), stage.status(),
+                "COMPLETED".equals(stage.status()) ? completionDates.get(stage.stage()) : null)).toList();
         CandidateDrawerDetailResponse.ExecutiveReport executiveReport = buildExecutiveReport(
                 candidateName,
                 jobPost.getTitle(),
@@ -268,12 +281,12 @@ public class CandidateDrawerDetailService implements GetCandidateDrawerDetailUse
         List<CandidateDrawerDetailResponse.StageTimeline> stages = new ArrayList<>();
         if ("REJECTED".equals(currentStage)) {
             stages.add(new CandidateDrawerDetailResponse.StageTimeline(
-                    "SUBMITTED", "Postulación recibida", "COMPLETED", Instant.now()
+                    "SUBMITTED", "Postulación recibida", "COMPLETED", null
             ));
             if (screeningCompleted) {
                 stages.add(new CandidateDrawerDetailResponse.StageTimeline(
                         "SCREENING", "Evaluación curricular",
-                        "COMPLETED", Instant.now()
+                        "COMPLETED", null
                 ));
             }
             stages.add(new CandidateDrawerDetailResponse.StageTimeline(
@@ -312,7 +325,7 @@ public class CandidateDrawerDetailService implements GetCandidateDrawerDetailUse
                     stageName,
                     label,
                     status,
-                    status.equals("COMPLETED") ? Instant.now() : null
+                    null
             ));
         }
 

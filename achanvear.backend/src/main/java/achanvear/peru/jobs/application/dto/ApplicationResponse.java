@@ -8,6 +8,9 @@ public record ApplicationResponse(
         String cvUrl,
         String coverLetter,
         Instant appliedAt,
-        String status
+        String status,
+        Double screeningScore,
+        Boolean screeningResult,
+        String currentStage
 ) {
 }

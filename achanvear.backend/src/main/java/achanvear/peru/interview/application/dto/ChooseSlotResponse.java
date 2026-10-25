@@ -5,7 +5,7 @@ import java.time.LocalDateTime;
 public record ChooseSlotResponse(
         String scheduleId,
         String interviewToken,
-        LocalDateTime chosenDateTime,
+        java.time.OffsetDateTime chosenDateTime,
         String message,
         String interviewId
 ) {

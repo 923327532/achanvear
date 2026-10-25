@@ -303,10 +303,11 @@ export const onboardingService = {
   },
 
   /** PASO 6: Actualiza método de pago */
-  savePaymentMethod: async (paymentMethod: string): Promise<void> => {
+  savePaymentMethod: async (paymentMethod: string, acceptEscrowTerms: boolean): Promise<void> => {
+    const terms = parseResponse(await api.get<ApiResponse<{ version: string }>>("/legal-documents/terms"));
     const response = await api.patch<ApiResponse<void>>(
       `${COMPANY_BASE_PATH}/payment-method`,
-      { paymentMethodType: paymentMethod }
+      { paymentMethodType: paymentMethod, acceptEscrowTerms, escrowTermsVersion: terms.version }
     );
     return parseResponse(response);
   },
@@ -320,6 +321,7 @@ export const onboardingService = {
 
   /** PASO 7: Finaliza onboarding */
   completeOnboarding: async (data: {
+    selectedAgentId?: string;
     industry?: string;
     specialty?: string;
     companySize?: string;

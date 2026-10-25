@@ -31,7 +31,7 @@ const getInterviewTypeMeta = (type: string) => {
 
 const inferPracticalArea = (jobTitle?: string) => {
   const text = (jobTitle || "").toLowerCase();
-  if (/(software|programador|developer|frontend|backend|full.?stack|java|react|node|sistemas|tecnolog|devops|qa|datos|data)/.test(text)) {
+  if (/(software|desarrollador|html|css|programador|developer|frontend|backend|full.?stack|java|react|node|sistemas|tecnolog|devops|qa|datos|data)/.test(text)) {
     return "software";
   }
   if (/(marketing|market|seo|sem|contenido|redes|social|comunicaci|brand|marca|growth|digital)/.test(text)) {
@@ -865,6 +865,7 @@ function AccessInterviewModal({
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1.5">Área técnica</label>
                   <select
+                    disabled={!!interviewContext}
                     value={practicalCareer}
                     onChange={(e) => setPracticalCareer(e.target.value)}
                     className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#1B3A6B]/20 focus:border-[#1B3A6B]"
@@ -881,6 +882,7 @@ function AccessInterviewModal({
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1.5">Puesto / perfil</label>
                   <input
+                    readOnly={!!interviewContext}
                     value={practicalJobTitle}
                     onChange={(e) => setPracticalJobTitle(e.target.value)}
                     placeholder="Ej. Especialista en Marketing Digital"

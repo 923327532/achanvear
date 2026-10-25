@@ -41,6 +41,13 @@ public class AdvanceCandidateToTheoryInterviewService implements AdvanceCandidat
             if (process.getStage() == achanvear.peru.hiring.domain.model.HiringStage.REJECTED) {
                 throw new IllegalStateException("A rejected candidate cannot be advanced to an interview");
             }
+            if (process.getStage() == achanvear.peru.hiring.domain.model.HiringStage.UNDER_REVIEW) {
+                process.approve();
+                hiringProcessRepository.save(process);
+            } else if (process.getStage() == achanvear.peru.hiring.domain.model.HiringStage.APPROVED) {
+                process.hire();
+                hiringProcessRepository.save(process);
+            }
             return ScreeningResultResponse.from(process, screeningScore, true, summary);
         }
 

@@ -3,6 +3,8 @@ from practical_voice.schemas import PracticalWorkspaceType
 
 TECH_KEYWORDS = (
     "software",
+    "html",
+    "css",
     "programador",
     "developer",
     "frontend",
@@ -138,6 +140,21 @@ def build_workspace_challenge(
     job_title: str,
 ) -> dict:
     if workspace_type == PracticalWorkspaceType.CODING:
+        title = job_title.splitlines()[0].lower()
+        if "html" in title or ("css" in title and "junior" in title):
+            return {
+                "title": "HTML y CSS: pagina accesible",
+                "workspace_tool": "code_project",
+                "interviewer_profile": interviewer_profile(workspace_type, career, job_title),
+                "language": "html", "entry_file": "index.html", "preview": "html",
+                "prompt": "Crea una pagina HTML semantica para una oferta laboral. Incluye encabezado, descripcion, requisitos y un formulario con etiquetas accesibles. Usa CSS para que sea legible en movil y escritorio. Explica tus decisiones. Puesto: " + job_title,
+                "starter_code": "<!doctype html>\n<html lang=\"es\">\n<head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>Oferta laboral</title><link rel=\"stylesheet\" href=\"styles.css\"></head>\n<body><!-- Completa la pagina --></body>\n</html>",
+                "files": [
+                    {"path":"index.html", "language":"html", "content":"<!doctype html>\n<html lang=\"es\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>Oferta laboral</title><link rel=\"stylesheet\" href=\"styles.css\"></head><body><!-- Completa la pagina --></body></html>"},
+                    {"path":"styles.css", "language":"css", "content":"/* Estilos adaptables y estados de foco */"}
+                ],
+                "expected_output": ["HTML semantico", "Formulario accesible", "Diseno adaptable", "Etiquetas y foco visibles"],
+            }
         profile = _tech_profile(career, job_title)
         challenges = {
             "frontend": {
@@ -164,7 +181,7 @@ def build_workspace_challenge(
                 "expected_output": ["HTML valido", "Estado visible", "Score visible", "Criterio accesible"],
             },
             "backend": {
-                "title": "Backend senior: servicio de seleccion",
+                "title": "Backend: servicio de seleccion",
                 "workspace_tool": "code_project",
                 "interviewer_profile": interviewer_profile(workspace_type, career, job_title),
                 "language": "typescript",
@@ -308,7 +325,10 @@ def build_workspace_challenge(
                 "expected_output": ["Build", "Healthcheck", "Rollback", "Monitoreo"],
             },
         }
-        return challenges[profile]
+        challenge = challenges[profile]
+        challenge["job_context"] = job_title
+        challenge["prompt"] += "\nContexto del puesto: " + job_title
+        return challenge
 
     if workspace_type == PracticalWorkspaceType.DOCUMENT_REVIEW:
         return {

@@ -106,4 +106,13 @@ public class CollaboratorController {
         collaboratorUseCase.deactivateCollaborator(companyId, collaboratorId);
         return ResponseEntity.ok(ApiResponse.success(null, "Collaborator deactivated successfully"));
     }
+    @PatchMapping("/{collaboratorId}/activate")
+    @PreAuthorize("hasAuthority('COMPANY')")
+    public ResponseEntity<ApiResponse<Void>> activateCollaborator(
+            @PathVariable UUID collaboratorId, Authentication authentication) {
+        UUID companyId = authenticatedUserResolver.resolve(authentication).companyId();
+        if (companyId == null) throw new IllegalArgumentException("No company associated with this user");
+        collaboratorUseCase.activateCollaborator(companyId, collaboratorId);
+        return ResponseEntity.ok(ApiResponse.success(null, "Collaborator activated successfully"));
+    }
 }

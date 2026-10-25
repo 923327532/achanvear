@@ -241,6 +241,15 @@ export function useRemoveCollaborator() {
   };
 }
 
+export function useActivateCollaborator() {
+  const queryClient = useQueryClient();
+  const mutation = useMutation({
+    mutationFn: (id: string) => companySettingsApi.activateCollaborator(id),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["company-settings", "collaborators"] }); },
+  });
+  return { activateAsync: mutation.mutateAsync, isLoading: mutation.isPending };
+}
+
 export function useDeactivateCollaborator() {
   const queryClient = useQueryClient();
 

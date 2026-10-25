@@ -330,7 +330,7 @@ public class JobController {
             @AuthenticationPrincipal AuthenticatedUser principal
     ) {
         CompanyHiringStatsResponse response = principal.getCompanyId() == null
-                ? new CompanyHiringStatsResponse(0, 0, 0, 0)
+                ? new CompanyHiringStatsResponse(0, 0, 0, 0, 0, 0)
                 : getCompanyHiringStatsUseCase.execute(resolveCompanyId(principal));
 
         return ResponseEntity.ok(ApiResponse.success(response, "Company hiring stats retrieved successfully"));
@@ -473,6 +473,7 @@ public class JobController {
         return ResponseEntity.ok(ApiResponse.success(response, "Candidate detail retrieved successfully"));
     }
 
+    @org.springframework.transaction.annotation.Transactional
     @PostMapping("/{jobPostId}/applicants/{applicationId}/advance")
     @PreAuthorize("hasAnyAuthority('COMPANY', 'COMPANY_COLLABORATOR', 'SUPERADMIN')")
     public ResponseEntity<ApiResponse<CandidateDrawerDetailResponse>> advanceCandidate(
@@ -502,25 +503,25 @@ public class JobController {
             }
 
             boolean alreadyInInterview = java.util.Set.of(
-                    "THEORY_INTERVIEW", "TECHNICAL_INTERVIEW", "UNDER_REVIEW", "APPROVED", "HIRED"
+                    "THEORY_INTERVIEW", "TECHNICAL_INTERVIEW", "HIRED"
             ).contains(current.currentStage());
             if (alreadyInInterview) {
                 return ResponseEntity.ok(ApiResponse.success(current, "Candidate is already in the interview process"));
             }
 
-            updateApplicationStatusUseCase.execute(new UpdateApplicationStatusCommand(
-                    applicationId,
-                    jobPostId,
-                    companyId,
-                    principal.isSuperAdmin(),
-                    "SHORTLISTED"
-            ));
+            boolean finalDecision = java.util.Set.of("UNDER_REVIEW", "APPROVED").contains(current.currentStage());
+            if (!finalDecision) updateApplicationStatusUseCase.execute(new UpdateApplicationStatusCommand(
+                    applicationId, jobPostId, companyId, principal.isSuperAdmin(), "SHORTLISTED"));
             advanceCandidateToTheoryInterviewUseCase.execute(
                     jobPostId,
                     current.candidateUserId(),
                     current.screeningScore(),
                     current.screeningSummary()
             );
+            if ("APPROVED".equals(current.currentStage())) {
+                updateApplicationStatusUseCase.execute(new UpdateApplicationStatusCommand(
+                        applicationId, jobPostId, companyId, principal.isSuperAdmin(), "HIRED"));
+            }
         } else if (!"REJECTED".equalsIgnoreCase(current.applicationStatus())) {
             updateApplicationStatusUseCase.execute(new UpdateApplicationStatusCommand(
                     applicationId,

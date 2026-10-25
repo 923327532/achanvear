@@ -31,7 +31,19 @@ public class CompanyRepositoryImpl implements CompanyRepository {
 
     @Override
     public void save(Company company) {
-        companyJpaRepository.save(companyMapper.toEntity(company));
+        var entity = companyMapper.toEntity(company);
+        companyJpaRepository.findById(company.getId().value()).ifPresent(existing -> {
+            entity.setCreatedAt(existing.getCreatedAt());
+            entity.setAiAgentId(existing.getAiAgentId());
+            entity.setMatchScoreThreshold(existing.getMatchScoreThreshold());
+            entity.setIncognitoMode(existing.getIncognitoMode());
+            entity.setShowContactInfo(existing.getShowContactInfo());
+            entity.setShowInDirectory(existing.getShowInDirectory());
+            entity.setVisibilityNotifications(existing.getVisibilityNotifications());
+            entity.setLanguage(existing.getLanguage());
+            entity.setTimezone(existing.getTimezone());
+        });
+        companyJpaRepository.save(entity);
     }
 
     @Override

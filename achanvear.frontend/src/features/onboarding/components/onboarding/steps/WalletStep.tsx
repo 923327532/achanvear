@@ -1,5 +1,6 @@
 //steps/WalletStep.tsx
 "use client";
+import { CommissionPolicyNotice } from "@/components/payments/CommissionPolicyNotice";
 
 import { Gift, ShieldCheck, TrendingUp, CheckCircle2 } from "lucide-react";
 
@@ -63,20 +64,7 @@ export function WalletStep({ onNext }: WalletStepProps) {
           </div>
           <div>
             <p className="text-sm font-semibold text-slate-900">Comisiones justas y transparentes</p>
-            <p className="text-xs text-slate-500 mt-0.5 mb-2 leading-relaxed">
-              A partir del segundo trabajo, cobramos entre 3% y 5% según el monto:
-            </p>
-            <div className="flex flex-wrap gap-1.5">
-              <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">
-                Menos de S/. 5,000: 5%
-              </span>
-              <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">
-                S/. 5,000 - S/. 15,000: 4%
-              </span>
-              <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">
-                Más de S/. 15,000: 3%
-              </span>
-            </div>
+            <CommissionPolicyNotice />
           </div>
         </div>
       </div>

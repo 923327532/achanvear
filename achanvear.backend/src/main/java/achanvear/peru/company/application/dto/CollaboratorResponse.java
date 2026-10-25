@@ -11,8 +11,12 @@ public record CollaboratorResponse(
         String role,
         String status,
         String invitedAt,
-        String tempPassword
+        String tempPassword,
+        Boolean emailSent
 ) {
+    public CollaboratorResponse withEmailSent(boolean sent) {
+        return new CollaboratorResponse(id, companyId, userId, fullName, email, role, status, invitedAt, tempPassword, sent);
+    }
     public static CollaboratorResponse from(CompanyCollaborator collaborator) {
         return new CollaboratorResponse(
                 collaborator.getId().toString(),
@@ -23,7 +27,7 @@ public record CollaboratorResponse(
                 "COMPANY_COLLABORATOR",
                 collaborator.getStatus().name(),
                 collaborator.getInvitedAt().toString(),
-                null
+                null, null
         );
     }
 
@@ -37,7 +41,7 @@ public record CollaboratorResponse(
                 "COMPANY_COLLABORATOR",
                 collaborator.getStatus().name(),
                 collaborator.getInvitedAt().toString(),
-                tempPassword
+                tempPassword, null
         );
     }
 }

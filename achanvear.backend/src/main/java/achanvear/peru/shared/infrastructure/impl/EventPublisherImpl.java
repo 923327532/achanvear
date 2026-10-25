@@ -7,10 +7,8 @@ import org.springframework.stereotype.Component;
 @Component
 public class EventPublisherImpl implements EventPublisher {
 
+    private final org.springframework.context.ApplicationEventPublisher publisher;
+    public EventPublisherImpl(org.springframework.context.ApplicationEventPublisher publisher) { this.publisher = publisher; }
     @Override
-    public void publish(DomainEvent event) {
-        // TODO: Implement actual event publishing to message broker or event store
-        // For now, just log the event
-        System.out.println("Publishing event: " + event.getClass().getSimpleName() + " at " + java.time.Instant.now());
-    }
+    public void publish(DomainEvent event) { publisher.publishEvent(event); }
 }

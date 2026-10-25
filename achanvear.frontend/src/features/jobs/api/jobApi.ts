@@ -70,6 +70,8 @@ export interface CompanyHiringStats {
   activeJobs: number;
   totalApplications: number;
   interviewsInProgress: number;
+  theoryInterviewsInProgress: number;
+  technicalInterviewsInProgress: number;
   finalists: number;
 }
 

@@ -9,13 +9,13 @@ async def generate_questions(
     career: str,
     job_title: str,
     country: str = "Peru",
-    num_questions: int = 20
+    num_questions: int = 15
 ) -> List[dict]:
     """
-    Genera 20 preguntas para entrevista teorica:
-    - 10 tecnicas del empleo
-    - 5 psicologicas
-    - 3 de trabajo en equipo
+    Genera 15 preguntas para entrevista teorica:
+    - 8 tecnicas del empleo
+    - 3 psicologicas
+    - 2 de trabajo en equipo
     - 2 abiertas
     """
 
@@ -30,10 +30,10 @@ async def generate_questions(
     - Contexto: {country}
 
     DISTRIBUCION OBLIGATORIA:
-    - Preguntas 1 a 10: tecnicas y especificas del empleo {job_title}.
-    - Preguntas 11 a 15: psicologicas/laborales.
-    - Preguntas 16 a 18: trabajo en equipo, comunicacion y conflictos.
-    - Preguntas 19 a 20: abiertas para explicar experiencia, logros o propuesta de mejora.
+    - Preguntas 1 a 8: tecnicas y especificas del empleo {job_title}.
+    - Preguntas 9 a 11: psicologicas/laborales.
+    - Preguntas 12 a 13: trabajo en equipo, comunicacion y conflictos.
+    - Preguntas 14 a 15: abiertas para explicar experiencia, logros o propuesta de mejora.
 
     REGLAS:
     - Cada pregunta debe ser clara, directa y responderse en 60-90 segundos.
@@ -53,7 +53,8 @@ async def generate_questions(
     """)
 
     chain = prompt | llm | parser
-    fallback = fallback_questions(career, job_title)
+    fallback_all = fallback_questions(career, job_title)
+    fallback = fallback_all[:8] + fallback_all[10:13] + fallback_all[15:17] + fallback_all[18:20]
 
     try:
         questions = await chain.ainvoke({
@@ -99,11 +100,11 @@ async def generate_questions(
 
 
 def infer_category(index: int) -> str:
-    if index < 10:
+    if index < 8:
         return "technical"
-    if index < 15:
+    if index < 11:
         return "psychological"
-    if index < 18:
+    if index < 13:
         return "teamwork"
     return "open"
 

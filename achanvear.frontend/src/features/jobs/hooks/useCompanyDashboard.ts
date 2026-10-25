@@ -12,6 +12,8 @@ export interface CompanyDashboardData {
   activeJobs: number | null;
   totalApplications: number | null;
   interviewsInProgress: number | null;
+  theoryInterviewsInProgress: number | null;
+  technicalInterviewsInProgress: number | null;
   finalists: number | null;
   recentJobs: Job[];
 }
@@ -42,6 +44,7 @@ export function useCompanyDashboard(searchQuery?: string) {
   const hasCompany = companyQuery.isSuccess && !!companyQuery.data;
 
   const data: CompanyDashboardData | undefined = (() => {
+
     const jobs = jobsQuery.data?.items ?? [];
     const activeRecentJobs = jobs.filter((job) => job.status === "PUBLISHED");
     const company = hasCompany ? companyQuery.data! : null;
@@ -55,6 +58,8 @@ export function useCompanyDashboard(searchQuery?: string) {
       activeJobs: stats?.activeJobs ?? null,
       totalApplications: stats?.totalApplications ?? null,
       interviewsInProgress: stats?.interviewsInProgress ?? null,
+      theoryInterviewsInProgress: stats?.theoryInterviewsInProgress ?? null,
+      technicalInterviewsInProgress: stats?.technicalInterviewsInProgress ?? null,
       finalists: stats?.finalists ?? null,
       recentJobs: activeRecentJobs.slice(0, 12),
     };

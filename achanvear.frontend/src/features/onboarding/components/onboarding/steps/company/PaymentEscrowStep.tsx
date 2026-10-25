@@ -1,5 +1,6 @@
 "use client";
 
+import { CommissionPolicyNotice } from "@/components/payments/CommissionPolicyNotice";
 import { useState } from "react";
 import { Shield, CheckCircle2, CreditCard, Landmark, Info, ArrowRight } from "lucide-react";
 import { Alert } from "@/components/ui/Alert";
@@ -72,28 +73,7 @@ export function PaymentEscrowStep({ data, onUpdate, onNext, onBack }: PaymentEsc
             <Info className="w-6 h-6 text-slate-900" />
             <h3 className="text-lg font-bold text-slate-900">Comisiones de la Plataforma</h3>
           </div>
-          <div className="space-y-3 text-slate-700">
-            <div className="p-3 bg-white rounded-xl">
-              <p className="font-semibold text-green-700">Empleos (Planilla): Gratuito</p>
-            </div>
-            <div className="p-3 bg-white rounded-xl">
-              <p className="font-semibold mb-2">Proyectos Freelance: 3% - 5%</p>
-              <ul className="space-y-1 text-sm">
-                <li className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-teal-600" />
-                  Menos de S/. 5,000: 5%
-                </li>
-                <li className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-teal-600" />
-                  S/. 5,000 - S/. 15,000: 4%
-                </li>
-                <li className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-teal-600" />
-                  Más de S/. 15,000: 3%
-                </li>
-              </ul>
-            </div>
-          </div>
+          <CommissionPolicyNotice />
         </div>
       </div>
 
@@ -143,7 +123,7 @@ export function PaymentEscrowStep({ data, onUpdate, onNext, onBack }: PaymentEsc
             className="w-5 h-5 text-teal-600 rounded border-slate-300 focus:ring-teal-600 mt-0.5"
           />
           <span className="text-sm text-amber-800">
-            Acepto los términos y condiciones del sistema de Escrow, así como la política de comisiones de la plataforma (3% - 5% según el monto del proyecto freelance)
+            Acepto los términos y condiciones del sistema de Escrow, así como la política de comisiones de la plataforma
           </span>
         </label>
       </div>

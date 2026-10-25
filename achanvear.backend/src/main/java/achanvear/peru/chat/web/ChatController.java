@@ -51,7 +51,13 @@ public class ChatController {
                         CASE WHEN c.company_id = ? THEN c.freelancer_id ELSE c.company_id END AS participant_id,
                         u.full_name AS participant_name,
                         u.role AS participant_role,
-                        (SELECT content FROM chat_messages WHERE conversation_id = c.id ORDER BY sent_at DESC LIMIT 1) AS last_message,
+                        (SELECT COALESCE(NULLIF(m.content, ''),
+                            (SELECT CASE WHEN a.mime_type LIKE 'image/%' THEN 'Imagen' ELSE 'Archivo adjunto' END
+                             FROM chat_attachments a WHERE a.message_id = m.id LIMIT 1), '')
+                         FROM chat_messages m WHERE m.conversation_id = c.id ORDER BY m.sent_at DESC, m.id DESC LIMIT 1) AS last_message,
+                        (SELECT COUNT(*) FROM chat_messages m WHERE m.conversation_id = c.id
+                         AND m.sender_id = u.id AND m.read_at IS NULL) AS unread_count,
+                        (SELECT co.id FROM companies co WHERE co.owner_user_id = u.id) AS participant_company_id,
                         (SELECT sent_at FROM chat_messages WHERE conversation_id = c.id ORDER BY sent_at DESC LIMIT 1) AS last_message_at
                  FROM chat_conversations c
                  JOIN users u ON (u.id = CASE WHEN c.company_id = ? THEN c.freelancer_id ELSE c.company_id END)
@@ -77,7 +83,8 @@ public class ChatController {
                             lastMsgTs != null
                                     ? lastMsgTs.toInstant().toString()
                                     : updatedTs.toInstant().toString(),
-                            0 // unreadCount - simplified
+                            rs.getInt("unread_count"),
+                            rs.getString("participant_company_id")
                     ));
                 }
             }
@@ -186,6 +193,9 @@ public class ChatController {
             @Valid @RequestBody SendMessageRequest request
     ) {
         UUID userId = user.getUserId();
+        if (!isParticipant(UUID.fromString(request.conversationId()), userId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.failure("Not a participant"));
+        }
         try (var conn = dataSource.getConnection();
              var stmt = conn.prepareStatement("""
                  INSERT INTO chat_messages (id, conversation_id, sender_id, content, sent_at)
@@ -246,6 +256,13 @@ public class ChatController {
                             "El archivo excede el tamaño máximo permitido de 10 MB"));
         }
 
+        try (var conn = dataSource.getConnection(); var stmt = conn.prepareStatement(
+                "SELECT 1 FROM chat_messages WHERE id = ? AND sender_id = ?")) {
+            stmt.setObject(1, UUID.fromString(messageId)); stmt.setObject(2, user.getUserId());
+            try (var rs = stmt.executeQuery()) {
+                if (!rs.next()) return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.failure("Not the message author"));
+            }
+        } catch (java.sql.SQLException e) { throw new IllegalStateException("Could not check message ownership", e); }
         try {
             // Subir a S3
             StoragePort.UploadResponse uploadResult = storagePort.uploadFile(
@@ -446,6 +463,8 @@ public class ChatController {
             try (var insertStmt = conn.prepareStatement("""
                 INSERT INTO chat_conversations (id, company_id, freelancer_id, created_at, updated_at)
                 VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT (LEAST(company_id, freelancer_id), GREATEST(company_id, freelancer_id))
+                DO UPDATE SET updated_at = chat_conversations.updated_at
                 RETURNING id, company_id, freelancer_id, updated_at
             """)) {
                 UUID convId = UUID.randomUUID();
@@ -495,6 +514,30 @@ public class ChatController {
     }
 
     // ─── DELETE /chat/messages/{messageId} ─────────────────────────────────────
+    private boolean isParticipant(UUID conversationId, UUID userId) {
+        try (var conn = dataSource.getConnection(); var stmt = conn.prepareStatement(
+                "SELECT 1 FROM chat_conversations WHERE id = ? AND (company_id = ? OR freelancer_id = ?)")) {
+            stmt.setObject(1, conversationId); stmt.setObject(2, userId); stmt.setObject(3, userId);
+            try (var rs = stmt.executeQuery()) { return rs.next(); }
+        } catch (java.sql.SQLException e) { throw new IllegalStateException("Could not check membership", e); }
+    }
+
+    @PatchMapping("/conversations/{conversationId}/read")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<Void>> markRead(@PathVariable UUID conversationId,
+            @AuthenticationPrincipal AuthenticatedUser user) throws java.sql.SQLException {
+        try (var conn = dataSource.getConnection(); var stmt = conn.prepareStatement("""
+                UPDATE chat_messages m SET read_at = CURRENT_TIMESTAMP
+                FROM chat_conversations c WHERE c.id = m.conversation_id AND c.id = ?
+                AND (c.company_id = ? OR c.freelancer_id = ?) AND m.sender_id <> ? AND m.read_at IS NULL
+                """)) {
+            stmt.setObject(1, conversationId);
+            stmt.setObject(2, user.getUserId()); stmt.setObject(3, user.getUserId());
+            stmt.setObject(4, user.getUserId()); stmt.executeUpdate();
+        }
+        return ResponseEntity.ok(ApiResponse.success(null, "Messages marked as read"));
+    }
+
     @DeleteMapping("/messages/{messageId}")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<Void>> deleteMessage(
@@ -556,8 +599,14 @@ record ConversationResponse(
         String participantRole,
         String lastMessage,
         String lastMessageAt,
-        int unreadCount
-) {}
+        int unreadCount,
+        String participantCompanyId
+) {
+    ConversationResponse(String id, String participantId, String participantName, String participantRole,
+                         String lastMessage, String lastMessageAt, int unreadCount) {
+        this(id, participantId, participantName, participantRole, lastMessage, lastMessageAt, unreadCount, null);
+    }
+}
 
 record ConversationAttachmentResponse(
         String id,

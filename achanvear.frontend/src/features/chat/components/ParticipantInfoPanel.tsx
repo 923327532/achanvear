@@ -136,7 +136,9 @@ function FreelancerProfileModal({
   );
 }
 
-function ViewProfileModal({ conversation, onClose }: { conversation: Conversation; onClose: () => void }) {
+function ViewProfileModal({ conversation, profile, onClose }: {
+  conversation: Conversation; profile: { industry?: string; specialty?: string; biography?: string } | null; onClose: () => void;
+}) {
   const isCompany = conversation.participantRole === "COMPANY";
 
   return (
@@ -173,9 +175,7 @@ function ViewProfileModal({ conversation, onClose }: { conversation: Conversatio
       </div>
 
       <p className="text-[11px] text-[#94A3B8] text-center mt-4">
-        {isCompany
-          ? "Los datos completos de la empresa estarán disponibles cuando el backend proporcione el ID del participante."
-          : "Los datos completos del freelancer estarán disponibles cuando el backend proporcione el ID del participante."}
+        {[profile?.industry, profile?.specialty, profile?.biography].filter(Boolean).join(" ? ") || "Sin descripcion publica."}
       </p>
     </Modal>
   );
@@ -212,6 +212,14 @@ export function ParticipantInfoPanel({ conversation, onClose }: Props) {
     queryKey: ["chat", "participant-profile", conversation?.participantId],
     queryFn: () => chatApi.getFreelancerProfile(conversation!.participantId),
     enabled: isFreelancerParticipant && !!conversation?.participantId,
+    staleTime: 1000 * 60 * 5,
+    retry: 1,
+  });
+
+  const companyProfileQuery = useQuery({
+    queryKey: ["chat", "company-profile", conversation?.participantCompanyId ?? conversation?.participantId],
+    queryFn: () => chatApi.getCompanyProfile(conversation!.participantCompanyId ?? conversation!.participantId),
+    enabled: !isFreelancerParticipant && !!conversation?.participantId,
     staleTime: 1000 * 60 * 5,
     retry: 1,
   });
@@ -284,9 +292,8 @@ export function ParticipantInfoPanel({ conversation, onClose }: Props) {
                 </h4>
                 <div className="bg-[#F8FAFC] rounded-lg p-3">
                   <p className="text-xs text-[#64748B] leading-relaxed">
-                    Esta información aún no está disponible desde el chat. Puedes ver el perfil completo
-                    desde la sección correspondiente una vez que el backend incluya el identificador del
-                    participante en la conversación.
+                    {companyProfileQuery.isLoading ? "Cargando perfil..." : companyProfileQuery.isError ? "No se pudo cargar el perfil de la empresa." :
+                      [companyProfileQuery.data?.industry, companyProfileQuery.data?.specialty, companyProfileQuery.data?.biography].filter(Boolean).join(" / ") || "Sin descripcion publica."}
                   </p>
                 </div>
               </div>
@@ -390,7 +397,7 @@ export function ParticipantInfoPanel({ conversation, onClose }: Props) {
         profile && !isCompany ? (
           <FreelancerProfileModal conversation={conversation} profile={profile} onClose={() => setShowProfileModal(false)} />
         ) : (
-          <ViewProfileModal conversation={conversation} onClose={() => setShowProfileModal(false)} />
+          <ViewProfileModal conversation={conversation} profile={companyProfileQuery.data ?? null} onClose={() => setShowProfileModal(false)} />
         )
       )}
       {showProjectModal && (

@@ -138,6 +138,10 @@ export const companySettingsApi = {
     await api.delete(`/companies/collaborators/${collaboratorId}`);
   },
 
+  activateCollaborator: async (collaboratorId: string): Promise<void> => {
+    await api.patch(`/companies/collaborators/${collaboratorId}/activate`);
+  },
+
   deactivateCollaborator: async (collaboratorId: string): Promise<void> => {
     await api.patch(`/companies/collaborators/${collaboratorId}/deactivate`);
   },

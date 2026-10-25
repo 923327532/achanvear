@@ -4,6 +4,8 @@ public record CompanyHiringStatsResponse(
         long activeJobs,
         long totalApplications,
         long interviewsInProgress,
-        long finalists
+        long finalists,
+        long theoryInterviewsInProgress,
+        long technicalInterviewsInProgress
 ) {
 }

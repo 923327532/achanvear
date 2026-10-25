@@ -302,7 +302,7 @@ public class CompanyApplicationService implements
         try {
             return PaymentMethodType.valueOf(value.trim().toUpperCase());
         } catch (IllegalArgumentException e) {
-            return PaymentMethodType.BANK_TRANSFER;
+            throw new IllegalArgumentException("Invalid paymentMethodType: " + value);
         }
     }
 

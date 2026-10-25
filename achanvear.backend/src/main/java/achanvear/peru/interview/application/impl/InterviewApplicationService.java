@@ -247,10 +247,13 @@ public class InterviewApplicationService implements
             InterviewScore finalScore = scoreCalculator.calculate(interview);
             interview.complete(finalScore);
             interviewSlotManager.releaseSlot(command.interviewId());
-            publishInterviewCompleted(interview, finalScore);
         }
 
         interviewRepository.save(interview);
+        if (evaluation.interviewCompleted()) {
+            markRelatedScheduleFinished(interview);
+            publishInterviewCompleted(interview, interview.getScore());
+        }
 
         QuestionResponse nextQuestionResponse = null;
         if (nextQuestion != null) {
@@ -281,33 +284,24 @@ public class InterviewApplicationService implements
         Interview interview = getInterview(command.interviewId());
 
         boolean alreadyCompleted = interview.getStatus() == InterviewStatus.COMPLETED;
-        InterviewScore finalScore = command.score() != null
-                ? new InterviewScore(command.score())
-                : interview.getScore() != null
-                ? interview.getScore()
-                : scoreCalculator.calculate(interview);
-        boolean passed = finalScore.getValue() >= 75;
-
-        if (command.score() != null && interview.getStatus() == InterviewStatus.SCHEDULED) {
-            interview.start();
-        }
-
-        if (command.score() != null && interview.getAnswers().isEmpty()) {
-            String questionId = interview.getQuestions().isEmpty()
-                    ? UUID.randomUUID().toString()
-                    : interview.getQuestions().get(0).getId();
-            if (interview.getQuestions().isEmpty()) {
-                interview.addQuestion(new Question(
-                        questionId,
-                        "Evaluacion practica realizada por agente IA",
-                        1
-                ));
+        InterviewScore finalScore;
+        if (alreadyCompleted) {
+            return execute(command.interviewId());
+        } else if (interview.getType() == InterviewType.TECHNICAL) {
+            int agentScore = ((RealAiInterviewerClient) aiInterviewerClient).getPracticalScore(interview.getId().toString());
+            finalScore = new InterviewScore(agentScore);
+            if (interview.getStatus() == InterviewStatus.SCHEDULED) interview.start();
+            if (interview.getAnswers().isEmpty()) {
+                String questionId = UUID.randomUUID().toString();
+                interview.addQuestion(new Question(questionId, "Evaluacion practica del agente IA", 1));
+                interview.submitAnswer(questionId, "Resultado recuperado directamente del agente IA", agentScore);
             }
-            String evidence = command.evidence() != null && !command.evidence().isBlank()
-                    ? command.evidence()
-                    : command.summary() != null ? command.summary() : "Resultado practico generado por IA";
-            interview.submitAnswer(questionId, evidence, finalScore.getValue());
+        } else {
+            if (interview.getPythonSessionId() == null) throw new IllegalStateException("Interview not started");
+            var result = aiInterviewerClient.completeTheoryInterview(interview.getPythonSessionId());
+            finalScore = new InterviewScore((int) Math.round(result.theory_score()));
         }
+        boolean passed = finalScore.getValue() >= 75;
 
         interview.complete(finalScore);
         interviewRepository.save(interview);
@@ -375,7 +369,7 @@ public class InterviewApplicationService implements
         Interview interview = interviewRepository.findById(InterviewId.of(interviewId))
                 .orElseThrow(() -> new IllegalArgumentException("Interview not found"));
 
-        Integer finalScore = scoreCalculator.calculate(interview).getValue();
+        Integer finalScore = interview.getScore() != null ? interview.getScore().getValue() : scoreCalculator.calculate(interview).getValue();
 
         List<InterviewReportResponse.QuestionItem> questions = interview.getQuestions().stream()
                 .map(this::toQuestionItem)
@@ -639,16 +633,6 @@ public class InterviewApplicationService implements
                 passed
         ));
 
-        if (interview.getType() == InterviewType.THEORY && passed) {
-            HiringContext hiringContext = resolveHiringContext(interview);
-            eventPublisher.publish(new TheoryInterviewPassedEvent(
-                    hiringContext.hiringProcessId(),
-                    hiringContext.jobId(),
-                    interview.getCandidateId(),
-                    finalScore.getValue(),
-                    Instant.now()
-            ));
-        }
     }
 
     private void markRelatedScheduleFinished(Interview interview) {

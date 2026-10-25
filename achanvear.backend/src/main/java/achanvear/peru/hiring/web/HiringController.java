@@ -61,6 +61,7 @@ public class HiringController {
                 .body(ApiResponse.success(response, "Screening started successfully"));
     }
 
+    @org.springframework.security.access.prepost.PreAuthorize("denyAll()")
     @PostMapping("/theory/evaluate")
     public ResponseEntity<ApiResponse<ScreeningResultResponse>> evaluateTheoryResult(
             @Valid @RequestBody EvaluateTheoryResultRequest request

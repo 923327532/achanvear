@@ -152,7 +152,7 @@ public class InterviewScheduleController {
             ChooseSlotResponse response = new ChooseSlotResponse(
                     schedule.getId(),
                     schedule.getInterviewToken(),
-                    schedule.getChosenSlot().getDateTime(),
+                    schedule.getChosenSlot().getDateTime().atOffset(java.time.ZoneOffset.UTC),
                     "Entrevista activada para dar ahora.",
                     interviewId.toString()
             );
@@ -210,7 +210,7 @@ public class InterviewScheduleController {
         List<InterviewScheduleResponse.SlotDto> slotDtos = schedule.getProposedSlots().stream()
                 .map(slot -> new InterviewScheduleResponse.SlotDto(
                         schedule.getProposedSlots().indexOf(slot),
-                        slot.getDateTime().format(fmt),
+                        slot.getDateTime().atOffset(java.time.ZoneOffset.UTC).toString(),
                         slot.getStatus().name()
                 ))
                 .toList();

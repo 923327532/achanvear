@@ -81,7 +81,7 @@ export function PipelineSelectorPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {jobs.map((job) => {
             const totalApps = job.applications?.length ?? 0;
-            const newApps = job.applications?.filter((a) => a.status === "PENDING").length ?? 0;
+            const newApps = job.applications?.filter((a) => a.status === "SUBMITTED").length ?? 0;
 
             return (
               <div

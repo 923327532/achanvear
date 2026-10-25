@@ -283,7 +283,7 @@ export function CompanyProfilePage() {
   );
   const hiredCount = jobs.reduce((sum, j) => {
     const accepted = j.applications?.filter(
-      (a) => a.status === "ACCEPTED"
+      (a) => a.status === "HIRED"
     ).length ?? 0;
     return sum + accepted;
   }, 0);

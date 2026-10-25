@@ -160,6 +160,9 @@ public class AuthApplicationService implements RegisterUserUseCase, LoginUserUse
             }
         } else if (user.getRole() == UserRole.COMPANY_COLLABORATOR) {
             Optional<CompanyCollaborator> collaborator = companyCollaboratorRepository.findByUserId(user.getId().value());
+            if (collaborator.isEmpty() || collaborator.get().getStatus() != achanvear.peru.company.domain.model.CollaboratorStatus.ACTIVE) {
+                throw new org.springframework.security.access.AccessDeniedException("Collaborator inactive");
+            }
             if (collaborator.isPresent()) {
                 companyId = collaborator.get().getCompanyId();
             }

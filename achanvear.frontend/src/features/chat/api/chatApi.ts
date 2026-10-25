@@ -3,6 +3,7 @@ import axiosClient from "@/lib/axiosClient";
 import type { Conversation, Message, SendMessagePayload, Attachment, DownloadAttachmentResponse, FreelancerProfileResponse, CompanyProfileResponse } from "../types/chat.types";
 
 export const chatApi = {
+  markRead: async (conversationId: string): Promise<void> => { await axiosClient.patch(`/chat/conversations/${conversationId}/read`); },
   // GET /chat/conversations
   getConversations: async (): Promise<Conversation[]> => {
     const res = await axiosClient.get<{ data: Conversation[] }>("/chat/conversations");
@@ -69,7 +70,7 @@ export const chatApi = {
 
   // GET /companies/:id - Get company profile
   getCompanyProfile: async (companyId: string): Promise<CompanyProfileResponse> => {
-    const res = await axiosClient.get<{ data: CompanyProfileResponse }>(`/companies/${companyId}`);
+    const res = await axiosClient.get<{ data: CompanyProfileResponse }>(`/companies/public/${companyId}`);
     return res.data.data;
   },
 };

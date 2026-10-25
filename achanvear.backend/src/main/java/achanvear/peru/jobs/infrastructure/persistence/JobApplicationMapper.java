@@ -18,13 +18,16 @@ import java.time.ZoneId;
 @Component
 public class JobApplicationMapper {
 
+    private final achanvear.peru.hiring.domain.repository.HiringProcessRepository processes;
     private final CompanyLookupPort companyLookupPort;
     private final RecruitmentAutomationConfigRepository automationConfigRepository;
 
     public JobApplicationMapper(
             CompanyLookupPort companyLookupPort,
-            RecruitmentAutomationConfigRepository automationConfigRepository
+            RecruitmentAutomationConfigRepository automationConfigRepository,
+            achanvear.peru.hiring.domain.repository.HiringProcessRepository processes
     ) {
+        this.processes = processes;
         this.companyLookupPort = companyLookupPort;
         this.automationConfigRepository = automationConfigRepository;
     }
@@ -83,7 +86,14 @@ public class JobApplicationMapper {
                 application.getCvUrl(),
                 application.getCoverLetter(),
                 application.getAppliedAt(),
-                application.getStatus().name()
+                application.getStatus().name(),
+                application.getScreeningScore(),
+                application.getScreeningResult(),
+                (application.getStatus() == achanvear.peru.jobs.domain.model.ApplicationStatus.REJECTED
+                  || application.getStatus() == achanvear.peru.jobs.domain.model.ApplicationStatus.HIRED)
+                    ? application.getStatus().name()
+                    : processes.findByJobIdAndCandidateId(application.getJobPostId().toString(), application.getCandidateUserId().toString())
+                        .map(p -> p.getStage().name()).orElse(application.getStatus().name())
         );
     }
 

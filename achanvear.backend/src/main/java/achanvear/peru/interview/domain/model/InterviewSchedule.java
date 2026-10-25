@@ -102,7 +102,7 @@ public class InterviewSchedule {
         }
 
         InterviewSlot nowSlot = proposedSlots.get(0)
-                .withDateTimeAndStatus(LocalDateTime.now(), InterviewSlot.SlotStatus.RESERVED);
+                .withDateTimeAndStatus(LocalDateTime.now(java.time.ZoneOffset.UTC), InterviewSlot.SlotStatus.RESERVED);
         this.chosenSlot = nowSlot;
         this.proposedSlots.set(0, nowSlot);
 

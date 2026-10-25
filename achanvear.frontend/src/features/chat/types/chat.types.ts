@@ -28,8 +28,9 @@ export const PROJECT_STATUS_COLORS: Record<ProjectStatus, string> = {
 };
 
 export interface Conversation {
-  id: string;
   participantId: string;
+  participantCompanyId?: string | null;
+  id: string;
   participantName: string;
   participantRole: string;
   lastMessage: string;

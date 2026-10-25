@@ -144,8 +144,8 @@ function JobCard({
 }) {
   const isLoadingAction = actionLoading === job.id;
   const totalApps = job.applications?.length ?? 0;
-  const filteredByAI = job.applications?.filter((a) => a.status === "REVIEWING").length ?? 0;
-  const finalists = job.applications?.filter((a) => a.status === "ACCEPTED").length ?? 0;
+  const filteredByAI = job.applications?.filter((a) => a.screeningScore != null).length ?? 0;
+  const finalists = job.applications?.filter((a) => ["APPROVED", "HIRED"].includes(a.currentStage ?? a.status)).length ?? 0;
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all">
@@ -351,7 +351,6 @@ export function JobsManagementPage() {
     queryClient.invalidateQueries({ queryKey: ["my-job-posts"] });
     queryClient.invalidateQueries({ queryKey: ["company-hiring-stats"] });
   };
-
   const deleteMutation = useMutation({
     mutationFn: (jobId: string) => jobApi.delete(jobId),
     onSuccess: refreshAfterChange,

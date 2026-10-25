@@ -60,18 +60,18 @@ public class InterviewScheduleService implements
         }
 
         // Generar 3 horarios: 1 prueba rapida + 2 originales
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(java.time.ZoneId.of("America/Lima"));
         List<InterviewSlot> slots = List.of(
                 new InterviewSlot(
-                        now.plusMinutes(5),
+                        toUtc(now.plusMinutes(5)),
                         InterviewSlot.SlotStatus.AVAILABLE
                 ),
                 new InterviewSlot(
-                        now.plusHours(24).withHour(9).withMinute(0).withSecond(0).withNano(0),
+                        toUtc(now.plusHours(24).withHour(9).withMinute(0).withSecond(0).withNano(0)),
                         InterviewSlot.SlotStatus.AVAILABLE
                 ),
                 new InterviewSlot(
-                        now.plusHours(48).withHour(10).withMinute(0).withSecond(0).withNano(0),
+                        toUtc(now.plusHours(48).withHour(10).withMinute(0).withSecond(0).withNano(0)),
                         InterviewSlot.SlotStatus.AVAILABLE
                 )
         );
@@ -128,7 +128,7 @@ public class InterviewScheduleService implements
         return new ChooseSlotResponse(
                 schedule.getId(),
                 schedule.getInterviewToken(),
-                schedule.getChosenSlot().getDateTime(),
+                schedule.getChosenSlot().getDateTime().atOffset(java.time.ZoneOffset.UTC),
                 "Horario elegido correctamente. Usa tu token para acceder.",
                 interviewId.toString()
         );
@@ -140,7 +140,7 @@ public class InterviewScheduleService implements
                 .orElseThrow(() -> new IllegalArgumentException("Token no valido: " + command.token()));
 
         // Validar ventana de tiempo (5 min antes, 5 tolerancia)
-        schedule.validateEntry(LocalDateTime.now());
+        schedule.validateEntry(LocalDateTime.now(java.time.ZoneOffset.UTC));
         scheduleRepository.save(schedule);
 
         log.info("Ingreso autorizado para schedule {} con token {}", schedule.getId(), command.token());
@@ -218,11 +218,15 @@ public class InterviewScheduleService implements
         return frontendBaseUrl + "/freelancer/interviews/choose-slot?id=" + scheduleId + "&slot=" + slotIndex;
     }
 
+    private static LocalDateTime toUtc(LocalDateTime lima) {
+        return lima.atZone(java.time.ZoneId.of("America/Lima")).withZoneSameInstant(java.time.ZoneOffset.UTC).toLocalDateTime();
+    }
+
     private InterviewScheduleResponse toResponse(InterviewSchedule schedule) {
         List<InterviewScheduleResponse.SlotDto> slotDtos = schedule.getProposedSlots().stream()
                 .map(slot -> new InterviewScheduleResponse.SlotDto(
                         schedule.getProposedSlots().indexOf(slot),
-                        slot.getDateTime().format(SLOT_FORMATTER),
+                        slot.getDateTime().atOffset(java.time.ZoneOffset.UTC).toString(),
                         slot.getStatus().name()
                 ))
                 .toList();

@@ -111,8 +111,8 @@ export function CompanyDashboardHome() {
           <HiringPipeline
             data={{
               screening: dashboard?.totalApplications ?? 0,
-              theory: dashboard?.interviewsInProgress ?? 0,
-              technical: dashboard?.interviewsInProgress ?? 0,
+              theory: dashboard?.theoryInterviewsInProgress ?? 0,
+              technical: dashboard?.technicalInterviewsInProgress ?? 0,
               finalists: dashboard?.finalists ?? 0,
             }}
           />

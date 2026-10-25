@@ -7,6 +7,7 @@ package achanvear.peru.compliance.domain.model;
 public enum ConsentType {
     /** Aceptación de los Términos y Condiciones durante el registro. */
     REGISTRATION_TERMS,
+    ESCROW_TERMS,
     /** Aceptación de la Política de Privacidad durante el registro. */
     REGISTRATION_PRIVACY,
     /** Aceptación de que las respuestas y datos de la entrevista se traten para fines de evaluación. */

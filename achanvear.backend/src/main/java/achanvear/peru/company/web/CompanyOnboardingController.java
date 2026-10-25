@@ -26,6 +26,9 @@ import java.util.UUID;
 @PreAuthorize("hasAnyAuthority('COMPANY', 'SUPERADMIN')")
 public class CompanyOnboardingController {
 
+    private final achanvear.peru.company.infrastructure.persistence.CompanyJpaRepository companies;
+    private final achanvear.peru.compliance.domain.repository.ConsentRecordRepository consents;
+    private final achanvear.peru.compliance.domain.repository.LegalDocumentRepository legalDocuments;
     private final CreateCompanyUseCase createCompanyUseCase;
     private final UpdateCompanyUseCase updateCompanyUseCase;
     private final GetCompanyByUserIdUseCase getCompanyByUserIdUseCase;
@@ -35,8 +38,12 @@ public class CompanyOnboardingController {
             CreateCompanyUseCase createCompanyUseCase,
             UpdateCompanyUseCase updateCompanyUseCase,
             GetCompanyByUserIdUseCase getCompanyByUserIdUseCase,
-            AuthenticatedUserResolver authenticatedUserResolver
+            AuthenticatedUserResolver authenticatedUserResolver,
+            achanvear.peru.company.infrastructure.persistence.CompanyJpaRepository companies,
+            achanvear.peru.compliance.domain.repository.ConsentRecordRepository consents,
+            achanvear.peru.compliance.domain.repository.LegalDocumentRepository legalDocuments
     ) {
+        this.companies = companies; this.consents = consents; this.legalDocuments = legalDocuments;
         this.createCompanyUseCase = createCompanyUseCase;
         this.updateCompanyUseCase = updateCompanyUseCase;
         this.getCompanyByUserIdUseCase = getCompanyByUserIdUseCase;
@@ -151,12 +158,24 @@ public class CompanyOnboardingController {
     /**
      * PASO 6: Actualiza el método de pago.
      */
+    @Transactional
     @PatchMapping("/payment-method")
     public ResponseEntity<ApiResponse<CompanyResponse>> updatePaymentMethod(
             @Valid @RequestBody UpdatePaymentMethodRequest request,
             Authentication authentication
     ) {
         CompanyResponse company = getCompany(authentication);
+        if (!Boolean.TRUE.equals(request.acceptEscrowTerms())) {
+            throw new IllegalArgumentException("Explicit escrow terms acceptance is required");
+        }
+        var version = legalDocuments.findActiveVersionByType(achanvear.peru.compliance.domain.model.LegalDocumentType.TERMS)
+                .orElseThrow(() -> new IllegalStateException("No active terms document"));
+        if (!version.getVersion().equals(request.escrowTermsVersion())) {
+            throw new IllegalArgumentException("Accept the current terms version");
+        }
+        consents.save(achanvear.peru.compliance.domain.model.ConsentRecord.accept(
+                achanvear.peru.compliance.domain.model.ConsentRecordId.generate(), company.ownerUserId(), null,
+                achanvear.peru.compliance.domain.model.ConsentType.ESCROW_TERMS, version.getVersion()));
         CompanyResponse updated = updateCompanyUseCase.execute(buildUpdateCommand(
                 company, company.industry(), company.specialty(),
                 null, null, null, null, null, request.paymentMethodType()
@@ -167,6 +186,7 @@ public class CompanyOnboardingController {
     /**
      * PASO 7: Finaliza el onboarding.
      */
+    @Transactional
     @PostMapping("/complete")
     public ResponseEntity<ApiResponse<CompanyResponse>> completeOnboarding(
             @Valid @RequestBody CompleteOnboardingRequest request,
@@ -184,6 +204,11 @@ public class CompanyOnboardingController {
                 request.companyPlan() != null ? request.companyPlan() : company.companyPlan(),
                 request.paymentMethodType() != null ? request.paymentMethodType() : company.paymentMethodType()
         ));
+        if (request.selectedAgentId() != null && !request.selectedAgentId().isBlank()) {
+            var entity = companies.findById(UUID.fromString(company.id())).orElseThrow();
+            entity.setAiAgentId(request.selectedAgentId().trim());
+            companies.save(entity);
+        }
         return ResponseEntity.ok(ApiResponse.success(updated, "Onboarding completado correctamente"));
     }
 
@@ -261,7 +286,9 @@ public class CompanyOnboardingController {
     ) {}
 
     public record UpdatePaymentMethodRequest(
-            @NotBlank String paymentMethodType
+            @NotBlank String paymentMethodType,
+            Boolean acceptEscrowTerms,
+            String escrowTermsVersion
     ) {}
 
     public record CompleteOnboardingRequest(
@@ -273,6 +300,7 @@ public class CompanyOnboardingController {
             String achievements,
             String address,
             String paymentMethodType,
-            String companyPlan
+            String companyPlan,
+            String selectedAgentId
     ) {}
 }

@@ -40,17 +40,19 @@ public class ServiceController {
     private final ServicePlanJpaRepository planRepository;
     private final JobAiSuggestionService jobAiSuggestionService;
     private final StoragePort storagePort;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbc;
 
     public ServiceController(
             ServiceJpaRepository serviceRepository,
             ServicePlanJpaRepository planRepository,
             JobAiSuggestionService jobAiSuggestionService,
-            StoragePort storagePort
+            StoragePort storagePort, org.springframework.jdbc.core.JdbcTemplate jdbc
     ) {
         this.serviceRepository = serviceRepository;
         this.planRepository = planRepository;
         this.jobAiSuggestionService = jobAiSuggestionService;
         this.storagePort = storagePort;
+        this.jdbc = jdbc;
     }
 
     // ─── GET /services/my ──────────────────────────────────────────────────────
@@ -487,8 +489,8 @@ public class ServiceController {
                 entity.getDeliveryDays(),
                 entity.getViews(),
                 entity.getSales(),
-                entity.getRating(),
-                entity.getReviewCount(),
+                profileRating(entity.getFreelancerUserId()),
+                profileReviewCount(entity.getFreelancerUserId()),
                 toDisplayImageUrls(entity.getImageUrls()),
                 splitCsv(entity.getVideoUrls()),
                 splitCsv(entity.getPdfUrls()),
@@ -530,8 +532,8 @@ public class ServiceController {
                 entity.getDeliveryDays(),
                 entity.getViews(),
                 entity.getSales(),
-                entity.getRating(),
-                entity.getReviewCount(),
+                profileRating(entity.getFreelancerUserId()),
+                profileReviewCount(entity.getFreelancerUserId()),
                 toDisplayImageUrls(entity.getImageUrls()),
                 entity.getModality(),
                 entity.getCoverageType(),
@@ -543,12 +545,7 @@ public class ServiceController {
                 entity.getAvailableImmediately(),
                 entity.getCreatedAt(),
                 entity.getUpdatedAt(),
-                new FreelancerInfo(
-                        entity.getFreelancerUserId().toString(),
-                        "", "", null, false,
-                        entity.getPhone(),
-                        entity.getWhatsapp()
-                )
+                freelancerInfo(entity)
         );
     }
 
@@ -579,8 +576,8 @@ public class ServiceController {
                 entity.getDeliveryDays(),
                 entity.getViews(),
                 entity.getSales(),
-                entity.getRating(),
-                entity.getReviewCount(),
+                profileRating(entity.getFreelancerUserId()),
+                profileReviewCount(entity.getFreelancerUserId()),
                 toDisplayImageUrls(entity.getImageUrls()),
                 splitCsv(entity.getVideoUrls()),
                 splitCsv(entity.getPdfUrls()),
@@ -607,6 +604,25 @@ public class ServiceController {
                 entity.getCreatedAt(),
                 entity.getUpdatedAt()
         );
+    }
+
+    private FreelancerInfo freelancerInfo(ServiceJpaEntity entity) {
+        return jdbc.query("""
+                SELECT u.full_name, f.name, COALESCE(NULLIF(p.headline,''),f.specialty) AS specialty, f.profile_photo_url, f.status
+                FROM users u LEFT JOIN freelancer_profiles f ON f.user_id = u.id
+                LEFT JOIN talent_profiles p ON p.user_id = u.id WHERE u.id = ?
+                """, rs -> rs.next() ? new FreelancerInfo(entity.getFreelancerUserId().toString(),
+                rs.getString("full_name") != null ? rs.getString("full_name") : rs.getString("name"),
+                rs.getString("specialty"), rs.getString("profile_photo_url"),
+                "ACTIVE".equals(rs.getString("status")), entity.getPhone(), entity.getWhatsapp()) : null,
+                entity.getFreelancerUserId());
+    }
+
+    private BigDecimal profileRating(UUID userId) {
+        return jdbc.queryForObject("SELECT COALESCE(AVG(r.stars),0) FROM profile_ratings r JOIN talent_profiles p ON p.id=r.profile_id WHERE p.user_id=?", BigDecimal.class, userId);
+    }
+    private int profileReviewCount(UUID userId) {
+        return jdbc.queryForObject("SELECT COUNT(*) FROM profile_ratings r JOIN talent_profiles p ON p.id=r.profile_id WHERE p.user_id=?", Integer.class, userId);
     }
 
     private List<String> splitCsv(String value) {

@@ -244,7 +244,7 @@ export function JobsManagementTable({ jobs, actionLoading, onDelete, onChangeSta
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:hidden">
         {jobs.map((job) => {
           const isLoadingAction = actionLoading === job.id;
-          const newApplications = job.applications?.filter((a) => a.status === "PENDING").length ?? 0;
+          const newApplications = job.applications?.filter((a) => a.status === "SUBMITTED").length ?? 0;
           const totalApps = job.applications?.length ?? 0;
 
           return (
@@ -310,7 +310,7 @@ export function JobsManagementTable({ jobs, actionLoading, onDelete, onChangeSta
           <tbody className="divide-y divide-slate-50">
             {jobs.map((job) => {
               const isLoadingAction = actionLoading === job.id;
-              const newApplications = job.applications?.filter((a) => a.status === "PENDING").length ?? 0;
+              const newApplications = job.applications?.filter((a) => a.status === "SUBMITTED").length ?? 0;
               const totalApps = job.applications?.length ?? 0;
 
               return (

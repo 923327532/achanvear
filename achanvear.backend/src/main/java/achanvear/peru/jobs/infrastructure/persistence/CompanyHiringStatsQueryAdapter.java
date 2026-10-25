@@ -35,7 +35,9 @@ public class CompanyHiringStatsQueryAdapter implements CompanyHiringStatsQueryPo
                 jobPostJpaRepository.countByCompanyIdAndStatus(companyId, PUBLISHED),
                 applicationJpaRepository.countByCompanyId(companyId),
                 interviewJpaRepository.countActiveForCompany(companyId),
-                hiringProcessJpaRepository.countFinalistsByCompanyId(companyId)
+                hiringProcessJpaRepository.countFinalistsByCompanyId(companyId),
+                hiringProcessJpaRepository.countByCompanyAndStage(companyId, "THEORY_INTERVIEW"),
+                hiringProcessJpaRepository.countByCompanyAndStage(companyId, "TECHNICAL_INTERVIEW")
         );
     }
 }

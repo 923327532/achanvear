@@ -54,6 +54,16 @@ public class RealAiInterviewerClient implements AiInterviewerClient {
      * Python genera su propio session_id internamente (uuid.uuid4()).
      * Retorna un Map con "session_id" (el UUID que Python asignó).
      */
+    public int getPracticalScore(String interviewId) {
+        Map<?,?> result = restClient.get().uri("/practical-interview/result/" + interviewId)
+                .retrieve().body(Map.class);
+        if (result == null || !(result.get("score") instanceof Number score)
+                || score.doubleValue() < 0 || score.doubleValue() > 100) {
+            throw new IllegalStateException("No completed practical result available");
+        }
+        return (int) Math.round(score.doubleValue());
+    }
+
     public Map<String, Object> createPythonSession(
             String candidateId, String jobId, String career, String jobTitle,
             String phone, String email

@@ -58,6 +58,7 @@ public class CollaboratorUseCase {
         // Find or create user via port
         IdentityUserLookupPort.IdentityUserSummary userSummary = userLookupPort.findByEmail(email).orElse(null);
 
+        boolean emailSent;
         UUID userId;
         String tempPassword = null;
         if (userSummary == null) {
@@ -69,7 +70,7 @@ public class CollaboratorUseCase {
             userId = userSummary.id();
 
             // Send welcome email with temp password
-            notificationPort.sendEmail(
+            emailSent = notificationPort.sendEmail(
                     email,
                     "Has sido invitado a " + company.getBusinessName() + " en Achanvear",
                     """
@@ -95,7 +96,7 @@ public class CollaboratorUseCase {
             }
 
             // Send notification email
-            notificationPort.sendEmail(
+            emailSent = notificationPort.sendEmail(
                     email,
                     "Has sido agregado como colaborador de " + company.getBusinessName() + " en Achanvear",
                     """
@@ -123,9 +124,9 @@ public class CollaboratorUseCase {
 
         // If a temp password was generated, include it in the response
         if (tempPassword != null) {
-            return CollaboratorResponse.withTempPassword(collaborator, tempPassword);
+            return CollaboratorResponse.withTempPassword(collaborator, tempPassword).withEmailSent(emailSent);
         }
-        return CollaboratorResponse.from(collaborator);
+        return CollaboratorResponse.from(collaborator).withEmailSent(emailSent);
     }
 
     public void removeCollaborator(UUID companyId, UUID collaboratorId) {
@@ -137,6 +138,16 @@ public class CollaboratorUseCase {
         }
 
         collaboratorRepository.delete(collaborator);
+    }
+
+    public void activateCollaborator(UUID companyId, UUID collaboratorId) {
+        CompanyCollaborator collaborator = collaboratorRepository.findById(collaboratorId)
+                .orElseThrow(() -> new IllegalArgumentException("Collaborator not found"));
+        if (!collaborator.getCompanyId().equals(companyId)) {
+            throw new IllegalArgumentException("Collaborator does not belong to this company");
+        }
+        collaborator.activate();
+        collaboratorRepository.save(collaborator);
     }
 
     public void deactivateCollaborator(UUID companyId, UUID collaboratorId) {

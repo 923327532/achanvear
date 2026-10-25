@@ -1,5 +1,11 @@
 # Verificacion del backend
 
+Actualización del 25 de octubre de 2026: revisión de las 25 observaciones del
+documento del frontend. Ver [matriz A1–A25 y contratos actualizados](OBSERVACIONES_BACKEND_2026-10-24.md).
+La validación de esta revisión usa contenedores aislados; no actualiza el backend
+en ejecución ni la base Supabase. El número de preguntas de nuevas entrevistas
+teóricas se cambió a 15; las referencias a 20 debajo describen las pruebas anteriores.
+
 Entorno local: Supabase PostgreSQL, backend y agente IA en Docker, frontend en Next.js.
 
 Verificado el 18 de octubre de 2026: 12 pruebas Java y 6 pruebas Python aprobadas;

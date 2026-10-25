@@ -19,6 +19,7 @@ import {
   useInviteCollaborator,
   useRemoveCollaborator,
   useDeactivateCollaborator,
+  useActivateCollaborator,
 } from "../hooks/useCompanySettings";
 import { ConfirmModal } from "@/shared/components/ui/ConfirmModal";
 import { ApiError } from "@/lib/errors";
@@ -36,6 +37,7 @@ export function CompanyTeamSection() {
   } = useCollaborators();
   const { inviteAsync, isLoading: isInviting } = useInviteCollaborator();
   const { removeAsync } = useRemoveCollaborator();
+  const { activateAsync } = useActivateCollaborator();
   const { deactivateAsync } = useDeactivateCollaborator();
 
   const [showInviteModal, setShowInviteModal] = useState(false);
@@ -46,7 +48,7 @@ export function CompanyTeamSection() {
   const [error, setError] = useState("");
   const [tempPassword, setTempPassword] = useState("");
   const [showCredentials, setShowCredentials] = useState(false);
-  const [pendingAction, setPendingAction] = useState<{ kind: "remove" | "deactivate"; id: string; name: string } | null>(null);
+  const [pendingAction, setPendingAction] = useState<{ kind: "remove" | "deactivate" | "activate"; id: string; name: string } | null>(null);
   const [actionError, setActionError] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
 
@@ -94,6 +96,8 @@ export function CompanyTeamSection() {
     try {
       if (current.kind === "remove") {
         await removeAsync(current.id);
+      } else if (current.kind === "activate") {
+        await activateAsync(current.id);
       } else {
         await deactivateAsync(current.id);
       }
@@ -224,6 +228,10 @@ export function CompanyTeamSection() {
                     <td className="py-3 px-4 text-center">
                       <div className="flex items-center justify-center gap-2">
                         {isBusy && <Loader2 className="w-3.5 h-3.5 text-gray-400 animate-spin" />}
+                        {member.status === "INACTIVE" && (
+                          <button onClick={() => setPendingAction({ kind: "activate", id: member.id, name: member.fullName })}
+                            disabled={isBusy} className="text-xs font-medium text-teal-600 disabled:opacity-50">Reactivar</button>
+                        )}
                         {member.status === "ACTIVE" && (
                           <button
                             onClick={() => setPendingAction({ kind: "deactivate", id: member.id, name: member.fullName })}
@@ -350,13 +358,13 @@ export function CompanyTeamSection() {
 
       {pendingAction && (
         <ConfirmModal
-          title={pendingAction.kind === "remove" ? "Eliminar colaborador" : "Desactivar colaborador"}
+          title={pendingAction.kind === "remove" ? "Eliminar colaborador" : pendingAction.kind === "activate" ? "Reactivar colaborador" : "Desactivar colaborador"}
           description={
             pendingAction.kind === "remove"
               ? `Vas a eliminar a ${pendingAction.name} de tu equipo.`
-              : `Vas a desactivar a ${pendingAction.name} de tu equipo.`
+              : `Vas a ${pendingAction.kind === "activate" ? "reactivar" : "desactivar"} a ${pendingAction.name} de tu equipo.`
           }
-          confirmLabel={pendingAction.kind === "remove" ? "Eliminar" : "Desactivar"}
+          confirmLabel={pendingAction.kind === "remove" ? "Eliminar" : pendingAction.kind === "activate" ? "Reactivar" : "Desactivar"}
           cancelLabel="Volver"
           confirmClassName={pendingAction.kind === "deactivate" ? "bg-amber-500 hover:bg-amber-600" : undefined}
           onConfirm={handleConfirmAction}

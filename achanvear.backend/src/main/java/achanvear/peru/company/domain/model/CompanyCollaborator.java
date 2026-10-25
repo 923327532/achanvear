@@ -64,6 +64,11 @@ public class CompanyCollaborator extends AggregateRoot<UUID> {
         return new CompanyCollaborator(id, companyId, userId, fullName, email, status, invitedAt);
     }
 
+    public void activate() {
+        this.status = CollaboratorStatus.ACTIVE;
+        markUpdated();
+    }
+
     public void deactivate() {
         this.status = CollaboratorStatus.INACTIVE;
         markUpdated();

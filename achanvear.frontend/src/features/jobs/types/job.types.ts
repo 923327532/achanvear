@@ -5,7 +5,7 @@
 export type JobType = "FULL_TIME" | "PART_TIME" | "FREELANCE" | "INTERNSHIP";
 // Coincide con el backend: PUBLISHED, SUSPENDED, CLOSED, DRAFT
 export type JobStatus = "PUBLISHED" | "SUSPENDED" | "CLOSED" | "DRAFT";
-export type ApplicationStatus = "PENDING" | "REVIEWING" | "ACCEPTED" | "REJECTED";
+export type ApplicationStatus = "SUBMITTED" | "IN_REVIEW" | "SHORTLISTED" | "REJECTED" | "HIRED";
 
 // Estos no vienen del backend aún — los usamos como fallback en el frontend
 export type JobLevel = "JUNIOR" | "MID" | "SENIOR";
@@ -33,6 +33,9 @@ export interface JobApplication {
   coverLetter: string | null;
   appliedAt: string;
   status: ApplicationStatus;
+  screeningScore?: number | null;
+  screeningResult?: boolean | null;
+  currentStage?: string;
 }
 
 // ─── Job ──────────────────────────────────────────────────────────────────────

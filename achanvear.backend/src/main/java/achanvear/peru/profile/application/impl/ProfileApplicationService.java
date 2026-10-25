@@ -35,19 +35,21 @@ public class ProfileApplicationService implements
     private final ProfileApplicationMapper profileApplicationMapper;
     private final ProfileValidationPort profileValidationPort;
     private final EventPublisher eventPublisher;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbc;
 
     public ProfileApplicationService(
             TalentProfileRepository talentProfileRepository,
             TalentProfileFactory talentProfileFactory,
             ProfileApplicationMapper profileApplicationMapper,
             ProfileValidationPort profileValidationPort,
-            EventPublisher eventPublisher
+            EventPublisher eventPublisher, org.springframework.jdbc.core.JdbcTemplate jdbc
     ) {
         this.talentProfileRepository = talentProfileRepository;
         this.talentProfileFactory = talentProfileFactory;
         this.profileApplicationMapper = profileApplicationMapper;
         this.profileValidationPort = profileValidationPort;
         this.eventPublisher = eventPublisher;
+        this.jdbc = jdbc;
     }
 
     @Override
@@ -109,6 +111,16 @@ public class ProfileApplicationService implements
         TalentProfile profile = talentProfileRepository.findById(TalentProfileId.from(command.profileId()))
                 .orElseThrow(() -> new ResourceNotFoundException("Talent profile not found"));
 
+        UUID reviewerId = UUID.fromString(command.reviewerUserId());
+        Boolean eligible = jdbc.queryForObject("""
+                SELECT EXISTS(SELECT 1 FROM freelance_projects p
+                    WHERE p.status = 'COMPLETED' AND (
+                      (p.client_user_id = ? AND p.selected_freelancer_user_id = ?) OR
+                      (p.client_user_id = ? AND p.selected_freelancer_user_id = ?)))
+                """, Boolean.class, reviewerId, profile.getUserId(), profile.getUserId(), reviewerId);
+        if (!Boolean.TRUE.equals(eligible)) {
+            throw new org.springframework.security.access.AccessDeniedException("A completed contract is required to rate this user");
+        }
         profile.addRating(
                 UUID.fromString(command.reviewerUserId()),
                 RatingTargetType.valueOf(command.reviewerType().trim().toUpperCase()),

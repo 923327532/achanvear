@@ -21,15 +21,16 @@ public class SubmitAnswerService implements SubmitAnswerUseCase {
     private final InterviewRepository interviewRepository;
     private final AiInterviewerClient aiInterviewerClient;
     private final InterviewSlotManager slotManager;
+    private final achanvear.peru.interview.application.CompleteInterviewUseCase complete;
 
     public SubmitAnswerService(
             InterviewRepository interviewRepository,
             AiInterviewerClient aiInterviewerClient,
-            InterviewSlotManager slotManager
+            InterviewSlotManager slotManager, achanvear.peru.interview.application.CompleteInterviewUseCase complete
     ) {
         this.interviewRepository = interviewRepository;
         this.aiInterviewerClient = aiInterviewerClient;
-        this.slotManager = slotManager;
+        this.slotManager = slotManager; this.complete = complete;
     }
 
     @Override
@@ -51,12 +52,10 @@ public class SubmitAnswerService implements SubmitAnswerUseCase {
             interview.addNextQuestion(nextQuestion);
         }
 
-        if (evaluation.interviewCompleted()) {
-            interview.complete();
-            slotManager.releaseSlot(command.interviewId());
-        }
-
         interviewRepository.save(interview);
+        if (evaluation.interviewCompleted()) {
+            complete.execute(new achanvear.peru.interview.application.command.CompleteInterviewCommand(command.interviewId()));
+        }
 
         return new SubmitAnswerResponse(
                 command.interviewId(),

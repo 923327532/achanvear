@@ -24,9 +24,15 @@ export function useConversations() {
 // ─── Mensajes de una conversación ────────────────────────────────────────────
 
 export function useMessages(conversationId: string | null) {
+  const queryClient = useQueryClient();
   const query = useQuery({
     queryKey: ["chat", "messages", conversationId],
-    queryFn: () => chatApi.getMessages(conversationId!),
+    queryFn: async () => {
+      const messages = await chatApi.getMessages(conversationId!);
+      await chatApi.markRead(conversationId!);
+      queryClient.invalidateQueries({ queryKey: ["chat", "conversations"] });
+      return messages;
+    },
     enabled: !!conversationId,
     refetchInterval: 5000,
     staleTime: 1000 * 5,

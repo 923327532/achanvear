@@ -96,6 +96,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             }
         }
 
+        if ("COMPANY_COLLABORATOR".equals(role)) {
+            var collaborator = companyCollaboratorRepository.findByUserId(UUID.fromString(userId));
+            if (collaborator.isEmpty() || collaborator.get().getStatus() != achanvear.peru.company.domain.model.CollaboratorStatus.ACTIVE) {
+                SecurityContextHolder.clearContext();
+                response.setStatus(403);
+                response.setContentType("application/json");
+                response.getWriter().write("{\"success\":false,\"message\":\"Collaborator inactive\"}");
+                return;
+            }
+            companyId = collaborator.get().getCompanyId();
+        }
+
         List<SimpleGrantedAuthority> authorities = List.of(new SimpleGrantedAuthority(role));
 
         AuthenticatedUser authenticatedUser = new AuthenticatedUser(

@@ -1,5 +1,6 @@
 // features/settings/components/FinancesSection.tsx
 "use client";
+import { CommissionPolicyNotice } from "@/components/payments/CommissionPolicyNotice";
 
 import { useState } from "react";
 import { CreditCard, Loader2, Plus, Trash2, Star, Check, MoreHorizontal, ShieldCheck } from "lucide-react";
@@ -174,7 +175,7 @@ export function FinancesSection({ profile }: Props) {
           </div>
           <div className="inline-flex flex-shrink-0 items-center gap-2 self-start rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700">
             <ShieldCheck className="h-3.5 w-3.5" />
-            Escrow con comision 5%
+            <CommissionPolicyNotice />
           </div>
         </div>
       </div>
@@ -251,7 +252,7 @@ export function FinancesSection({ profile }: Props) {
       {/* Historial de comisiones */}
       <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
         <label className="block text-sm font-semibold text-gray-700 mb-3">
-          Historial de Comisiones (5%)
+          Historial de Comisiones
         </label>
         {/* RESPONSIVE: la tabla se muestra SIEMPRE con sus 5 columnas. En pantallas angostas se desplaza
             horizontalmente dentro de su recuadro (min-w-[560px]) en vez de recortarse (antes overflow-hidden). */}
@@ -262,7 +263,7 @@ export function FinancesSection({ profile }: Props) {
                 <th className="text-left text-xs font-semibold text-gray-500 px-4 py-3">Fecha</th>
                 <th className="text-left text-xs font-semibold text-gray-500 px-4 py-3">Proyecto</th>
                 <th className="text-right text-xs font-semibold text-gray-500 px-4 py-3">Monto Bruto</th>
-                <th className="text-right text-xs font-semibold text-gray-500 px-4 py-3">Comisión 5%</th>
+                <th className="text-right text-xs font-semibold text-gray-500 px-4 py-3">Comisión</th>
                 <th className="text-right text-xs font-semibold text-gray-500 px-4 py-3">Monto Neto</th>
               </tr>
             </thead>

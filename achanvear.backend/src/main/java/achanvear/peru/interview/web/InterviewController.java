@@ -116,6 +116,7 @@ public class InterviewController {
                 .body(ApiResponse.success(response, "Interview scheduled successfully"));
     }
 
+    @org.springframework.security.access.prepost.PreAuthorize("@interviewAccess.owns(#interviewId, authentication)")
     @PostMapping("/{interviewId}/start")
     public ResponseEntity<ApiResponse<InterviewSessionResponse>> startInterview(
             @PathVariable String interviewId
@@ -127,6 +128,7 @@ public class InterviewController {
         return ResponseEntity.ok(ApiResponse.success(response, "Interview session started"));
     }
 
+    @org.springframework.security.access.prepost.PreAuthorize("@interviewAccess.owns(#interviewId, authentication)")
     @PostMapping("/{interviewId}/answers")
     public ResponseEntity<ApiResponse<QuestionResponse>> submitAnswer(
             @PathVariable String interviewId,
@@ -143,6 +145,7 @@ public class InterviewController {
         return ResponseEntity.ok(ApiResponse.success(response, "Answer submitted successfully"));
     }
 
+    @org.springframework.security.access.prepost.PreAuthorize("@interviewAccess.owns(#interviewId, authentication)")
     @PostMapping("/{interviewId}/complete")
     public ResponseEntity<ApiResponse<InterviewReportResponse>> completeInterview(
             @PathVariable String interviewId,

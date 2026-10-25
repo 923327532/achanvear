@@ -17,6 +17,8 @@ import type {
 } from "../types/interview.types";
 
 export const interviewApi = {
+  getJobContext: async (interviewId: string): Promise<{ title: string; description: string; requirements: string }> =>
+    parseResponse(await api.get<ApiResponse<{ title: string; description: string; requirements: string }>>(`/interviews/${interviewId}/job-context`)),
   // POST /interviews/schedule — agendar una entrevista
   schedule: async (payload: ScheduleInterviewPayload): Promise<InterviewSessionResponse> => {
     const response = await api.post<ApiResponse<InterviewSessionResponse>>("/interviews/schedule", payload);

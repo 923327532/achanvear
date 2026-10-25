@@ -37,8 +37,6 @@ import type { CandidateDrawerDetail, ProcessContextType } from "../types/candida
 const STAGE_ACTION_LABELS: Record<string, string> = {
   THEORY_INTERVIEW: "Entrevista teórica en proceso",
   TECHNICAL_INTERVIEW: "Entrevista técnica en proceso",
-  UNDER_REVIEW: "En revisión final",
-  APPROVED: "Candidato aprobado",
   HIRED: "Candidato contratado",
   REJECTED: "Candidato descartado",
 };
@@ -708,7 +706,7 @@ export function CandidateDrawer({ jobId, applicationId, onClose }: CandidateDraw
                   ) : (
                     <CheckCircle2 className="w-4 h-4" />
                   )}
-                  {stageActionLabel ?? "Aprobar para entrevista teórica"}
+                  {currentStage === "UNDER_REVIEW" ? "Aprobar candidato" : currentStage === "APPROVED" ? "Contratar" : stageActionLabel ?? "Aprobar para entrevista teórica"}
                 </button>
                 <button
                   className="inline-flex items-center justify-center gap-1.5 px-4 py-3 rounded-xl border border-red-200 text-red-600 text-sm font-bold hover:bg-red-50 transition disabled:opacity-50"

@@ -171,10 +171,11 @@ export function PracticalVoiceInterviewRoom({
 
     async function boot() {
       try {
+        const jobContext = await interviewApi.getJobContext(sessionId);
         const started = await startPracticalInterview({
           session_id: sessionId,
           career,
-          job_title: jobTitle,
+          job_title: `${jobContext.title}\nDescripcion: ${jobContext.description}\nRequisitos: ${jobContext.requirements}`,
           candidate_name: candidateName,
           workspace_type: workspaceType,
           country: "Peru",

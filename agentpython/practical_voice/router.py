@@ -15,7 +15,7 @@ from practical_voice.schemas import (
 )
 from practical_voice.workspace import build_workspace_challenge, infer_workspace_type, interviewer_profile
 from shared.n8n_client import notify_email
-from shared.session_orchestrator import InterviewStage, get_session, update_session
+from shared.session_orchestrator import InterviewStage, SessionState, get_session, update_session
 import os
 
 router = APIRouter(prefix="/practical-interview", tags=["Practical Voice Interview"])
@@ -29,6 +29,10 @@ _runtime_sessions: Dict[str, Dict[str, Any]] = {}
 @router.post("/start", response_model=PracticalSessionStartResponse)
 async def start_practical_interview(req: PracticalSessionStartRequest):
     state = await get_session(req.session_id)
+    if state is None:
+        state = SessionState(req.session_id, "", "", req.career, req.job_title)
+    if state.completed_at is not None:
+        raise HTTPException(status_code=409, detail="Interview already completed")
     workspace_type = req.workspace_type or infer_workspace_type(req.career, req.job_title)
     challenge = build_workspace_challenge(workspace_type, req.career, req.job_title)
 
@@ -78,6 +82,14 @@ async def report_practical_violation(req: PracticalViolationRequest):
     }
 
 
+@router.get("/result/{session_id}")
+async def practical_result(session_id: str):
+    state = await get_session(session_id)
+    if not state or state.completed_at is None or state.stage not in (InterviewStage.COMPLETED, InterviewStage.FAILED):
+        raise HTTPException(status_code=409, detail="Practical evaluation not completed")
+    return {"session_id": session_id, "score": state.tech_score}
+
+
 @router.post("/finish", response_model=PracticalFinishResponse)
 async def finish_practical_interview(req: PracticalFinishRequest):
     state = await get_session(req.session_id)
@@ -100,6 +112,8 @@ async def finish_practical_interview(req: PracticalFinishRequest):
 
     if state:
         state.tech_score = evaluation["score"]
+        from datetime import datetime
+        state.completed_at = datetime.utcnow()
         state.violations = violations
         state.stage = InterviewStage.COMPLETED if evaluation["passed"] else InterviewStage.FAILED
         await update_session(state)

@@ -20,21 +20,30 @@ public class GetPaymentsOverviewUseCaseImpl implements GetPaymentsOverviewUseCas
     private final CompanyProjectStatsRepository statsRepository;
     private final SubscriptionRepository subscriptionRepository;
     private final MilestoneRepository milestoneRepository;
+    private final achanvear.peru.shared.application.port.CompanyLookupPort companies;
+    private final achanvear.peru.jobs.domain.repository.JobPostRepository jobs;
+    private final achanvear.peru.payments.application.service.PublicationCreditService credits;
 
     public GetPaymentsOverviewUseCaseImpl(
             CompanyProjectStatsRepository statsRepository,
             SubscriptionRepository subscriptionRepository,
-            MilestoneRepository milestoneRepository
+            MilestoneRepository milestoneRepository,
+            achanvear.peru.shared.application.port.CompanyLookupPort companies,
+            achanvear.peru.jobs.domain.repository.JobPostRepository jobs,
+            achanvear.peru.payments.application.service.PublicationCreditService credits
     ) {
         this.statsRepository = statsRepository;
         this.subscriptionRepository = subscriptionRepository;
         this.milestoneRepository = milestoneRepository;
+        this.companies = companies; this.jobs = jobs; this.credits = credits;
     }
 
     @Override
     public PaymentsOverviewResponse execute(UUID userId) {
         // Obtener estadísticas de suscripción
-        int publishedProjects = statsRepository.countPublishedProjectsByCompany(userId);
+        var company = companies.findByOwnerUserId(userId);
+        int publishedProjects = company.map(c -> (int) jobs.countByCompanyIdSince(c.id(), c.createdAt())).orElse(0);
+        java.time.Instant createdAt = company.map(c -> c.createdAt()).orElse(null);
         var subscriptionOpt = subscriptionRepository.findActiveByCompanyUserId(userId);
         PlanType currentPlan = subscriptionOpt
                 .map(sub -> sub.getPlan())
@@ -53,11 +62,15 @@ public class GetPaymentsOverviewUseCaseImpl implements GetPaymentsOverviewUseCas
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         // Calcular comisiones (5% plataforma + 4.13% MP)
-        BigDecimal totalCommissions = totalEarned.multiply(new BigDecimal("0.0913"));
+        BigDecimal totalCommissions = freelancerMilestones.stream()
+                .filter(m -> m.getStatus() == MilestoneStatus.RELEASED)
+                .map(m -> achanvear.peru.payments.domain.model.CommissionPolicy.calculateCommission(m.getAmount()))
+                .map(c -> c.platformCommission().add(c.mpCommission()))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
         BigDecimal availableForWithdrawal = totalEarned.subtract(totalCommissions);
 
         // Construir mensaje de upgrade
-        String upgradeMessage = ProjectPublishingPolicy.getUpgradeMessage(publishedProjects);
+        String upgradeMessage = ProjectPublishingPolicy.getJobUpgradeMessage(publishedProjects, createdAt);
 
         // Fecha de expiración del plan
         String planExpirationDate = subscriptionOpt
@@ -66,8 +79,8 @@ public class GetPaymentsOverviewUseCaseImpl implements GetPaymentsOverviewUseCas
 
         return new PaymentsOverviewResponse(
                 publishedProjects,
-                ProjectPublishingPolicy.remainingFreeProjects(publishedProjects),
-                currentPlan.canPublishProject(publishedProjects),
+                ProjectPublishingPolicy.isFreeTrialActive(createdAt) ? ProjectPublishingPolicy.remainingFreeJobs(publishedProjects) : 0,
+                ProjectPublishingPolicy.canPublishJob(currentPlan, publishedProjects, subscriptionOpt.isPresent(), createdAt) || credits.getBalance(userId) > 0,
                 currentPlan.name(),
                 planExpirationDate,
                 totalEarned,

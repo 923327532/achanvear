@@ -23,4 +23,10 @@ public interface HiringProcessJpaRepository extends JpaRepository<HiringProcessJ
               AND application.status <> 'REJECTED'
             """, nativeQuery = true)
     long countFinalistsByCompanyId(@Param("companyId") UUID companyId);
+    @Query(value = """
+            SELECT COUNT(*) FROM hiring_processes p JOIN job_posts j ON CAST(j.id AS VARCHAR) = p.job_id
+            JOIN job_applications a ON a.job_post_id = j.id AND CAST(a.candidate_user_id AS VARCHAR) = p.candidate_id
+            WHERE j.company_id = :companyId AND p.stage = :stage AND a.status <> 'REJECTED'
+            """, nativeQuery = true)
+    long countByCompanyAndStage(@Param("companyId") UUID companyId, @Param("stage") String stage);
 }
