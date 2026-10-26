@@ -149,15 +149,14 @@ public class InterviewController {
     @PostMapping("/{interviewId}/complete")
     public ResponseEntity<ApiResponse<InterviewReportResponse>> completeInterview(
             @PathVariable String interviewId,
-            @RequestBody(required = false) CompleteInterviewRequest request
+            @RequestBody(required = false) java.util.Map<String, Object> request
     ) {
+        if (request != null && !request.isEmpty()) {
+            throw new achanvear.peru.shared.exception.ForbiddenOperationException(
+                    "Los puntajes los registra la evaluacion del servidor. No puedes enviar ni modificar el resultado.");
+        }
         InterviewReportResponse response = completeInterviewUseCase.execute(
-                new CompleteInterviewCommand(
-                        interviewId,
-                        request != null ? request.score() : null,
-                        request != null ? request.summary() : null,
-                        request != null ? request.evidence() : null
-                )
+                new CompleteInterviewCommand(interviewId)
         );
         return ResponseEntity.ok(ApiResponse.success(response, "Interview completed successfully"));
     }
@@ -243,13 +242,6 @@ public class InterviewController {
     public record SubmitAnswerRequest(
             @NotBlank String questionId,
             @NotBlank String answerContent
-    ) {
-    }
-
-    public record CompleteInterviewRequest(
-            Integer score,
-            String summary,
-            String evidence
     ) {
     }
 

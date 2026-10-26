@@ -51,6 +51,10 @@ async def submit_challenge(session_id: str, req: SubmitChallengeRequest):
     state = await get_session(session_id)
     if not state:
         raise HTTPException(404, f"Session {session_id} not found")
+    if state.completed_at is not None or state.stage in (InterviewStage.COMPLETED, InterviewStage.FAILED):
+        raise HTTPException(409, "La evaluacion ya fue cerrada y su puntaje no se puede modificar")
+    if state.stage != InterviewStage.TECHNICAL:
+        raise HTTPException(409, "La sesion no esta en evaluacion tecnica")
 
     challenge = state.challenge
     challenge_description = challenge.get("description", "") if isinstance(challenge, dict) else str(challenge)

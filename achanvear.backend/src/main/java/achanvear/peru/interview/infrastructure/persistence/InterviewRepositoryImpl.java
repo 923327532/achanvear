@@ -5,11 +5,13 @@ import achanvear.peru.interview.domain.model.InterviewId;
 import achanvear.peru.interview.domain.repository.InterviewRepository;
 import achanvear.peru.interview.infrastructure.persistence.repository.InterviewJpaRepository;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
 
 @Repository
+@Transactional(readOnly = true)
 public class InterviewRepositoryImpl implements InterviewRepository {
 
     private final InterviewJpaRepository jpaRepository;
@@ -21,6 +23,7 @@ public class InterviewRepositoryImpl implements InterviewRepository {
     }
 
     @Override
+    @Transactional
     public void save(Interview interview) {
         jpaRepository.save(mapper.toEntity(interview));
     }

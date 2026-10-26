@@ -21,7 +21,8 @@ export function useCandidateDrawerDetail(
     queryKey: ["candidate-drawer-detail", jobId, applicationId],
     queryFn: () => candidateDrawerApi.getDetail(jobId!, applicationId!),
     enabled: !!jobId && !!applicationId,
-    staleTime: 1000 * 60 * 2, // 2 minutos
+    staleTime: 5000,
+    refetchInterval: 10000,
     retry: 1,
   });
 

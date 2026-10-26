@@ -1,7 +1,7 @@
 // features/freelance/components/ProjectsPage.tsx
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Filter, Search, Rocket } from "lucide-react";
 import { useProjects } from "../hooks/useProjects";
 import { useMyProposals } from "../hooks/useMyProposals";
@@ -18,6 +18,7 @@ type Tab = "explore" | "my-projects" | "proposals";
 export function ProjectsPage() {
   const [activeTab, setActiveTab] = useState<Tab>("explore");
   const [showFilters, setShowFilters] = useState(false);
+  const filtersPanel = useRef<HTMLDivElement>(null);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [detailProject, setDetailProject] = useState<Project | null>(null);
 
@@ -65,14 +66,31 @@ export function ProjectsPage() {
     resetFilters();
   }, [resetFilters]);
 
+  useEffect(() => {
+    if (!showFilters || activeTab !== "explore") return;
+    const previous = document.activeElement as HTMLElement | null;
+    const elements = () => Array.from(filtersPanel.current?.querySelectorAll<HTMLElement>('button, input, [tabindex="0"]') ?? []);
+    elements()[0]?.focus();
+    const keyboard = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setShowFilters(false);
+      if (event.key !== "Tab") return;
+      const items = elements();
+      const first = items[0], last = items[items.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+    };
+    document.addEventListener("keydown", keyboard);
+    return () => { document.removeEventListener("keydown", keyboard); previous?.focus(); };
+  }, [showFilters, activeTab]);
+
   return (
-    <div className="flex min-w-0 flex-col lg:flex-row">
+    <div className="flex w-full min-w-0 flex-col">
       {/* Panel de filtros */}
       {showFilters && activeTab === "explore" && (
         <>
-          <div className="fixed inset-0 z-30 bg-black/20 lg:hidden" onClick={() => setShowFilters(false)} />
+          <div className="fixed inset-0 z-30 bg-slate-900/30 backdrop-blur-sm" onClick={() => setShowFilters(false)} />
           {/* RESPONSIVE: max-w-[85vw] evita que el panel ocupe todo el ancho en pantallas muy angostas */}
-          <div className="fixed left-0 top-0 z-40 h-full w-64 max-w-[85vw] shadow-xl lg:relative lg:z-auto lg:shadow-none lg:w-56 lg:max-w-none lg:flex-shrink-0 lg:border-r lg:border-slate-200">
+          <div ref={filtersPanel} id="project-filters" role="dialog" aria-modal="true" aria-label="Filtros de proyectos" className="fixed right-0 top-0 z-40 h-full w-80 max-w-[90vw] border-l border-slate-200 shadow-2xl">
             <ProjectFilters onClose={() => setShowFilters(false)} />
           </div>
         </>
@@ -96,6 +114,8 @@ export function ProjectsPage() {
             {activeTab === "explore" && (
               <button
                 type="button"
+                aria-expanded={showFilters}
+                aria-controls="project-filters"
                 onClick={() => setShowFilters(!showFilters)}
                 className={`flex flex-shrink-0 items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold transition-colors sm:px-4 ${
                   showFilters
@@ -112,7 +132,7 @@ export function ProjectsPage() {
           {/* Tabs */}
           {/* RESPONSIVE: en celular 3 columnas iguales (el texto puede partirse en 2 líneas y ya no se corta);
               desde sm vuelve a fila con ancho natural */}
-          <div className="grid grid-cols-3 gap-1 sm:flex">
+          <div className="grid grid-cols-3 gap-2 rounded-xl bg-slate-100 p-1 sm:flex sm:w-fit">
             {TABS.map((tab) => (
               <button
                 key={tab.key}
@@ -133,7 +153,7 @@ export function ProjectsPage() {
         {/* Search bar */}
         {activeTab === "explore" && (
           <div className="border-b border-slate-100 bg-white px-4 py-3 sm:px-6">
-            <div className="flex max-w-md items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+            <div className="flex w-full items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
               <Search className="h-4 w-4 flex-shrink-0 text-slate-400" strokeWidth={1.5} />
               {/* RESPONSIVE: min-w-0 para que el input se pueda encoger */}
               <input
@@ -148,7 +168,7 @@ export function ProjectsPage() {
         )}
 
         {/* Content */}
-        <div className="flex-1 p-4 sm:p-6">
+        <div className="flex-1 p-4 sm:p-6 xl:p-8">
 
           {/* Tab Explorar */}
           {activeTab === "explore" && (
@@ -174,6 +194,7 @@ export function ProjectsPage() {
                   </div>
                   <p className="text-sm font-semibold text-slate-700">No hay proyectos disponibles</p>
                   <p className="mt-1 text-xs text-slate-500">Vuelve más tarde para ver nuevas oportunidades</p>
+                  <button type="button" onClick={resetFilters} className="mt-4 rounded-xl border border-teal-200 bg-teal-50 px-4 py-2 text-sm font-semibold text-teal-800">Limpiar filtros</button>
                 </div>
               ) : (
                 <div className="space-y-5">
@@ -182,7 +203,7 @@ export function ProjectsPage() {
                   </p>
                   {/* RESPONSIVE: 2 columnas solo desde xl (el sidebar de 260px deja ~700px a 1024px,
                       y con el panel de filtros abierto aún menos) */}
-                  <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                  <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
                     {projects.map((project) => (
                       <ProjectCard
                         key={project.id}
@@ -267,8 +288,8 @@ export function ProjectsPage() {
                   <p className="text-sm text-slate-500 mb-4">
                     Tienes <span className="font-semibold text-slate-700">{contractedProjects.length}</span> proyecto(s) contratado(s)
                   </p>
-                  {/* RESPONSIVE: 2 columnas solo desde xl */}
-                  <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+
+                  <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
                     {contractedProjects.map((project) => (
                       <ProjectCard
                         key={project.id}
@@ -321,12 +342,12 @@ export function ProjectsPage() {
                   <p className="text-sm text-slate-500 mb-4">
                     Has enviado <span className="font-semibold text-slate-700">{proposalsTotal}</span> propuesta(s)
                   </p>
-                  {/* RESPONSIVE: 2 columnas solo desde xl */}
-                  <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+
+                  <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
                     {myProposals.map((project) => (
                       <ProjectCard
                         key={project.id}
-                        project={project}
+                        project={{ ...project, proposals: project.proposals.filter(proposal => proposal.freelancerUserId === user?.id) }}
                         onViewDetail={(p) => setDetailProject(p)}
                         onPropose={(p) => setSelectedProject(p)}
                         showProposalStatus

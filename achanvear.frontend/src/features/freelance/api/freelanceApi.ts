@@ -12,7 +12,7 @@ function mapProject(raw: any): Project {
   return {
     ...raw,
     budget: raw.minBudget ?? raw.budget ?? 0,
-    budgetMax: raw.maxBudget ?? raw.budgetMax ?? undefined,
+    maxBudget: raw.maxBudget ?? raw.budgetMax ?? null,
     proposals: raw.proposals ?? [],
     milestones: raw.milestones ?? [],
     skills: raw.skills ?? [],
@@ -75,17 +75,44 @@ export interface ProjectAiSuggestion {
 export const freelanceApi = {
   // GET /freelance/projects — listar proyectos con filtros
   getAll: async (filters: Partial<ProjectFilters>): Promise<PaginatedProjects> => {
+    const needsLocalFiltering = filters.budgetMin !== undefined || filters.budgetMax !== undefined || !!filters.duration;
     const params = {
       ...(filters.search    && { search: filters.search }),
       ...(filters.category  && { category: filters.category }),
       ...(filters.status    && { status: filters.status }),
-      page:          filters.page          ?? 0,
-      size:          filters.size          ?? 10,
+      page:          needsLocalFiltering ? 0 : filters.page ?? 0,
+      size:          needsLocalFiltering ? 100 : filters.size ?? 9,
       sortBy:        filters.sortBy        ?? "createdAt",
       sortDirection: filters.sortDirection ?? "DESC",
     };
     const response = await api.get<ApiResponse<any>>("/freelance/projects", { params });
-    return mapPaginated(parseResponse(response));
+    const first = mapPaginated(parseResponse(response));
+    if (!needsLocalFiltering) return first;
+    // Filter the complete server result, then paginate; never just the visible page.
+    const all = [...first.items];
+    for (let page = 1; page < first.totalPages; page++) {
+      const next = await api.get<ApiResponse<any>>("/freelance/projects", { params: { ...params, page } });
+      all.push(...mapPaginated(parseResponse(next)).items);
+    }
+    const matches = all.filter(project => {
+      const min = project.minBudget ?? project.budget;
+      const max = project.maxBudget ?? min;
+      if (filters.budgetMin !== undefined && max < filters.budgetMin) return false;
+      if (filters.budgetMax !== undefined && min > filters.budgetMax) return false;
+      if (filters.budgetMin !== undefined && filters.budgetMax !== undefined && filters.budgetMin > filters.budgetMax) return false;
+      const days = project.estimatedDays;
+      switch (filters.duration) {
+        case "LESS_THAN_1_WEEK": return days < 7;
+        case "1_2_WEEKS": return days >= 7 && days <= 14;
+        case "2_4_WEEKS": return days > 14 && days <= 30;
+        case "MORE_THAN_1_MONTH": return days > 30;
+        default: return true;
+      }
+    });
+    const size = filters.size ?? 9;
+    const totalPages = Math.ceil(matches.length / size);
+    const page = Math.min(filters.page ?? 0, Math.max(0, totalPages - 1));
+    return { items: matches.slice(page * size, (page + 1) * size), totalItems: matches.length, totalPages, currentPage: page, pageSize: size, first: page === 0, last: page >= totalPages - 1 };
   },
 
   // GET /freelance/projects — listar proyectos filtrados por empresa (mismo endpoint,

@@ -88,7 +88,7 @@ export const DEFAULT_PROJECT_FILTERS: ProjectFilters = {
   category: "",
   status: "OPEN",
   page: 0,
-  size: 8,
+  size: 9,
   sortBy: "createdAt",
   sortDirection: "DESC",
 };

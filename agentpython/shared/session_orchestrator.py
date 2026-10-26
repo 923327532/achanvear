@@ -54,6 +54,7 @@ class SessionState:
         # Técnica
         self.challenge: Optional[Any] = None
         self.tech_score: float = 0.0
+        self.practical_evaluation: Optional[Dict] = None
         self.violations: int = 0
 
         # Screening
@@ -81,6 +82,7 @@ class SessionState:
             "theory_score": self.theory_score,
             "challenge": self.challenge,
             "tech_score": self.tech_score,
+            "practical_evaluation": self.practical_evaluation,
             "violations": self.violations,
             "screening_result": self.screening_result,
             "started_at": self.started_at.isoformat(),
@@ -107,6 +109,7 @@ class SessionState:
         state.theory_score = data.get("theory_score", 0.0)
         state.challenge = data.get("challenge")
         state.tech_score = data.get("tech_score", 0.0)
+        state.practical_evaluation = data.get("practical_evaluation")
         state.violations = data.get("violations", 0)
         state.screening_result = data.get("screening_result")
         if data.get("started_at"):

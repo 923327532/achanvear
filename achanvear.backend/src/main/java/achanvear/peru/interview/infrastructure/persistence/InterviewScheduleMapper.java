@@ -39,7 +39,9 @@ public class InterviewScheduleMapper {
         // Mapear slot elegido
         if (schedule.getChosenSlot() != null) {
             entity.setChosenDateTime(schedule.getChosenSlot().getDateTime().toString());
-            entity.setChosenSlotIndex(schedule.getProposedSlots().indexOf(schedule.getChosenSlot()));
+            entity.setChosenSlotIndex(java.util.stream.IntStream.range(0, slots.size())
+                    .filter(index -> slots.get(index).getDateTime().equals(schedule.getChosenSlot().getDateTime()))
+                    .findFirst().orElseThrow(() -> new IllegalStateException("Chosen interview slot is not in the proposed slots")));
         }
 
         return entity;

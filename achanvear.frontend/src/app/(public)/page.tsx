@@ -1,5 +1,7 @@
 // src/app/(public)/page.tsx
 import type { Metadata } from "next";
+import { AboutAchanvear } from "@/components/brand/AboutAchanvear";
+import { TrustSection } from "@/components/brand/TrustSection";
 import {
   Users,
   DollarSign,
@@ -18,7 +20,7 @@ import { SITE_URL, SITE_DESCRIPTION, SITE_KEYWORDS } from "@/lib/seo/site";
 import { GUIDES } from "@/lib/seo/guides";
 
 export const metadata: Metadata = {
-  title: "Buscar trabajo, primer empleo y servicios profesionales en Per?",
+  title: "Buscar trabajo, primer empleo y servicios profesionales en Perú",
   description: SITE_DESCRIPTION,
   keywords: SITE_KEYWORDS,
   alternates: {
@@ -203,48 +205,9 @@ function TestimoniosSection() {
 // ─────────────────────────────────────────────
 // MISIÓN
 // ─────────────────────────────────────────────
-const misionFeatures = [
-  { emoji: "🎯", title: "Certificación IA", desc: "Validamos skills reales con entrevistas proctoring" },
-  { emoji: "🔒", title: "Pagos Seguros", desc: "Sistema Escrow que protege a ambas partes" },
-  { emoji: "⚡", title: "Rapidez", desc: "Contrata en días, no en semanas" },
-];
 
-function MisionSection() {
-  return (
-    <section id="mision" className="bg-gradient-to-br from-teal-700 to-teal-500 py-16 sm:py-20">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="mb-6 flex justify-center">
-          <span className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/10 px-4 py-1.5 text-xs text-white backdrop-blur-sm">
-            ✦ Nuestra Misión
-          </span>
-        </div>
-        <div className="mb-10 text-center sm:mb-12">
-          <h2 className="mb-4 text-2xl font-bold text-white sm:text-3xl lg:text-4xl xl:text-5xl">
-            Reduciendo la informalidad laboral en Perú
-          </h2>
-          <p className="mx-auto max-w-2xl text-sm text-teal-100 sm:text-base">
-            Achanvear nació con una misión clara: transformar el mercado laboral peruano mediante
-            tecnología de misión crítica. Conectamos talento verificado con empresas que buscan
-            excelencia, eliminando la incertidumbre del proceso de contratación.
-          </p>
-        </div>
-        <div className="grid gap-4 sm:grid-cols-3 sm:gap-5">
-          {misionFeatures.map((f) => (
-            <div key={f.title} className="rounded-2xl border border-white/20 bg-white/10 p-5 text-center backdrop-blur-sm sm:p-6">
-              <div className="mb-3 text-3xl">{f.emoji}</div>
-              <h3 className="mb-2 text-sm font-bold text-white sm:text-base">{f.title}</h3>
-              <p className="text-xs text-teal-100 sm:text-sm">{f.desc}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
 
-// ─────────────────────────────────────────────
-// CTA FINAL
-// ─────────────────────────────────────────────
+
 function CtaSection() {
   return (
     <section className="bg-white py-16 sm:py-20">
@@ -324,11 +287,12 @@ export default function LandingPage() {
       <StatsBar />
       <SectoresSection />
       <TestimoniosSection />
-      <MisionSection />
+      <AboutAchanvear />
+      <TrustSection />
       <section className="bg-white py-16 sm:py-20" aria-labelledby="career-guides-title">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <h2 id="career-guides-title" className="text-2xl font-bold text-slate-900 sm:text-3xl">Tu primer empleo y tus pr?ximos proyectos</h2>
-          <p className="mt-4 max-w-3xl text-slate-600">?Buscas trabajo, acabas de egresar o quieres ser freelancer? Encuentra orientaci?n para presentar tu experiencia, brindar servicios profesionales o publicar empleo y contratar talento.</p>
+          <h2 id="career-guides-title" className="text-2xl font-bold text-slate-900 sm:text-3xl">Tu primer empleo y tus próximos proyectos</h2>
+          <p className="mt-4 max-w-3xl text-slate-600">¿Buscas trabajo, acabas de egresar o quieres ser freelancer? Encuentra orientación para presentar tu experiencia, brindar servicios profesionales o publicar empleo y contratar talento.</p>
           <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {GUIDES.map((guide) => (
               <Link key={guide.slug} href={`/guias/${guide.slug}`} className="rounded-2xl border border-slate-200 p-6 transition-colors hover:border-teal-600">
@@ -337,7 +301,7 @@ export default function LandingPage() {
               </Link>
             ))}
           </div>
-          <Link href="/guias" className="mt-6 inline-block font-semibold text-teal-700 underline underline-offset-4">Ver todas las gu?as</Link>
+          <Link href="/guias" className="mt-6 inline-block font-semibold text-teal-700 underline underline-offset-4">Ver todas las guías</Link>
         </div>
       </section>
       <FaqSection />

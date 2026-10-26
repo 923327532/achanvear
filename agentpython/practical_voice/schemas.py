@@ -16,6 +16,8 @@ class PracticalSessionStartRequest(BaseModel):
     career: str
     job_title: str = "Senior"
     candidate_name: str | None = None
+    job_description: str = ""
+    job_requirements: str = ""
     workspace_type: PracticalWorkspaceType | None = None
     country: str = "Peru"
 

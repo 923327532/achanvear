@@ -55,13 +55,17 @@ public class RealAiInterviewerClient implements AiInterviewerClient {
      * Retorna un Map con "session_id" (el UUID que Python asignó).
      */
     public int getPracticalScore(String interviewId) {
+        return achanvear.peru.interview.infrastructure.persistence.InterviewEvaluationStore.score(getPracticalEvaluation(interviewId).get("score"));
+    }
+
+    public Map<?, ?> getPracticalEvaluation(String interviewId) {
         Map<?,?> result = restClient.get().uri("/practical-interview/result/" + interviewId)
                 .retrieve().body(Map.class);
         if (result == null || !(result.get("score") instanceof Number score)
-                || score.doubleValue() < 0 || score.doubleValue() > 100) {
+                || !Double.isFinite(score.doubleValue()) || score.doubleValue() < 0 || score.doubleValue() > 100) {
             throw new IllegalStateException("No completed practical result available");
         }
-        return (int) Math.round(score.doubleValue());
+        return result;
     }
 
     public Map<String, Object> createPythonSession(

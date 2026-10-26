@@ -6,13 +6,20 @@ import type { PaginatedProjects } from "../types/freelance.types";
 export function useMyProposals(page: number = 0, size: number = 10) {
   const query = useQuery<PaginatedProjects>({
     queryKey: ["freelance-my-proposals", page, size],
-    queryFn: () =>
-      freelanceApi.getMyProposals({
-        page,
-        size,
+    queryFn: async () => {
+      const first = await freelanceApi.getMyProposals({
+        page: 0,
+        size: 100,
         sortBy: "submittedAt",
         sortDirection: "DESC",
-      }),
+      });
+      const items = [...first.items];
+      for (let nextPage = 1; nextPage < first.totalPages; nextPage++) {
+        const next = await freelanceApi.getMyProposals({ page: nextPage, size: 100, sortBy: "submittedAt", sortDirection: "DESC" });
+        items.push(...next.items);
+      }
+      return { ...first, items };
+    },
     staleTime: 1000 * 60 * 2,
     retry: 1,
   });

@@ -12,6 +12,8 @@ public record InterviewSummaryResponse(
         Integer score,
         Integer maxScore,
         boolean passed,
-        String abortReason
+        String abortReason,
+        String jobId,
+        java.time.OffsetDateTime scheduledAt
 ) {
 }

@@ -12,7 +12,7 @@ export const SITE_TAGLINE =
   "Publica empleos y contrata profesionales independientes en Perú";
 
 export const SITE_DESCRIPTION =
-  "Busca trabajo, prepara tu primer empleo y ofrece servicios profesionales en Per?. Encuentra freelancers o publica empleos para tu empresa en Achanvear.";
+  "Busca trabajo, prepara tu primer empleo y ofrece servicios profesionales en Perú. Encuentra freelancers o publica empleos para tu empresa en Achanvear.";
 
 /**
  * Palabras clave orientadas a las búsquedas reales de los usuarios en Perú.
@@ -22,7 +22,7 @@ export const SITE_KEYWORDS: string[] = [
   "publicar oferta de empleo",
   "buscar empleo",
   "buscar trabajo",
-  "c?mo buscar trabajo",
+  "cómo buscar trabajo",
   "mi primer empleo",
   "mi primer trabajo",
   "empleo para egresados",
@@ -58,6 +58,7 @@ export const PUBLIC_ROUTES: Array<{
   ...GUIDES.map(({ slug }) => ({ path: `/guias/${slug}`, changeFrequency: "monthly" as const, priority: 0.8 })),
   { path: "/register", changeFrequency: "weekly", priority: 0.9 },
   { path: "/login", changeFrequency: "monthly", priority: 0.5 },
+  { path: "/nosotros", changeFrequency: "monthly", priority: 0.6 },
   { path: "/privacy", changeFrequency: "yearly", priority: 0.3 },
   { path: "/terms", changeFrequency: "yearly", priority: 0.3 },
 ];

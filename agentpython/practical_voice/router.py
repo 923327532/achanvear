@@ -6,6 +6,7 @@ from starlette.websockets import WebSocketDisconnected
 
 from practical_voice.audio_pipeline import SpeechToText, TextToSpeech
 from practical_voice.autonomous_agent import evaluate_practical_interview, generate_interviewer_reply
+from practical_voice.onboarding import opening_message, advance_onboarding
 from practical_voice.schemas import (
     PracticalFinishRequest,
     PracticalFinishResponse,
@@ -24,6 +25,7 @@ stt = SpeechToText()
 tts = TextToSpeech()
 
 _runtime_sessions: Dict[str, Dict[str, Any]] = {}
+_active_connections: Dict[str, WebSocket] = {}
 
 
 @router.post("/start", response_model=PracticalSessionStartResponse)
@@ -35,6 +37,8 @@ async def start_practical_interview(req: PracticalSessionStartRequest):
         raise HTTPException(status_code=409, detail="Interview already completed")
     workspace_type = req.workspace_type or infer_workspace_type(req.career, req.job_title)
     challenge = build_workspace_challenge(workspace_type, req.career, req.job_title)
+    challenge["job_description"] = req.job_description
+    challenge["job_requirements"] = req.job_requirements
 
     if state:
         state.stage = InterviewStage.TECHNICAL
@@ -51,6 +55,8 @@ async def start_practical_interview(req: PracticalSessionStartRequest):
         "candidate_name": req.candidate_name or "",
         "career": req.career,
         "job_title": req.job_title,
+        "job_description": req.job_description,
+        "job_requirements": req.job_requirements,
         "interviewer_profile": challenge.get("interviewer_profile") or interviewer_profile(workspace_type, req.career, req.job_title),
     }
 
@@ -87,12 +93,14 @@ async def practical_result(session_id: str):
     state = await get_session(session_id)
     if not state or state.completed_at is None or state.stage not in (InterviewStage.COMPLETED, InterviewStage.FAILED):
         raise HTTPException(status_code=409, detail="Practical evaluation not completed")
-    return {"session_id": session_id, "score": state.tech_score}
+    return {"session_id": session_id, **(state.practical_evaluation or {}), "score": state.tech_score}
 
 
 @router.post("/finish", response_model=PracticalFinishResponse)
 async def finish_practical_interview(req: PracticalFinishRequest):
     state = await get_session(req.session_id)
+    if state and state.completed_at is not None and state.practical_evaluation:
+        return _finish_response(req.session_id, state.practical_evaluation, float(state.theory_score))
     runtime = _runtime_sessions.get(req.session_id, {})
     transcript = req.transcript or runtime.get("transcript", [])
     workspace_state = req.workspace_state or runtime.get("workspace_state", {})
@@ -112,6 +120,7 @@ async def finish_practical_interview(req: PracticalFinishRequest):
 
     if state:
         state.tech_score = evaluation["score"]
+        state.practical_evaluation = evaluation
         from datetime import datetime
         state.completed_at = datetime.utcnow()
         state.violations = violations
@@ -135,11 +144,15 @@ async def finish_practical_interview(req: PracticalFinishRequest):
             ),
         )
 
+    return _finish_response(req.session_id, evaluation, theory_score)
+
+
+def _finish_response(session_id: str, evaluation: dict, theory_score: float):
     return PracticalFinishResponse(
-        session_id=req.session_id,
+        session_id=session_id,
         score=evaluation["score"],
         theory_score=theory_score,
-        final_score=final_score,
+        final_score=evaluation["final_score"],
         communication_score=evaluation.get("communication_score", 0),
         passed=evaluation["passed"],
         summary=evaluation.get("summary", ""),
@@ -231,6 +244,13 @@ def build_company_report_html(
 @router.websocket("/ws/{session_id}")
 async def practical_voice_ws(websocket: WebSocket, session_id: str):
     await websocket.accept()
+    previous = _active_connections.get(session_id)
+    _active_connections[session_id] = websocket
+    if previous is not None and previous is not websocket:
+        try:
+            await previous.close(code=4001, reason="La entrevista se abrio en una nueva sala")
+        except (RuntimeError, WebSocketDisconnect):
+            pass
     runtime = _runtime_sessions.setdefault(
         session_id,
         {"session_id": session_id, "challenge": {}, "transcript": [], "workspace_state": {}, "violations": 0},
@@ -245,16 +265,7 @@ async def practical_voice_ws(websocket: WebSocket, session_id: str):
     profile = runtime.get("interviewer_profile") or {}
     interviewer_name = profile.get("name", "tu entrevistador")
     interviewer_role = profile.get("role", "entrevistador practico")
-    greeting = (
-        f"Hola {candidate_name}, soy {interviewer_name}, {interviewer_role} de Achanvear. "
-        "Un gusto acompañarte en esta entrevista. Antes de comenzar, estas son las reglas: "
-        "piensa en voz alta, no uses ayuda externa, no cambies de ventana sin avisar, "
-        "y puedes interrumpirme cuando necesites aclarar o corregir algo. "
-        "Primero conversaremos brevemente y luego resolveras el caso practico. "
-        "Puedes abrirlo cuando quieras con el boton Caso; ahi veras el enunciado, el lenguaje esperado y los criterios. "
-        "Cuando empecemos el reto tendras 20 minutos. "
-        "Para confirmar, dime como prefieres que te llame y cuentame en un minuto tu experiencia relacionada con este puesto."
-    )
+    greeting = opening_message(runtime)
     runtime.setdefault("transcript", []).append({"role": "agent", "content": greeting})
     await websocket.send_json({"type": "agent_text", "text": greeting})
     greeting_audio = await safe_tts(greeting, profile.get("voice"))
@@ -285,6 +296,14 @@ async def practical_voice_ws(websocket: WebSocket, session_id: str):
                     continue
 
                 if msg_type == "candidate_text":
+                    message_id = data.get("message_id")
+                    if isinstance(message_id, str) and message_id:
+                        seen = runtime.setdefault("seen_turn_ids", [])
+                        if message_id in seen:
+                            await websocket.send_json({"type": "duplicate_turn_ignored", "message_id": message_id})
+                            continue
+                        seen.append(message_id)
+                        del seen[:-256]
                     candidate_text = data.get("text", "").strip()
                     await handle_candidate_turn(websocket, runtime, candidate_text)
                     continue
@@ -312,6 +331,9 @@ async def practical_voice_ws(websocket: WebSocket, session_id: str):
 
     except WebSocketDisconnect:
         return
+    finally:
+        if _active_connections.get(session_id) is websocket:
+            _active_connections.pop(session_id, None)
 
 
 async def handle_candidate_turn(websocket: WebSocket, runtime: Dict[str, Any], candidate_text: str):
@@ -322,6 +344,15 @@ async def handle_candidate_turn(websocket: WebSocket, runtime: Dict[str, Any], c
     transcript: List[Dict[str, str]] = runtime.setdefault("transcript", [])
     transcript.append({"role": "candidate", "content": candidate_text})
     await websocket.send_json({"type": "transcript", "role": "candidate", "text": candidate_text})
+
+    opening_reply = advance_onboarding(runtime, candidate_text)
+    if opening_reply is not None:
+        transcript.append({"role": "agent", "content": opening_reply})
+        await websocket.send_json({"type": "agent_text", "text": opening_reply})
+        await websocket.send_json({"type": "conversation_phase", "phase": runtime.get("conversation_phase")})
+        audio = await safe_tts(opening_reply, (runtime.get("interviewer_profile") or {}).get("voice"))
+        await websocket.send_json({"type": "agent_audio", "format": "mp3", "audio_base64": audio} if audio else {"type": "tts_unavailable"})
+        return
 
     if is_finish_intent(candidate_text):
         reply = (

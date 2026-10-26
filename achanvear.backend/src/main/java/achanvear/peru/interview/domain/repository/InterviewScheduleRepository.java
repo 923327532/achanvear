@@ -16,4 +16,5 @@ public interface InterviewScheduleRepository {
     Optional<InterviewSchedule> findByHiringProcessIdAndType(String hiringProcessId, String interviewType);
 
     List<InterviewSchedule> findByCandidateId(String candidateId);
+    List<InterviewSchedule> findReserved();
 }

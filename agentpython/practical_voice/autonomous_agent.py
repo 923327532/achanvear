@@ -72,18 +72,6 @@ async def generate_interviewer_reply(
     challenge: Dict[str, Any],
     violations: int,
 ) -> str:
-    normalized = candidate_text.lower().strip()
-    ready_words = ("listo", "lista", "ya", "dale", "empecemos", "comencemos", "estoy listo", "estoy lista")
-    if any(word in normalized for word in ready_words):
-        language = challenge.get("language") or workspace_state.get("codeLanguage") or "la herramienta indicada en el caso"
-        title = challenge.get("title") or "el caso practico"
-        return (
-            f"Excelente, comenzamos. Tienes 20 minutos para resolver {title}. "
-            f"El lenguaje o herramienta evaluada sera {language}. Haz clic en Caso cuando quieras revisar el enunciado. "
-            "Puedes ejecutar varias veces para validar; eso no finaliza la entrevista. "
-            "Cuando termines, presiona Entregar. Primero explicame tu plan y luego empieza a trabajar."
-        )
-
     if workspace_state.get("codeOutput"):
         return (
             "Ya veo el resultado de tu ejecucion. Ahora explicame que significa esa salida, "

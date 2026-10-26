@@ -32,10 +32,16 @@ public class InterviewResultHandler {
                 .orElseThrow(() -> new IllegalStateException("Hiring process not found for interview"));
         boolean theory = "THEORY".equals(event.interviewType());
         HiringStage expected = theory ? HiringStage.THEORY_INTERVIEW : HiringStage.TECHNICAL_INTERVIEW;
-        if (process.getStage() != expected) return; // repeated completion never advances twice
         var application = applications.findByCandidateUserId(UUID.fromString(process.getCandidateId())).stream()
                 .filter(a -> a.getJobPostId().toString().equals(process.getJobId())).findFirst().orElseThrow();
         int score = interview.getScore().getValue();
+        boolean scoreChanged = !java.util.Objects.equals(theory ? application.getTheoryScore() : application.getTechnicalScore(), score);
+        if (theory) application.registerTheoryScore(score);
+        else application.registerTechnicalScore(score);
+        if (process.getStage() != expected) {
+            if (scoreChanged) applications.save(application);
+            return; // preserve results even after a manual stage change
+        }
         if (theory) {
             process.registerTheoryInterviewResult(score);
             application.registerTheoryScore(score);

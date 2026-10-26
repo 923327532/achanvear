@@ -38,6 +38,8 @@ export interface StartPracticalRequest {
   career: string;
   job_title: string;
   candidate_name?: string;
+  job_description?: string;
+  job_requirements?: string;
   workspace_type?: WorkspaceType;
   country?: string;
 }

@@ -15,6 +15,7 @@ class ChatDatabaseTest {
     static JdbcTemplate jdbc;
     static DriverManagerDataSource ds;
     ChatController chat;
+    StoragePort storage;
     AuthenticatedUser company, freelancer;
     UUID companyUser, freelancerUser;
     @BeforeAll static void database() throws Exception {
@@ -39,7 +40,8 @@ class ChatDatabaseTest {
         jdbc.update("INSERT INTO users VALUES(?, 'Empresa prueba','COMPANY'),(?, 'Profesional prueba','FREELANCER')",companyUser,freelancerUser);
         jdbc.update("INSERT INTO companies VALUES(?,?)",UUID.randomUUID(),companyUser);
         company=principal(companyUser); freelancer=principal(freelancerUser);
-        chat=new ChatController(ds,mock(StoragePort.class));
+        storage=mock(StoragePort.class);
+        chat=new ChatController(ds,storage);
     }
     @Test void A5SimultaneousRequestsFromBothParticipantsReturnSameConversation() throws Exception {
         var pool=Executors.newFixedThreadPool(8); var gate=new CountDownLatch(1);
@@ -80,6 +82,23 @@ class ChatDatabaseTest {
         assertEquals("Archivo adjunto",chat.getConversations(freelancer).getBody().getData().get(0).lastMessage());
         chat.sendMessage(company,new SendMessageRequest(id,"Nuevo mensaje"));
         assertEquals(1,chat.getConversations(freelancer).getBody().getData().get(0).unreadCount());
+    }
+    @Test void imageAttachmentReachesRecipientAndCanBeMarkedRead() throws Exception {
+        var id=chat.startConversation(company,new StartConversationRequest(freelancerUser.toString())).getBody().getData().id();
+        var message=chat.sendMessage(company,new SendMessageRequest(id,"")).getBody().getData();
+        byte[] bytes={1,2,3};
+        when(storage.uploadFile(eq("CHAT_ATTACHMENTS"),eq("photo.png"),eq("image/png"),any(byte[].class)))
+                .thenReturn(new StoragePort.UploadResponse("test/photo.png","https://storage.example.invalid/photo.png"));
+        var file=new org.springframework.mock.web.MockMultipartFile("file","photo.png","image/png",bytes);
+        var uploaded=chat.uploadAttachment(message.id(),company,file);
+        assertEquals(201,uploaded.getStatusCode().value());
+        var received=chat.getMessages(id,freelancer).getBody().getData();
+        assertEquals(uploaded.getBody().getData().id(),received.get(0).attachments().get(0).id());
+        when(storage.generatePresignedDownloadUrl("test/photo.png"))
+                .thenReturn(new StoragePort.PresignedDownloadResponse("test/photo.png","https://storage.example.invalid/signed-photo"));
+        assertEquals(200,chat.getDownloadUrl(uploaded.getBody().getData().id(),freelancer).getStatusCode().value());
+        assertEquals(200,chat.markRead(UUID.fromString(id),freelancer).getStatusCode().value());
+        assertEquals(0,jdbc.queryForObject("SELECT count(*) FROM chat_messages WHERE conversation_id=? AND read_at IS NULL",Integer.class,UUID.fromString(id)));
     }
     @Test void A22StageDatesPersistAcrossQueriesAndUnrelatedUpdates() {
         var job=UUID.randomUUID(); jdbc.update("INSERT INTO job_posts VALUES(?)",job);

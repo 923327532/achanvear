@@ -115,31 +115,33 @@ public class CandidateDrawerDetailService implements GetCandidateDrawerDetailUse
         boolean interviewAvailable = false;
         String recordingKey = null;
 
-        // Try to find interview by hiring process id
-        if (hiringProcessId != null) {
-            Optional<Interview> interviewOpt = interviewRepository.findById(
-                    achanvear.peru.interview.domain.model.InterviewId.of(hiringProcessId)
-            );
-            if (interviewOpt.isEmpty()) {
-                // Try by candidateId
-                interviewOpt = interviewRepository.findById(
-                        achanvear.peru.interview.domain.model.InterviewId.of(application.getCandidateUserId().toString())
-                );
+        // Match the candidate AND this job/process. Interview ids are independent ids.
+        var evaluations = jdbc.query("""
+                SELECT i.id, i.interview_type, i.status, i.score, i.recording_file_key,
+                       d.communication_score
+                FROM interviews i
+                LEFT JOIN interview_evaluation_details d ON d.interview_id = i.id
+                WHERE i.candidate_id = ? AND i.hiring_process_id IN (?, ?)
+                ORDER BY i.updated_at DESC NULLS LAST, i.created_at DESC NULLS LAST, i.id DESC
+                """, (rs, row) -> new EvaluationRow(rs.getString("interview_type"), rs.getString("status"),
+                        (Integer) rs.getObject("score"), rs.getString("recording_file_key"),
+                        (Integer) rs.getObject("communication_score")),
+                application.getCandidateUserId().toString(), jobId, hiringProcessId);
+        boolean theoryFound = false;
+        boolean technicalFound = false;
+        interviewAvailable = !evaluations.isEmpty();
+        for (var evaluation : evaluations) {
+            if (recordingKey == null && evaluation.recordingKey() != null && !evaluation.recordingKey().isBlank()) {
+                recordingKey = evaluation.recordingKey();
             }
-
-            if (interviewOpt.isPresent()) {
-                Interview interview = interviewOpt.get();
-                interviewAvailable = true;
-                if (interview.getScore() != null) {
-                    if ("THEORY".equals(interview.getType().name())) {
-                        theoryInterviewScore = interview.getScore().getValue();
-                    } else if ("TECHNICAL".equals(interview.getType().name())) {
-                        technicalInterviewScore = interview.getScore().getValue();
-                    }
-                }
-                if (interview.getRecordingSession() != null) {
-                    recordingKey = interview.getRecordingSession().getFileKey();
-                }
+            if (!"COMPLETED".equals(evaluation.status()) || evaluation.score() == null) continue;
+            if ("THEORY".equals(evaluation.type()) && !theoryFound) {
+                theoryInterviewScore = evaluation.score();
+                theoryFound = true;
+            } else if ("TECHNICAL".equals(evaluation.type()) && !technicalFound) {
+                technicalInterviewScore = evaluation.score();
+                softSkillsScore = evaluation.communicationScore();
+                technicalFound = true;
             }
         }
 
@@ -192,6 +194,9 @@ public class CandidateDrawerDetailService implements GetCandidateDrawerDetailUse
                 stages
         );
     }
+
+    private record EvaluationRow(String type, String status, Integer score, String recordingKey,
+                                 Integer communicationScore) {}
 
     private CandidateDrawerDetailResponse.ExecutiveReport buildExecutiveReport(
             String candidateName,

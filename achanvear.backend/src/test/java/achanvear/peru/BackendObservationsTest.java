@@ -237,18 +237,21 @@ class BackendObservationsTest {
         var interview=new Interview(InterviewId.of(UUID.randomUUID().toString()),UUID.randomUUID().toString(),UUID.randomUUID().toString(),InterviewType.TECHNICAL);
         var interviews=mock(InterviewRepository.class); when(interviews.findById(interview.getId())).thenReturn(Optional.of(interview));
         var agent=mock(achanvear.peru.interview.infrastructure.external.impl.RealAiInterviewerClient.class);
-        when(agent.getPracticalScore(interview.getId().toString())).thenReturn(22);
+        doReturn(Map.of("score",22,"communication_score",64)).when(agent).getPracticalEvaluation(interview.getId().toString());
+        var evaluations=mock(achanvear.peru.interview.infrastructure.persistence.InterviewEvaluationStore.class);
         var service=new achanvear.peru.interview.application.impl.InterviewApplicationService(interviews,
                 mock(achanvear.peru.interview.domain.service.InterviewSlotManager.class),agent,
                 mock(achanvear.peru.interview.infrastructure.external.TextToSpeechClient.class),
                 mock(achanvear.peru.interview.infrastructure.external.S3RecordingClient.class),
                 new achanvear.peru.interview.domain.service.ScoreCalculator(),
                 mock(achanvear.peru.shared.infrastructure.EventPublisher.class),mock(JobPostRepository.class),
-                mock(InterviewScheduleRepository.class),mock(achanvear.peru.compliance.application.ValidateInterviewConsentUseCase.class));
+                mock(InterviewScheduleRepository.class),mock(achanvear.peru.compliance.application.ValidateInterviewConsentUseCase.class),evaluations,
+                mock(achanvear.peru.interview.application.impl.InterviewAttendanceService.class));
         service.execute(new achanvear.peru.interview.application.command.CompleteInterviewCommand(interview.getId().toString(),100,"Approved","Fake evidence"));
         assertEquals(22,interview.getScore().getValue()); assertEquals(InterviewStatus.COMPLETED,interview.getStatus());
         service.execute(new achanvear.peru.interview.application.command.CompleteInterviewCommand(interview.getId().toString(),100,null,null));
-        assertEquals(22,interview.getScore().getValue()); verify(agent,times(1)).getPracticalScore(anyString());
+        assertEquals(22,interview.getScore().getValue()); verify(agent,times(1)).getPracticalEvaluation(anyString());
+        verify(evaluations,times(1)).save(eq(interview.getId().toString()),eq(Map.of("score",22,"communication_score",64)));
     }
     @Test void A15OverviewAndCurrentPlanUseSameJobQuotaAsPublishing() {
         var user=UUID.randomUUID(); var companyId=UUID.randomUUID();

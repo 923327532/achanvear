@@ -22,6 +22,7 @@ export function ChooseSlotModal({ schedule, onClose, onComplete }: ChooseSlotMod
     try {
       const d = new Date(dateTime);
       return d.toLocaleDateString("es-PE", {
+        timeZone: "America/Lima",
         day: "numeric",
         month: "long",
         year: "numeric",
@@ -35,6 +36,7 @@ export function ChooseSlotModal({ schedule, onClose, onComplete }: ChooseSlotMod
     try {
       const d = new Date(dateTime);
       return d.toLocaleTimeString("es-PE", {
+        timeZone: "America/Lima",
         hour: "2-digit",
         minute: "2-digit",
       });

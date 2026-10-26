@@ -190,13 +190,13 @@ function Navbar() {
             </div>
 
             {/* Nosotros — scroll a sección misión */}
-            <a
-              href="#mision"
+            <Link
+              href="/nosotros"
               className="rounded-lg px-3 py-2 text-sm text-white/90 hover:bg-white/10 hover:text-white transition-colors"
               onClick={() => setActiveDropdown(null)}
             >
               Nosotros
-            </a>
+            </Link>
           </nav>
 
           {/* CTA buttons — desktop */}
@@ -231,9 +231,9 @@ function Navbar() {
                   {item}
                 </button>
               ))}
-              <a href="#mision" className="py-2 px-2 text-left text-sm text-white/90 hover:text-white transition-colors" onClick={() => setMenuOpen(false)}>
+              <Link href="/nosotros" className="py-2 px-2 text-left text-sm text-white/90 hover:text-white transition-colors" onClick={() => setMenuOpen(false)}>
                 Nosotros
-              </a>
+              </Link>
             </nav>
             <div className="mt-4 flex flex-col gap-2 border-t border-white/10 pt-4">
               <Link href="/login" className="py-2 text-center text-sm font-medium text-white/90 hover:text-white">
@@ -266,7 +266,7 @@ function Footer() {
               <span className="text-base font-semibold text-white">Achanvear</span>
             </div>
             <p className="mb-5 max-w-xs text-sm leading-relaxed text-gray-400">
-              La plataforma líder en Perú para conectar talento certificado con oportunidades laborales.
+              Un proyecto académico peruano que acerca lo que sabes hacer a la oportunidad de demostrarlo.
             </p>
             <div className="flex gap-3">
               <a href="#" aria-label="Facebook" className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-800 text-gray-400 hover:bg-teal-600 hover:text-white transition-colors">
@@ -317,7 +317,7 @@ function Footer() {
           <div className="flex gap-4 sm:gap-5">
             <Link href="/privacy" className="text-xs text-gray-500 hover:text-gray-300 transition-colors">Privacidad</Link>
             <Link href="/terms" className="text-xs text-gray-500 hover:text-gray-300 transition-colors">Términos</Link>
-            <Link href="#" className="text-xs text-gray-500 hover:text-gray-300 transition-colors">SUNAT</Link>
+            <Link href="/nosotros" className="text-xs text-gray-500 hover:text-gray-300 transition-colors">Nosotros</Link>
           </div>
         </div>
       </div>

@@ -114,6 +114,8 @@ export interface InterviewConsentResponse {
 }
 
 export interface InterviewSummaryResponse {
+  jobId?: string;
+  scheduledAt?: string;
   interviewId: string;
   position: string;
   company: string;

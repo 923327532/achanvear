@@ -65,6 +65,7 @@ export function useSubmitProposal(projectId: string) {
         };
       });
       queryClient.invalidateQueries({ queryKey: ["freelance-project", projectId] });
+      queryClient.invalidateQueries({ queryKey: ["freelance-my-proposals"] });
     },
 
   });

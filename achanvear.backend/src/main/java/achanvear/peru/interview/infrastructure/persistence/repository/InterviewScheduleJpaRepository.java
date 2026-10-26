@@ -13,4 +13,5 @@ public interface InterviewScheduleJpaRepository extends JpaRepository<InterviewS
     Optional<InterviewScheduleJpaEntity> findByHiringProcessIdAndInterviewType(String hiringProcessId, String interviewType);
 
     List<InterviewScheduleJpaEntity> findByCandidateId(String candidateId);
+    List<InterviewScheduleJpaEntity> findByStatus(String status);
 }

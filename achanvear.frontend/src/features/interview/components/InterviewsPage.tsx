@@ -1,11 +1,14 @@
 // features/interview/components/InterviewsPage.tsx
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { interviewEntryState, parseInterviewTime, sameInterviewAppointment } from "../lib/entryWindow";
 import { useQuery } from "@tanstack/react-query";
-import { Calendar, Clock, User, Play, Video, Briefcase, Loader2, Eye, ChevronRight, CheckCircle2, BookOpen, Code2, ClipboardCheck } from "lucide-react";
+import { Calendar, Clock, User, Play, Video, Briefcase, Loader2, Eye, ChevronRight, CheckCircle2, BookOpen, Code2, ClipboardCheck, X } from "lucide-react";
 import { InterviewRoom } from "./InterviewRoom";
 import { PracticalVoiceInterviewRoom } from "./PracticalVoiceInterviewRoom";
+import { InterviewConsentGate } from "./InterviewConsentGate";
+import { useInterviewConsent } from "../hooks/useInterviewConsent";
 import { InterviewReportModal } from "./InterviewReportModal";
 import { ChooseSlotModal } from "./ChooseSlotModal";
 import { useMyInterviews } from "../hooks/useFreelancerInterviews";
@@ -52,18 +55,14 @@ const inferPracticalArea = (jobTitle?: string) => {
   return "general";
 };
 
-const parseScheduleDateTime = (dateTime?: string) => {
-  if (!dateTime) return null;
-  const normalized = dateTime.includes("T") ? dateTime : dateTime.replace(" ", "T");
-  const parsed = new Date(normalized);
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
-};
+const parseScheduleDateTime = parseInterviewTime;
 
 const formatScheduleDateTime = (dateTime?: string) => {
   if (!dateTime) return "Fecha por confirmar";
   const parsed = parseScheduleDateTime(dateTime);
   if (!parsed) return dateTime;
   return parsed.toLocaleString("es-PE", {
+    timeZone: "America/Lima",
     weekday: "short",
     day: "2-digit",
     month: "short",
@@ -79,7 +78,7 @@ const isScheduleExpired = (schedule: InterviewScheduleResponse) => {
   const chosenSlot = getReservedSlot(schedule);
   const parsed = parseScheduleDateTime(chosenSlot?.dateTime);
   if (!parsed) return false;
-  return parsed.getTime() < Date.now();
+  return interviewEntryState(chosenSlot?.dateTime) === "expired";
 };
 
 const formatLongScheduleDateTime = (dateTime?: string) => {
@@ -87,6 +86,7 @@ const formatLongScheduleDateTime = (dateTime?: string) => {
   const parsed = parseScheduleDateTime(dateTime);
   if (!parsed) return dateTime;
   return parsed.toLocaleString("es-PE", {
+    timeZone: "America/Lima",
     weekday: "long",
     day: "numeric",
     month: "long",
@@ -219,8 +219,8 @@ function ConfirmedScheduleCard({ schedule, expired = false }: { schedule: Interv
           <Clock className="w-4 h-4 text-gray-400 flex-shrink-0" />
           <span>
             {expired
-              ? "Este horario ya pasó. La entrevista queda vencida y no aparece como pendiente."
-              : "Tu horario quedó reservado. No se puede cambiar."}
+              ? "Cancelada por inasistencia: pasaron más de 30 minutos sin iniciar."
+              : "Ingresa desde la hora elegida. Tienes 30 minutos de tolerancia para iniciar."}
           </span>
         </div>
       </div>
@@ -248,6 +248,8 @@ function ScheduledCard({ interview, onStart }: { interview: InterviewSummaryResp
   const typeMeta = getInterviewTypeMeta(interview.interviewType);
 
   const isAborted = interview.status === "ABORTED";
+  const entryState = interviewEntryState(interview.scheduledAt);
+  const unavailable = isAborted || interview.status === "IN_PROGRESS" || entryState === "early" || entryState === "expired";
 
   return (
     <div className={`bg-white rounded-xl border border-l-4 shadow-sm p-5 flex flex-col relative transition-colors ${
@@ -262,7 +264,7 @@ function ScheduledCard({ interview, onStart }: { interview: InterviewSummaryResp
           <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border ${
             isAborted ? "bg-red-50 text-red-700 border-red-200" : "bg-emerald-50 text-emerald-700 border-emerald-200"
           }`}>
-            {isAborted ? "No disponible" : "Programada"}
+            {isAborted ? "No disponible" : interview.status === "IN_PROGRESS" ? "En curso" : "Programada"}
           </span>
           <div className="relative">
             <button onClick={() => setMenuOpen(!menuOpen)} className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors">
@@ -296,8 +298,7 @@ function ScheduledCard({ interview, onStart }: { interview: InterviewSummaryResp
         <div className="flex items-center gap-2 text-sm mb-3">
           <Calendar className="w-4 h-4 text-slate-400 flex-shrink-0" />
           <span className={`font-medium ${isAborted ? "text-red-600" : "text-slate-800"}`}>
-            {interview.date}
-            {interview.time && <> · {interview.time}</>}
+            {interview.scheduledAt ? formatScheduleDateTime(interview.scheduledAt) : <>{interview.date}{interview.time && <> · {interview.time}</>}</>}
           </span>
           {isAborted && (
             <span className="text-[10px] font-medium text-red-500 ml-auto">Cancelada</span>
@@ -316,13 +317,13 @@ function ScheduledCard({ interview, onStart }: { interview: InterviewSummaryResp
         </div>
       </div>
       <button onClick={() => onStart(interview)}
-        disabled={isAborted}
+        disabled={unavailable}
         className={`w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
-          isAborted
-            ? "border-2 border-red-300 text-red-400 bg-red-50 cursor-not-allowed"
+          unavailable
+            ? "border-2 border-slate-200 text-slate-400 bg-slate-50 cursor-not-allowed"
             : "border-2 border-emerald-600 text-emerald-700 hover:bg-emerald-50"
         }`}>
-        <Play className="w-4 h-4" /> {isAborted ? "No disponible" : "Iniciar Entrevista"}
+        <Play className="w-4 h-4" /> {isAborted ? "No disponible" : interview.status === "IN_PROGRESS" ? "Entrevista en curso" : entryState === "early" ? "Disponible a la hora elegida" : entryState === "expired" ? "Vencida por inasistencia" : "Iniciar Entrevista"}
       </button>
     </div>
   );
@@ -484,6 +485,11 @@ function ApplicationFeedbackCard({
 }
 
 export function InterviewsPage() {
+  const [showEvaluationHistory, setShowEvaluationHistory] = useState(false);
+  const historyDialog = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    if (showEvaluationHistory) historyDialog.current?.showModal();
+  }, [showEvaluationHistory]);
   const [showModal, setShowModal] = useState(false);
   const [preselectedId, setPreselectedId] = useState<string | undefined>();
   const [selectedInterviewContext, setSelectedInterviewContext] = useState<InterviewSummaryResponse | null>(null);
@@ -514,17 +520,19 @@ export function InterviewsPage() {
     setSchedulesLoading(true);
     try {
       const data = await scheduleApi.getMySchedules(candidateId);
-      const activeSchedules = data.filter(s => !interviews.some(i => {
+      const activeSchedules = data.filter(s => s.status === "NO_SHOW" || !interviews.some(i => {
         const matchingApplication = applications.find(application => application.jobPostId === s.jobId);
         return (i.status === "COMPLETED" || i.status === "ABORTED") &&
           i.interviewType === s.interviewType &&
           matchingApplication &&
-          i.position === matchingApplication.jobTitle;
+          i.position === matchingApplication.jobTitle && sameInterviewAppointment(i, getReservedSlot(s)?.dateTime);
       }));
       setSchedules(activeSchedules.filter(s => s.status === "PENDING_SELECTION" || s.status === "PENDING"));
-      const chosenSchedules = activeSchedules.filter(s => s.status === "RESERVED" || s.status === "CHOSEN");
+      const chosenSchedules = activeSchedules.filter(s => (s.status === "RESERVED" || s.status === "CHOSEN") &&
+        !interviews.some(i => i.status === "IN_PROGRESS" && i.interviewType === s.interviewType &&
+          (i.jobId === s.jobId || applications.some(a => a.jobPostId === s.jobId && a.jobTitle === i.position))));
       setConfirmedSchedules(chosenSchedules.filter(s => !isScheduleExpired(s)));
-      setExpiredSchedules(chosenSchedules.filter(isScheduleExpired));
+      setExpiredSchedules([...chosenSchedules.filter(isScheduleExpired), ...activeSchedules.filter(s => s.status === "NO_SHOW")]);
     } catch {
     } finally {
       setSchedulesLoading(false);
@@ -537,7 +545,19 @@ export function InterviewsPage() {
     }
   }, [candidateId, fetchSchedules]);
 
-  const scheduled = interviews.filter(i => i.status === "SCHEDULED");
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const timer = window.setInterval(() => { setNow(Date.now()); fetchSchedules(); refetch(); }, 15000);
+    return () => window.clearInterval(timer);
+  }, [fetchSchedules, refetch]);
+  const scheduleFor = (interview: InterviewSummaryResponse) => [...confirmedSchedules, ...expiredSchedules].find(s =>
+    s.interviewType === interview.interviewType && (s.jobId === interview.jobId || applications.some(a => a.jobPostId === s.jobId && a.jobTitle === interview.position)));
+  const slotFor = (interview: InterviewSummaryResponse) => {
+    const schedule = scheduleFor(interview);
+    return interview.scheduledAt ?? (schedule ? getReservedSlot(schedule)?.dateTime : undefined);
+  };
+  const scheduled = interviews.filter(i => (i.status === "SCHEDULED" || i.status === "IN_PROGRESS") &&
+    (i.status === "IN_PROGRESS" || interviewEntryState(slotFor(i), now) !== "expired"));
   const evaluations = interviews.filter(i => i.status === "COMPLETED" || i.status === "ABORTED");
   const applicationFeedbackItems = applications.filter((application) =>
     application.screeningResult == null ||
@@ -589,7 +609,12 @@ export function InterviewsPage() {
             <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">Centro de Evaluación IA</h1>
             <p className="text-sm text-gray-500 mt-1">Valida tus habilidades con nuestros agentes de inteligencia artificial</p>
           </div>
-          <div className="flex items-center gap-3 flex-shrink-0">
+          <div className="flex flex-wrap items-center gap-3 flex-shrink-0">
+            <button type="button" aria-haspopup="dialog" onClick={() => setShowEvaluationHistory(true)}
+              className="inline-flex items-center gap-2 rounded-xl border border-teal-200 bg-teal-50 px-4 py-2.5 text-sm font-semibold text-teal-800 transition hover:bg-teal-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600">
+              <ClipboardCheck className="h-4 w-4" /> Historial de Evaluaciones
+              <span className="rounded-full bg-white px-2 py-0.5 text-xs text-teal-700">{evaluations.length}</span>
+            </button>
             <button onClick={() => window.location.href = "/freelancer/jobs"}
               className="relative inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors">
               <Play className="w-4 h-4" /> Ver Oportunidades
@@ -633,7 +658,7 @@ export function InterviewsPage() {
             <div className="flex items-center justify-between gap-3 mb-5">
               <div>
                 <h2 className="text-lg font-bold text-slate-900">Horarios vencidos</h2>
-                <p className="text-sm text-slate-500 mt-1">Estos horarios ya pasaron y no se muestran como entrevistas pendientes.</p>
+                <p className="text-sm text-slate-500 mt-1">Se superaron los 30 minutos de tolerancia sin iniciar. La entrevista queda cancelada por inasistencia.</p>
               </div>
               <span className="hidden sm:inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600">
                 <Clock className="w-3.5 h-3.5" /> {expiredSchedules.length} vencidos
@@ -655,21 +680,25 @@ export function InterviewsPage() {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 lg:gap-6">
               {scheduled.map((interview) => (
-                <ScheduledCard key={interview.interviewId} interview={interview} onStart={handleStartInterview} />
+                <ScheduledCard key={interview.interviewId} interview={{ ...interview, scheduledAt: slotFor(interview) }} onStart={handleStartInterview} />
               ))}
             </div>
           )}
         </section>
 
+        {showEvaluationHistory && <dialog ref={historyDialog} aria-labelledby="evaluation-history-title"
+          onCancel={() => setShowEvaluationHistory(false)}
+          onClick={event => { if (event.target === event.currentTarget) setShowEvaluationHistory(false); }}
+          className="fixed inset-0 m-auto max-h-[85dvh] w-[95vw] max-w-6xl overflow-y-auto rounded-3xl border border-slate-200 bg-[#F8FAFC] p-5 text-slate-900 shadow-2xl backdrop:bg-slate-900/40 backdrop:backdrop-blur-sm sm:p-8">
         <section>
           <div className="flex items-center justify-between gap-3 mb-5">
             <div>
-              <h2 className="text-lg font-bold text-slate-900">Historial de Evaluaciones</h2>
+              <h2 id="evaluation-history-title" className="text-lg font-bold text-slate-900">Historial de Evaluaciones</h2>
               <p className="text-sm text-slate-500 mt-1">Las entrevistas finalizadas se guardan aquí y ya no aparecen como pendientes.</p>
             </div>
-            <span className="hidden sm:inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600">
+            <div className="flex shrink-0 items-center gap-3"><span className="hidden sm:inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600">
               <ClipboardCheck className="w-3.5 h-3.5" /> {evaluations.length} registros
-            </span>
+            </span><button type="button" aria-label="Cerrar historial" onClick={() => setShowEvaluationHistory(false)} className="rounded-xl border border-slate-200 bg-white p-2 text-slate-500 transition hover:bg-slate-100"><X className="h-5 w-5" /></button></div>
           </div>
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
             {evaluations.length === 0 ? (
@@ -743,6 +772,7 @@ export function InterviewsPage() {
             </div>
           )}
         </section>
+        </dialog>}
       </div>
 
       <AccessInterviewModal
@@ -786,10 +816,16 @@ function AccessInterviewModal({
   const [practicalJobTitle, setPracticalJobTitle] = useState("Technical Interview");
   const [showRoom, setShowRoom] = useState(false);
   const [showPracticalRoom, setShowPracticalRoom] = useState(false);
+  const [practicalConsentAccepted, setPracticalConsentAccepted] = useState(false);
+  const [practicalConsentError, setPracticalConsentError] = useState<string | null>(null);
+  const practicalConsent = useInterviewConsent();
   const [showReport, setShowReport] = useState(false);
 
   useEffect(() => {
     if (!open) return;
+    setShowPracticalRoom(false);
+    setPracticalConsentAccepted(false);
+    setPracticalConsentError(null);
     setInterviewId(preselectedId || "");
     if (interviewContext) {
       const type = interviewContext.interviewType === "THEORY" ? "THEORY" : "TECHNICAL";
@@ -914,7 +950,23 @@ function AccessInterviewModal({
         />
       )}
 
-      {showPracticalRoom && (
+      {showPracticalRoom && !practicalConsentAccepted && (
+        <div role="dialog" aria-modal="true" aria-label="Consentimiento de entrevista técnica" className="fixed inset-0 z-[60] flex overflow-y-auto bg-[#182235] text-white">
+          <InterviewConsentGate interviewType="TECHNICAL" isSubmitting={practicalConsent.isPending} error={practicalConsentError}
+            onCancel={() => { setShowPracticalRoom(false); setPracticalConsentError(null); }}
+            onAccept={async payload => {
+              setPracticalConsentError(null);
+              try {
+                await practicalConsent.mutateAsync({ interviewId, payload });
+                setPracticalConsentAccepted(true);
+              } catch (error) {
+                setPracticalConsentError(error instanceof Error ? error.message : "No se pudo registrar el consentimiento");
+              }
+            }} />
+        </div>
+      )}
+
+      {showPracticalRoom && practicalConsentAccepted && (
         <PracticalVoiceInterviewRoom
           sessionId={interviewId}
           career={practicalCareer}

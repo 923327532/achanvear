@@ -54,6 +54,8 @@ public class InterviewApplicationService implements
     private final JobPostRepository jobPostRepository;
     private final InterviewScheduleRepository interviewScheduleRepository;
     private final ValidateInterviewConsentUseCase validateInterviewConsentUseCase;
+    private final achanvear.peru.interview.infrastructure.persistence.InterviewEvaluationStore evaluationStore;
+    private final InterviewAttendanceService attendance;
     private static final java.time.format.DateTimeFormatter DATE_FMT = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd");
     private static final java.time.format.DateTimeFormatter TIME_FMT = java.time.format.DateTimeFormatter.ofPattern("HH:mm");
 
@@ -67,7 +69,9 @@ public class InterviewApplicationService implements
             achanvear.peru.shared.infrastructure.EventPublisher eventPublisher,
             JobPostRepository jobPostRepository,
             InterviewScheduleRepository interviewScheduleRepository,
-            ValidateInterviewConsentUseCase validateInterviewConsentUseCase
+            ValidateInterviewConsentUseCase validateInterviewConsentUseCase,
+            achanvear.peru.interview.infrastructure.persistence.InterviewEvaluationStore evaluationStore,
+            InterviewAttendanceService attendance
     ) {
         this.interviewRepository = interviewRepository;
         this.interviewSlotManager = interviewSlotManager;
@@ -79,6 +83,8 @@ public class InterviewApplicationService implements
         this.jobPostRepository = jobPostRepository;
         this.interviewScheduleRepository = interviewScheduleRepository;
         this.validateInterviewConsentUseCase = validateInterviewConsentUseCase;
+        this.evaluationStore = evaluationStore;
+        this.attendance = attendance;
     }
 
     @Override
@@ -128,10 +134,12 @@ public class InterviewApplicationService implements
     @Override
     public InterviewSessionResponse execute(StartInterviewSessionCommand command) {
         Interview interview = getInterview(command.interviewId());
+        interview.assertCanStart();
 
         // Cumplimiento: sin consentimiento específico aceptado la entrevista queda bloqueada.
         // No se inicia WebSocket, no se contacta a Python ni se piden permisos multimedia antes de esto.
         validateInterviewConsentUseCase.validateOrThrow(command.interviewId());
+        attendance.validateStart(command.interviewId());
 
         // Resolver el título real del puesto desde la BD
         String jobTitle = resolveJobTitle(interview.getJobId());
@@ -282,13 +290,18 @@ public class InterviewApplicationService implements
     @Override
     public InterviewReportResponse execute(CompleteInterviewCommand command) {
         Interview interview = getInterview(command.interviewId());
+        if (interview.getStatus() == InterviewStatus.ABORTED) {
+            throw new IllegalStateException("Esta entrevista fue abortada y su ID esta bloqueado");
+        }
 
         boolean alreadyCompleted = interview.getStatus() == InterviewStatus.COMPLETED;
         InterviewScore finalScore;
         if (alreadyCompleted) {
             return execute(command.interviewId());
         } else if (interview.getType() == InterviewType.TECHNICAL) {
-            int agentScore = ((RealAiInterviewerClient) aiInterviewerClient).getPracticalScore(interview.getId().toString());
+            var evaluation = ((RealAiInterviewerClient) aiInterviewerClient).getPracticalEvaluation(interview.getId().toString());
+            int agentScore = achanvear.peru.interview.infrastructure.persistence.InterviewEvaluationStore.score(evaluation.get("score"));
+            evaluationStore.save(interview.getId().toString(), evaluation);
             finalScore = new InterviewScore(agentScore);
             if (interview.getStatus() == InterviewStatus.SCHEDULED) interview.start();
             if (interview.getAnswers().isEmpty()) {
@@ -432,12 +445,12 @@ public class InterviewApplicationService implements
     private String resolveDateFromSchedule(Interview interview) {
         // 1) Preferir la fecha guardada en la propia entrevista (fuente confiable)
         if (interview.getAssignedSlotDateTime() != null) {
-            return interview.getAssignedSlotDateTime().format(DATE_FMT);
+            return interview.getAssignedSlotDateTime().atOffset(java.time.ZoneOffset.UTC).atZoneSameInstant(java.time.ZoneId.of("America/Lima")).format(DATE_FMT);
         }
 
         // 2) Fallback: buscar el schedule elegido del candidato para ese puesto
         for (InterviewSchedule s : findChosenSchedules(interview)) {
-            return s.getChosenSlot().getDateTime().format(DATE_FMT);
+            return s.getChosenSlot().getDateTime().atOffset(java.time.ZoneOffset.UTC).atZoneSameInstant(java.time.ZoneId.of("America/Lima")).format(DATE_FMT);
         }
         return "";
     }
@@ -445,12 +458,12 @@ public class InterviewApplicationService implements
     private String resolveTimeFromSchedule(Interview interview) {
         // 1) Preferir la hora guardada en la propia entrevista (fuente confiable)
         if (interview.getAssignedSlotDateTime() != null) {
-            return interview.getAssignedSlotDateTime().format(TIME_FMT);
+            return interview.getAssignedSlotDateTime().atOffset(java.time.ZoneOffset.UTC).atZoneSameInstant(java.time.ZoneId.of("America/Lima")).format(TIME_FMT);
         }
 
         // 2) Fallback: buscar el schedule elegido del candidato para ese puesto
         for (InterviewSchedule s : findChosenSchedules(interview)) {
-            return s.getChosenSlot().getDateTime().format(TIME_FMT);
+            return s.getChosenSlot().getDateTime().atOffset(java.time.ZoneOffset.UTC).atZoneSameInstant(java.time.ZoneId.of("America/Lima")).format(TIME_FMT);
         }
         return "";
     }
@@ -466,7 +479,7 @@ public class InterviewApplicationService implements
             String candidateId = interview.getCandidateId();
             var schedules = interviewScheduleRepository.findByCandidateId(candidateId);
             return schedules.stream()
-                    .filter(s -> s.getChosenSlot() != null)
+                    .filter(s -> s.getChosenSlot() != null && s.getInterviewType() == interview.getType())
                     .filter(s -> {
                         if (jobId == null) return false;
                         return jobId.equals(s.getJobId()) || jobId.equals(s.getHiringProcessId());
@@ -530,7 +543,9 @@ public class InterviewApplicationService implements
                     score,
                     100,
                     passed,
-                    reason
+                    reason,
+                    interview.getJobId(),
+                    interview.getAssignedSlotDateTime() == null ? null : interview.getAssignedSlotDateTime().atOffset(java.time.ZoneOffset.UTC)
             );
         }).toList();
     }

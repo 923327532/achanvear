@@ -49,6 +49,11 @@ public class InterviewScheduleRepositoryImpl implements InterviewScheduleReposit
     }
 
     @Override
+    public List<InterviewSchedule> findReserved() {
+        return jpaRepository.findByStatus("RESERVED").stream().map(mapper::toDomain).toList();
+    }
+
+    @Override
     public List<InterviewSchedule> findByCandidateId(String candidateId) {
         return jpaRepository.findByCandidateId(candidateId)
                 .stream()

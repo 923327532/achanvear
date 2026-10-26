@@ -242,7 +242,7 @@ function ScoreBar({
           <span>{label}</span>
         </div>
         <span className={`text-sm font-bold ${displayValue !== null ? color : "text-slate-300"}`}>
-          {displayValue !== null ? `${displayValue}/100` : "—"}
+          {displayValue !== null ? `${displayValue}/100` : "Sin resultado"}
         </span>
       </div>
       <div className="h-2 bg-slate-100 rounded-full overflow-hidden">

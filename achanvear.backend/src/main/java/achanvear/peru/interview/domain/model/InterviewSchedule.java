@@ -82,6 +82,9 @@ public class InterviewSchedule {
         }
 
         InterviewSlot selected = proposedSlots.get(slotIndex);
+        if (selected.getDateTime().isBefore(LocalDateTime.now(java.time.ZoneOffset.UTC))) {
+            throw new IllegalStateException("Este horario ya paso. Elige un horario futuro o Dar ahora");
+        }
         if (selected.getStatus() != InterviewSlot.SlotStatus.AVAILABLE) {
             throw new IllegalStateException("Slot " + slotIndex + " is not available");
         }
@@ -123,7 +126,7 @@ public class InterviewSchedule {
         }
 
         if (tokenStatus == InterviewTokenStatus.EXPIRED) {
-            throw new IllegalStateException("Enlace expirado, fuiste descalificado");
+            throw new IllegalStateException("Entrevista vencida por inasistencia");
         }
 
         if (chosenSlot == null) {
@@ -131,23 +134,20 @@ public class InterviewSchedule {
         }
 
         LocalDateTime slotTime = chosenSlot.getDateTime();
-        LocalDateTime fiveMinutesBefore = slotTime.minusMinutes(5);
-        LocalDateTime fiveMinutesAfter = slotTime.plusMinutes(5);
-
-        if (now.isBefore(fiveMinutesBefore)) {
-            throw new IllegalStateException("Aun no es tu horario, puedes entrar 5 minutos antes");
-        }
-
-        if (now.isAfter(fiveMinutesAfter)) {
-            // Marcar como expirado y no-show
-            this.tokenStatus = InterviewTokenStatus.EXPIRED;
-            this.status = InterviewScheduleStatus.NO_SHOW;
-            throw new IllegalStateException("Tiempo de acceso expirado, descalificado por tardanza");
-        }
+        expireIfAbsent(now);
+        InterviewEntryWindow.validate(slotTime, now);
 
         // Todo valido: marcar token como usado
         this.tokenStatus = InterviewTokenStatus.USED;
-        this.status = InterviewScheduleStatus.COMPLETED;
+        this.status = InterviewScheduleStatus.IN_PROGRESS;
+        return true;
+    }
+
+    public boolean expireIfAbsent(LocalDateTime now) {
+        if (status != InterviewScheduleStatus.RESERVED || tokenStatus == InterviewTokenStatus.USED
+                || chosenSlot == null || !InterviewEntryWindow.expired(chosenSlot.getDateTime(), now)) return false;
+        tokenStatus = InterviewTokenStatus.EXPIRED;
+        status = InterviewScheduleStatus.NO_SHOW;
         return true;
     }
 
@@ -155,6 +155,13 @@ public class InterviewSchedule {
         this.status = InterviewScheduleStatus.COMPLETED;
         if (this.tokenStatus != InterviewTokenStatus.EXPIRED) {
             this.tokenStatus = InterviewTokenStatus.USED;
+        }
+    }
+
+    public void markStarted() {
+        if (status == InterviewScheduleStatus.RESERVED) {
+            status = InterviewScheduleStatus.IN_PROGRESS;
+            tokenStatus = InterviewTokenStatus.USED;
         }
     }
 

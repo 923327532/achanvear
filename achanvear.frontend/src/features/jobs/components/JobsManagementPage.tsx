@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useProtectedRoute } from "@/shared/hooks/useProtectedRoute";
 import { ConfirmModal } from "@/shared/components/ui/ConfirmModal";
+import { FilterSelect } from "@/shared/components/ui/FilterSelect";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { jobApi } from "../api/jobApi";
 import type { Job } from "../types/job.types";
@@ -155,15 +156,15 @@ function JobCard({
 
   return (
     <article className="h-full overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm transition-all hover:border-blue-200 hover:shadow-md">
-      <div className="p-4">
-        <div className={`flex gap-3 ${viewMode === "cards" ? "flex-col" : "flex-col sm:flex-row sm:items-start sm:justify-between"}`}>
+      <div className={viewMode === "cards" ? "flex h-full flex-col gap-5 p-5" : "p-5 sm:p-6"}>
+        <div className={viewMode === "cards" ? "contents" : "flex gap-3 flex-col sm:flex-row sm:items-start sm:justify-between"}>
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+            <div className={viewMode === "cards" ? "flex flex-col items-start gap-3" : "flex items-center gap-2 sm:gap-3 flex-wrap"}>
               <h3 className="min-w-0 break-words text-sm sm:text-base font-semibold leading-snug text-slate-900">{job.title}</h3>
               {getStatusBadge(job.status || "")}
             </div>
 
-            <div className="flex items-center gap-x-3 gap-y-1 mt-2 text-xs text-slate-500 flex-wrap">
+            <div className={viewMode === "cards" ? "mt-4 grid gap-2 text-xs text-slate-500" : "flex items-center gap-x-3 gap-y-1 mt-2 text-xs text-slate-500 flex-wrap"}>
               <span className="flex items-center gap-1">
                 <Briefcase className="w-3.5 h-3.5" strokeWidth={1.5} />
                 {getJobTypeIcon(job.type)}
@@ -185,16 +186,16 @@ function JobCard({
             </div>
           </div>
 
-          <div className={`flex gap-2 ${viewMode === "cards" ? "flex-col" : "flex-col sm:items-end sm:shrink-0"}`}>
+          <div className={`flex gap-3 ${viewMode === "cards" ? "order-2 mt-auto flex-col border-t border-slate-100 pt-4" : "flex-col sm:items-end sm:shrink-0"}`}>
             <button
               onClick={() => onViewApplicants(job.id)}
-              className="inline-flex w-full items-center justify-center gap-2 px-3 py-2 text-xs font-semibold text-[#1e3a8a] bg-blue-50 border border-blue-200 rounded-xl hover:bg-blue-100 transition-all sm:w-auto"
+              className={`inline-flex w-full items-center justify-center gap-2 px-3 py-2.5 text-xs font-semibold text-[#1e3a8a] bg-blue-50 border border-blue-200 rounded-xl hover:bg-blue-100 transition-all ${viewMode === "list" ? "sm:w-auto" : ""}`}
             >
               <Eye className="w-4 h-4" strokeWidth={1.5} />
               Ver Postulantes
             </button>
 
-            <div className="flex flex-wrap items-center gap-2 sm:justify-end sm:gap-1">
+            <div className={viewMode === "cards" ? "flex flex-wrap items-center justify-between gap-2" : "flex flex-wrap items-center gap-2 sm:justify-end sm:gap-1"}>
               <Link
                 href={`/company/jobs/${job.id}/edit`}
                 className={`${ACTION_BASE} hover:text-[#1e3a8a] hover:bg-slate-100`}
@@ -268,15 +269,15 @@ function JobCard({
           </div>
         </div>
 
-        <div className="border-t border-slate-100 my-3" />
+        {viewMode === "list" && <div className="border-t border-slate-100 my-5" />}
 
-        <div className="grid grid-cols-3 gap-3 rounded-xl bg-slate-50/80 p-3">
+        <div className={`grid grid-cols-3 rounded-xl bg-slate-50/80 ${viewMode === "cards" ? "order-1 gap-2 p-3" : "gap-4 p-4"}`}>
           <div>
-            <p className="text-xs text-slate-500 mb-0.5">Total Postulantes</p>
+            <p className="text-xs text-slate-500 mb-0.5">{viewMode === "cards" ? "Postulantes" : "Total Postulantes"}</p>
             <p className="text-lg font-bold text-slate-900">{totalApps}</p>
           </div>
           <div>
-            <p className="text-xs text-slate-500 mb-0.5">Filtrados por IA</p>
+            <p className="text-xs text-slate-500 mb-0.5">{viewMode === "cards" ? "Con IA" : "Filtrados por IA"}</p>
             <p className="text-lg font-bold text-purple-700">{filteredByAI}</p>
           </div>
           <div>
@@ -455,7 +456,7 @@ export function JobsManagementPage() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl space-y-5 p-4 sm:p-5 lg:p-6">
+    <div className="w-full min-w-0 space-y-6 p-4 sm:p-6 xl:p-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <h1 className="text-2xl font-bold text-[#1e3a8a]">Mis Publicaciones</h1>
@@ -483,7 +484,6 @@ export function JobsManagementPage() {
       )}
 
       <HiringStatsCards
-        compact
         data={{
           activeJobs: statsQuery.data?.activeJobs ?? null,
           totalApplications: statsQuery.data?.totalApplications ?? null,
@@ -492,8 +492,8 @@ export function JobsManagementPage() {
         }}
       />
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="relative w-full sm:max-w-md sm:flex-1">
+      <div className="flex flex-col gap-4 md:flex-row md:flex-wrap md:items-center">
+        <div className="relative w-full md:w-auto md:min-w-64 md:flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" strokeWidth={1.5} />
           <input
             type="text"
@@ -504,29 +504,17 @@ export function JobsManagementPage() {
           />
         </div>
 
-        <select
+        <FilterSelect label="Estado"
           value={statusFilter}
-          onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
-          className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-[#1e3a8a] focus:ring-2 focus:ring-blue-100 transition sm:w-auto"
-        >
-          <option value="">Todos los estados</option>
-          <option value="PUBLISHED">Activas</option>
-          <option value="SUSPENDED">Pausadas</option>
-          <option value="CLOSED">Finalizadas</option>
-        </select>
+          onChange={value => { setStatusFilter(value); setPage(1); }}
+          options={[{ value: "", label: "Todos los estados" }, { value: "PUBLISHED", label: "Activas", color: "bg-emerald-500" }, { value: "SUSPENDED", label: "Pausadas", color: "bg-amber-500" }, { value: "CLOSED", label: "Finalizadas", color: "bg-rose-500" }]}
+        />
 
-        <select
+        <FilterSelect label="Tipo de publicación"
           value={typeFilter}
-          onChange={(e) => { setTypeFilter(e.target.value); setPage(1); }}
-          className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:border-[#1e3a8a] focus:ring-2 focus:ring-blue-100 transition sm:w-auto"
-        >
-          <option value="">Todos los tipos</option>
-          <option value="FULL_TIME">Empleo Fijo</option>
-          <option value="PART_TIME">Medio Tiempo</option>
-          <option value="FREELANCE">Freelance</option>
-          <option value="CONTRACT">Contrato</option>
-          <option value="INTERNSHIP">Prácticas</option>
-        </select>
+          onChange={value => { setTypeFilter(value); setPage(1); }}
+          options={[{ value: "", label: "Todos los tipos" }, { value: "FULL_TIME", label: "Empleo Fijo" }, { value: "PART_TIME", label: "Medio Tiempo" }, { value: "FREELANCE", label: "Freelance" }, { value: "CONTRACT", label: "Contrato" }, { value: "INTERNSHIP", label: "Prácticas" }]}
+        />
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -558,7 +546,7 @@ export function JobsManagementPage() {
           </div>
         ) : <EmptyState onCreate={() => router.push("/company/jobs/create")} />
       ) : (
-        <div className={viewMode === "cards" ? "grid grid-cols-1 gap-4 md:grid-cols-2" : "space-y-3"}>
+        <div className={viewMode === "cards" ? "grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3" : "space-y-5"}>
           {paginatedJobs.map((job) => (
             <JobCard
               key={job.id}

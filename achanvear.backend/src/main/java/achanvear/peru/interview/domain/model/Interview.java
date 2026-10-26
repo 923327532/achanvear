@@ -125,6 +125,18 @@ public class Interview {
         ));
     }
 
+    public void assertCanStart() {
+        if (status == InterviewStatus.ABORTED) {
+            throw new IllegalStateException("Esta entrevista fue abortada y su ID esta bloqueado. No puedes volver a rendirla");
+        }
+        if (status == InterviewStatus.COMPLETED) {
+            throw new IllegalStateException("Esta entrevista ya finalizo y su ID esta bloqueado. No puedes volver a rendirla");
+        }
+        if (status != InterviewStatus.SCHEDULED) {
+            throw new IllegalStateException("Esta entrevista ya esta en curso. No puedes iniciar otro intento");
+        }
+    }
+
     public void addQuestion(Question question) {
         ensureStatus(InterviewStatus.IN_PROGRESS);
         this.questions.add(Objects.requireNonNull(question, "Question cannot be null"));
@@ -184,11 +196,11 @@ public class Interview {
     }
 
     public void complete(InterviewScore score) {
-        this.score = Objects.requireNonNull(score, "Interview score cannot be null");
         if (this.status == InterviewStatus.COMPLETED) {
             return;
         }
         ensureStatus(InterviewStatus.IN_PROGRESS);
+        this.score = Objects.requireNonNull(score, "Interview score cannot be null");
         this.status = InterviewStatus.COMPLETED;
         this.domainEvents.add(new InterviewCompletedEvent(
                 this.id,

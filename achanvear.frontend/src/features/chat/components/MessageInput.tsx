@@ -120,20 +120,18 @@ export function MessageInput({ onSend, isLoading, conversationId, onAttachmentUp
         }
 
         // 2. Subir archivo como adjunto si tenemos messageId
-        if (messageId && selectedFile) {
+        if (!messageId) throw new Error("No se pudo crear el mensaje");
+        if (selectedFile) {
           await chatApi.uploadAttachment(messageId, selectedFile.file);
           // Refrescar mensajes para que se vea el attachment
           onAttachmentUploaded?.();
         }
+        setInputValue("");
+        removeFile();
       } catch (err) {
         console.error("Error al enviar archivo:", err);
         setUploadError("Error al subir el archivo");
       } finally {
-        setInputValue("");
-        setSelectedFile(null);
-        if (fileInputRef.current) {
-          fileInputRef.current.value = "";
-        }
         setIsUploading(false);
       }
 
@@ -145,7 +143,7 @@ export function MessageInput({ onSend, isLoading, conversationId, onAttachmentUp
       onSend(inputValue.trim());
       setInputValue("");
     }
-  }, [inputValue, selectedFile, isLoading, isUploading, onSend, conversationId]);
+  }, [inputValue, selectedFile, isLoading, isUploading, onSend, conversationId, onAttachmentUploaded, removeFile]);
 
 
 

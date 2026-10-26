@@ -98,16 +98,16 @@ export function ProjectCard({
 
   return (
     // RESPONSIVE: min-w-0 para que la tarjeta no desborde la columna de la grilla
-    <div className="flex min-w-0 flex-col rounded-xl border border-slate-200 bg-white p-4 transition-all hover:shadow-sm w-full">
+    <article className="flex h-full min-w-0 flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:border-teal-200 hover:shadow-md w-full">
 
       {/* ── 1. Header: Title + Price ──
           RESPONSIVE: título y precio en una fila dejaban el título en ~60px a 284px. En celular el precio baja
           a su propia línea; desde sm vuelven a ir lado a lado. */}
-      <div className="flex flex-col gap-1 mb-3 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
+      <div className="flex flex-col gap-3 mb-4">
         <h3 className="text-base font-bold text-[#0f172a] leading-tight flex-1 min-w-0 break-words">
           {project.title}
         </h3>
-        <span className="shrink-0 text-sm font-bold text-emerald-600 whitespace-nowrap">
+        <span className="self-start rounded-lg bg-teal-50 px-3 py-1.5 text-sm font-semibold text-teal-700">
           {formatBudget()}
         </span>
       </div>
@@ -185,7 +185,7 @@ export function ProjectCard({
 
       {/* ── 6. Actions: View Details + Proposal Status / Propose ──
           RESPONSIVE: flex-wrap; a 284px "Ver detalles" + el estado no cabían en una fila y el estado se cortaba. */}
-      <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100">
+      <div className="mt-auto flex flex-wrap items-center gap-2 pt-4 border-t border-slate-100">
         {!isAcceptedProposal && (
           <button
             type="button"
@@ -240,6 +240,6 @@ export function ProjectCard({
         )}
       </div>
 
-    </div>
+    </article>
   );
 }

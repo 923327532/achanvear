@@ -59,8 +59,15 @@ export function PracticalVoiceInterviewRoom({
   const wsRef = useRef<WebSocket | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const recognitionRef = useRef<any>(null);
+  const micActiveRef = useRef(false);
+  const captureGenerationRef = useRef(0);
+  const pendingTurnRef = useRef(false);
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
+  const audioGenerationRef = useRef(0);
+  const startAnnouncementPendingRef = useRef(false);
+  const startAnnouncementTextRef = useRef("");
   const lastAgentTextRef = useRef("");
+  const suppressPreviousAudioRef = useRef(false);
   const voiceActivationTimerRef = useRef<number | null>(null);
   const chunksRef = useRef<BlobPart[]>([]);
   const transcriptRef = useRef<TranscriptLine[]>([]);
@@ -73,6 +80,7 @@ export function PracticalVoiceInterviewRoom({
   const [challenge, setChallenge] = useState<PracticalChallenge | null>(null);
   const [resolvedWorkspaceType, setResolvedWorkspaceType] = useState<WorkspaceType>("simulation");
   const [status, setStatus] = useState<"booting" | "ready" | "recording" | "thinking" | "finished">("booting");
+  const [agentConnected, setAgentConnected] = useState(false);
   const [code, setCode] = useState("");
   const [codeFiles, setCodeFiles] = useState<PracticalCodeFile[]>([]);
   const [activeFilePath, setActiveFilePath] = useState("");
@@ -88,6 +96,7 @@ export function PracticalVoiceInterviewRoom({
   const [languageSearch, setLanguageSearch] = useState("");
   const [notes, setNotes] = useState("");
   const [manualText, setManualText] = useState("");
+  const [heardText, setHeardText] = useState("");
   const [transcript, setTranscript] = useState<TranscriptLine[]>([]);
   const [violations, setViolations] = useState(0);
   const [result, setResult] = useState<FinishPracticalResponse | null>(null);
@@ -96,6 +105,7 @@ export function PracticalVoiceInterviewRoom({
   const [audioNeedsActivation, setAudioNeedsActivation] = useState(false);
   const [timeLeft, setTimeLeft] = useState(20 * 60);
   const [timerActive, setTimerActive] = useState(false);
+  const monitoringEnabled = agentConnected && timerActive && status !== "finished";
   const [exitCountdown, setExitCountdown] = useState<number | null>(null);
   const [showHistory, setShowHistory] = useState(false);
   const [showCase, setShowCase] = useState(true);
@@ -172,11 +182,16 @@ export function PracticalVoiceInterviewRoom({
     async function boot() {
       try {
         const jobContext = await interviewApi.getJobContext(sessionId);
+        if (!mounted) return;
+        await interviewApi.registerAttendance(sessionId);
+        if (!mounted) return;
         const started = await startPracticalInterview({
           session_id: sessionId,
           career,
-          job_title: `${jobContext.title}\nDescripcion: ${jobContext.description}\nRequisitos: ${jobContext.requirements}`,
-          candidate_name: candidateName,
+          job_title: jobContext.title,
+          job_description: jobContext.description,
+          job_requirements: jobContext.requirements,
+          candidate_name: jobContext.candidateName || candidateName,
           workspace_type: workspaceType,
           country: "Peru",
         });
@@ -204,14 +219,21 @@ export function PracticalVoiceInterviewRoom({
         }, 10000);
         ws.binaryType = "arraybuffer";
         ws.onopen = () => {
+          if (!mounted) { ws.close(); return; }
           window.clearTimeout(connectionTimeout);
           setError(null);
           setStatus("ready");
+          setAgentConnected(true);
           sendWsJson({ type: "workspace_state", payload: workspaceRef.current });
         };
-        ws.onmessage = (event) => handleWsMessage(event.data);
-        ws.onerror = () => setError("Se perdio la conexion con el agente de voz");
+        ws.onmessage = (event) => { if (mounted && wsRef.current === ws) handleWsMessage(event.data); };
+        ws.onerror = () => { setAgentConnected(false); setError("Se perdio la conexion con el agente de voz"); };
         ws.onclose = () => {
+          if (!mounted || wsRef.current !== ws) return;
+          pendingTurnRef.current = false;
+          stopVoicePlayback();
+          cancelMicrophoneCapture();
+          if (mounted) setAgentConnected(false);
           window.clearTimeout(connectionTimeout);
           if (mounted && !finishingRef.current) {
             setVoice("idle");
@@ -220,6 +242,8 @@ export function PracticalVoiceInterviewRoom({
         };
         wsRef.current = ws;
       } catch (err: any) {
+        if (!mounted) return;
+        setAgentConnected(false);
         setError(err?.message || "No se pudo preparar la entrevista practica");
       }
     }
@@ -228,13 +252,14 @@ export function PracticalVoiceInterviewRoom({
     return () => {
       mounted = false;
       window.clearTimeout(connectionTimeout);
-      stopBrowserSpeech();
-      recorderRef.current?.stream.getTracks().forEach((track) => track.stop());
+      stopVoicePlayback();
+      cancelMicrophoneCapture();
       wsRef.current?.close();
     };
   }, [candidateName, career, jobTitle, sessionId, workspaceType]);
 
   useEffect(() => {
+    if (!monitoringEnabled) return;
     const report = (type: string, detail: string, severity = "medium") => {
       setViolations((current) => current + 1);
       setSecurityEvents((current) => [...current, { type, detail, at: new Date().toISOString() }]);
@@ -248,7 +273,7 @@ export function PracticalVoiceInterviewRoom({
       setError(reason);
       setStatus("finished");
       setExitCountdown(null);
-      stopBrowserSpeech();
+      stopVoicePlayback();
       wsRef.current?.close();
       interviewApi.abort(sessionId, reason).catch(() => undefined);
     };
@@ -302,16 +327,20 @@ export function PracticalVoiceInterviewRoom({
       window.removeEventListener("contextmenu", onContextMenu);
       window.removeEventListener("keydown", onKeyDown);
     };
-  }, [sessionId]);
+  }, [sessionId, monitoringEnabled]);
 
   useEffect(() => {
+    if (!monitoringEnabled) {
+      if (exitCountdown !== null) setExitCountdown(null);
+      return;
+    }
     if (exitCountdown === null) return;
     if (exitCountdown <= 0) {
       const reason = "Entrevista cancelada y candidato descalificado por permanecer fuera de la pantalla 30 segundos.";
       disqualifiedRef.current = true;
       setError(reason);
       setStatus("finished");
-      stopBrowserSpeech();
+      stopVoicePlayback();
       wsRef.current?.close();
       setSecurityEvents((current) => [...current, { type: "disqualified", detail: reason, at: new Date().toISOString() }]);
       reportPracticalViolation({ session_id: sessionId, type: "disqualified", detail: reason, severity: "critical" }).catch(() => undefined);
@@ -322,33 +351,40 @@ export function PracticalVoiceInterviewRoom({
       setExitCountdown((current) => current === null ? null : current - 1);
     }, 1000);
     return () => window.clearTimeout(timer);
-  }, [exitCountdown]);
+  }, [exitCountdown, monitoringEnabled]);
 
   function handleWsMessage(raw: string | ArrayBuffer) {
     if (typeof raw !== "string") return;
     const data = JSON.parse(raw);
 
     if (data.type === "transcript") {
+      if (data.role === "candidate") setHeardText(data.text);
       appendTranscript(data.role, data.text);
     }
     if (data.type === "agent_text") {
+      pendingTurnRef.current = false;
+      suppressPreviousAudioRef.current = false;
       setStatus((current) => current === "recording" ? "recording" : "ready");
       appendTranscript("agent", data.text);
       lastAgentTextRef.current = data.text;
-      if (shouldStartTimer(data.text)) setTimerActive(true);
+    }
+    if (data.type === "conversation_phase" && data.phase === "working") {
+      startAnnouncementPendingRef.current = true;
+      startAnnouncementTextRef.current = lastAgentTextRef.current;
     }
     if (data.type === "agent_audio") {
-      playBase64Audio(data.audio_base64, data.format);
+      if (!suppressPreviousAudioRef.current) playBase64Audio(data.audio_base64, data.format);
     }
     if (data.type === "tts_unavailable") {
-      speakInBrowser(lastAgentTextRef.current);
+      if (!suppressPreviousAudioRef.current) speakInBrowser(lastAgentTextRef.current);
     }
     if (data.type === "stt_started") {
       setStatus((current) => current === "recording" ? "recording" : "thinking");
     }
-    if (data.type === "stt_error") {
+    if (data.type === "stt_error" || data.type === "empty_transcript") {
+      pendingTurnRef.current = false;
       setStatus("ready");
-      setError(data.message);
+      setError(data.message || "No pude entender la respuesta. Intenta otra vez o escribe abajo.");
     }
     if (data.type === "finish_requested") {
       finish(true);
@@ -364,7 +400,15 @@ export function PracticalVoiceInterviewRoom({
     setVoiceStatus(value);
   }
 
-  function stopBrowserSpeech() {
+  function stopVoicePlayback() {
+    audioGenerationRef.current += 1;
+    const previous = currentAudioRef.current;
+    currentAudioRef.current = null;
+    if (previous) {
+      previous.onended = null;
+      previous.onerror = null;
+      previous.pause();
+    }
     if (voiceActivationTimerRef.current !== null) window.clearTimeout(voiceActivationTimerRef.current);
     if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
     window.speechSynthesis.cancel();
@@ -372,6 +416,9 @@ export function PracticalVoiceInterviewRoom({
   }
 
   function speakInBrowser(text: string) {
+    stopVoicePlayback();
+    const generation = audioGenerationRef.current;
+    const startsInterview = startAnnouncementPendingRef.current && text === startAnnouncementTextRef.current;
     if (!text) return;
     if (typeof window === "undefined" || !("speechSynthesis" in window)) {
       setError("Este navegador no permite reproducir la voz. Puedes leer los mensajes de la entrevista.");
@@ -389,28 +436,46 @@ export function PracticalVoiceInterviewRoom({
       null;
     let started = false;
     utterance.onstart = () => {
+      if (generation !== audioGenerationRef.current) return;
       started = true;
       setAudioNeedsActivation(false);
       setVoice("speaking");
     };
-    utterance.onend = () => setVoice("idle");
+    utterance.onend = () => {
+      if (generation !== audioGenerationRef.current) return;
+      setVoice("idle");
+      if (startsInterview) {
+        startAnnouncementPendingRef.current = false;
+        setTimerActive(true);
+      }
+    };
     utterance.onerror = () => {
+      if (generation !== audioGenerationRef.current) return;
       setVoice("idle");
       setAudioNeedsActivation(true);
     };
     window.speechSynthesis.speak(utterance);
     voiceActivationTimerRef.current = window.setTimeout(() => {
-      if (!started) setAudioNeedsActivation(true);
+      if (!started && generation === audioGenerationRef.current) setAudioNeedsActivation(true);
     }, 2000);
   }
 
   function activateVoice() {
+    if (startAnnouncementPendingRef.current) {
+      speakInBrowser(startAnnouncementTextRef.current);
+      return;
+    }
+    const generation = audioGenerationRef.current;
     const audio = currentAudioRef.current;
     if (audio) {
+      window.speechSynthesis?.cancel();
       audio.play().then(() => {
+        if (generation !== audioGenerationRef.current || currentAudioRef.current !== audio) return;
         setAudioNeedsActivation(false);
         setVoice("speaking");
-      }).catch(() => speakInBrowser(lastAgentTextRef.current));
+      }).catch(() => {
+        if (generation === audioGenerationRef.current && currentAudioRef.current === audio) speakInBrowser(lastAgentTextRef.current);
+      });
     } else {
       speakInBrowser(lastAgentTextRef.current);
     }
@@ -423,91 +488,144 @@ export function PracticalVoiceInterviewRoom({
     return true;
   }
 
-  function shouldStartTimer(text: string) {
-    const normalized = text.toLowerCase();
-    return (
-      normalized.includes("comenzamos") ||
-      normalized.includes("tienes 20 minutos") ||
-      normalized.includes("empecemos el reto") ||
-      normalized.includes("empezamos el reto")
-    );
+  function cancelMicrophoneCapture() {
+    captureGenerationRef.current += 1;
+    micActiveRef.current = false;
+    const recognition = recognitionRef.current;
+    recognitionRef.current = null;
+    if (recognition) {
+      recognition.onresult = null;
+      recognition.onend = null;
+      recognition.onerror = null;
+      recognition.abort?.();
+    }
+    const recorder = recorderRef.current;
+    recorderRef.current = null;
+    if (recorder) {
+      recorder.ondataavailable = null;
+      recorder.onstop = null;
+      if (recorder.state !== "inactive") recorder.stop();
+      recorder.stream.getTracks().forEach(track => track.stop());
+    }
+  }
+
+  function submitCandidateText(text: string, messageId: string) {
+    const value = text.trim();
+    if (!value || pendingTurnRef.current) return false;
+    pendingTurnRef.current = true;
+    setHeardText(value);
+    setStatus("thinking");
+    setVoice("idle");
+    if (sendWsJson({ type: "candidate_text", text: value, message_id: messageId })) return true;
+    pendingTurnRef.current = false;
+    setStatus("ready");
+    setError("La conexion con el agente aun se esta preparando. Intenta otra vez en unos segundos.");
+    return false;
   }
 
   async function startRecording() {
+    if (micActiveRef.current || pendingTurnRef.current) return;
+    cancelMicrophoneCapture();
+    micActiveRef.current = true;
+    const capture = captureGenerationRef.current;
+    const messageId = crypto.randomUUID();
+    setHeardText("");
     setError(null);
-    currentAudioRef.current?.pause();
-    currentAudioRef.current = null;
-    stopBrowserSpeech();
+    suppressPreviousAudioRef.current = true;
+    if (startAnnouncementPendingRef.current) setAudioNeedsActivation(true);
+    stopVoicePlayback();
     sendWsJson({ type: "barge_in" });
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (SpeechRecognition) {
       const recognition = new SpeechRecognition();
       recognition.lang = "es-PE";
       recognition.continuous = false;
-      recognition.interimResults = false;
+      recognition.interimResults = true;
+      recognition.maxAlternatives = 1;
+      let submitted = false;
       recognition.onresult = (event: any) => {
-        const text = Array.from(event.results)
-          .map((result: any) => result[0]?.transcript ?? "")
-          .join(" ")
-          .trim();
-        if (text) {
-          setStatus("thinking");
-          sendWsJson({ type: "candidate_text", text });
-        }
+        if (submitted || capture !== captureGenerationRef.current || recognitionRef.current !== recognition) return;
+        const results = Array.from(event.results).slice(event.resultIndex ?? 0) as any[];
+        setHeardText(results.map(result => result[0]?.transcript ?? "").join(" ").trim());
+        const text = results.filter(result => result.isFinal).map(result => result[0]?.transcript ?? "").join(" ").trim();
+        if (!text) return;
+        submitted = true;
+        cancelMicrophoneCapture();
+        submitCandidateText(text, messageId);
       };
       recognition.onerror = () => {
+        if (capture !== captureGenerationRef.current) return;
+        cancelMicrophoneCapture();
         setStatus("ready");
         setVoice("idle");
-        setError("No pude escuchar con el reconocimiento del navegador. Puedes escribir tu respuesta abajo.");
+        setError("No pude entender tu voz. Habla cerca del microfono o escribe tu respuesta abajo.");
       };
       recognition.onend = () => {
-        setStatus((current) => current === "recording" ? "ready" : current);
+        if (capture !== captureGenerationRef.current) return;
+        recognitionRef.current = null;
+        micActiveRef.current = false;
+        setStatus(current => current === "recording" ? "ready" : current);
         if (voiceStatusRef.current === "listening") setVoice("idle");
       };
       recognitionRef.current = recognition;
-      recognition.start();
-      setStatus("recording");
-      setVoice("listening");
+      try {
+        recognition.start();
+        setStatus("recording");
+        setVoice("listening");
+      } catch {
+        cancelMicrophoneCapture();
+        setStatus("ready");
+        setError("No se pudo abrir el microfono. Revisa sus permisos e intenta de nuevo.");
+      }
       return;
     }
 
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    const recorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
-    chunksRef.current = [];
-    recorder.ondataavailable = async (event) => {
-      if (event.data.size <= 0 || wsRef.current?.readyState !== WebSocket.OPEN) return;
-      currentAudioRef.current?.pause();
-      currentAudioRef.current = null;
-      const bytes = await event.data.arrayBuffer();
-      wsRef.current.send(bytes);
-    };
-    recorder.onstop = () => {
-      stream.getTracks().forEach((track) => track.stop());
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+      if (capture !== captureGenerationRef.current) { stream.getTracks().forEach(track => track.stop()); return; }
+      const mimeType = ["audio/webm;codecs=opus", "audio/webm"].find(type => MediaRecorder.isTypeSupported(type));
+      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+      const chunks: BlobPart[] = [];
+      recorder.ondataavailable = event => { if (event.data.size > 0) chunks.push(event.data); };
+      recorder.onstop = async () => {
+        stream.getTracks().forEach(track => track.stop());
+        if (capture !== captureGenerationRef.current) return;
+        recorderRef.current = null;
+        micActiveRef.current = false;
+        setVoice("idle");
+        const audio = new Blob(chunks, { type: recorder.mimeType });
+        if (audio.size < 1000) { setStatus("ready"); setError("No se detecto una respuesta de voz. Intenta otra vez."); return; }
+        const bytes = await audio.arrayBuffer();
+        if (capture !== captureGenerationRef.current || wsRef.current?.readyState !== WebSocket.OPEN) return;
+        pendingTurnRef.current = true;
+        setStatus("thinking");
+        wsRef.current.send(bytes);
+      };
+      recorderRef.current = recorder;
+      recorder.start();
+      setStatus("recording");
+      setVoice("listening");
+    } catch {
+      cancelMicrophoneCapture();
       setStatus("ready");
-    };
-    recorder.start(4500);
-    recorderRef.current = recorder;
-    setStatus("recording");
-    setVoice("listening");
+      setError("No se pudo abrir el microfono. Revisa sus permisos.");
+    }
   }
 
   function stopRecording() {
     recognitionRef.current?.stop?.();
-    recognitionRef.current = null;
-    recorderRef.current?.stop();
-    recorderRef.current = null;
-    if (voiceStatusRef.current === "listening") setVoice("idle");
+    const recorder = recorderRef.current;
+    if (recorder && recorder.state !== "inactive") recorder.stop();
   }
 
   function sendManualText() {
     const text = manualText.trim();
-    if (!text) return;
-    setManualText("");
-    setStatus("thinking");
-    if (!sendWsJson({ type: "candidate_text", text })) {
-      setStatus("ready");
-      setError("La conexion con el agente aun se esta preparando. Intenta otra vez en unos segundos.");
-    }
+    if (!text || pendingTurnRef.current) return;
+    cancelMicrophoneCapture();
+    stopVoicePlayback();
+    suppressPreviousAudioRef.current = true;
+    sendWsJson({ type: "barge_in" });
+    if (submitCandidateText(text, crypto.randomUUID())) setManualText("");
   }
 
   async function finish(fromAgent = false) {
@@ -534,11 +652,7 @@ export function PracticalVoiceInterviewRoom({
         : "Ya termine la evaluacion. Podras descargar tu reporte de entrevista con el resultado y recomendaciones. En esta etapa no alcanzaste el puntaje requerido, pero el informe quedara disponible.";
       appendTranscript("agent", closing);
       speakInBrowser(closing);
-      await interviewApi.complete(sessionId, {
-        score: response.score,
-        summary: response.summary,
-        evidence: buildCompletionEvidence(response),
-      });
+      await interviewApi.complete(sessionId);
       onComplete?.(response);
     } catch (err: any) {
       finishingRef.current = false;
@@ -548,7 +662,7 @@ export function PracticalVoiceInterviewRoom({
   }
 
   async function cancelPracticalInterview(reason = "Entrevista practica cancelada por el candidato") {
-    stopBrowserSpeech();
+    stopVoicePlayback();
     setStatus("finished");
     try {
       await interviewApi.abort(sessionId, reason);
@@ -557,23 +671,6 @@ export function PracticalVoiceInterviewRoom({
     } finally {
       onClose();
     }
-  }
-
-  function buildCompletionEvidence(response: FinishPracticalResponse) {
-    const lastTurns = transcriptRef.current
-      .slice(-10)
-      .map((line) => `${line.role === "agent" ? "IA" : "Candidato"}: ${line.content}`)
-      .join("\n");
-    return [
-      `Resumen: ${response.summary}`,
-      `Comunicacion: ${response.communication_summary}`,
-      `Recomendacion: ${response.recommendation}`,
-      `Fortalezas: ${response.strengths.join(", ") || "Sin fortalezas registradas"}`,
-      `Riesgos: ${response.risks.join(", ") || "Sin riesgos registrados"}`,
-      codeOutput ? `Salida de codigo:\n${codeOutput}` : "",
-      notes ? `Notas del candidato:\n${notes}` : "",
-      lastTurns ? `Ultimos turnos:\n${lastTurns}` : "",
-    ].filter(Boolean).join("\n\n");
   }
 
   function escapeHtml(value: string) {
@@ -663,17 +760,30 @@ export function PracticalVoiceInterviewRoom({
   }
 
   function playBase64Audio(audioBase64: string, format: string) {
-    stopBrowserSpeech();
+    stopVoicePlayback();
+    const generation = audioGenerationRef.current;
+    const startsInterview = startAnnouncementPendingRef.current && lastAgentTextRef.current === startAnnouncementTextRef.current;
     const audio = new Audio(`data:audio/${format};base64,${audioBase64}`);
     currentAudioRef.current = audio;
+    const isCurrent = () => generation === audioGenerationRef.current && currentAudioRef.current === audio;
     setVoice("speaking");
-    audio.onended = () => setVoice("idle");
-    audio.onerror = () => {
+    audio.onended = () => {
+      if (!isCurrent()) return;
       currentAudioRef.current = null;
       setVoice("idle");
+      if (startsInterview) {
+        startAnnouncementPendingRef.current = false;
+        setTimerActive(true);
+      }
+    };
+    audio.onerror = () => {
+      if (!isCurrent()) return;
       speakInBrowser(lastAgentTextRef.current);
     };
-    audio.play().then(() => setAudioNeedsActivation(false)).catch(() => {
+    audio.play().then(() => {
+      if (isCurrent()) setAudioNeedsActivation(false);
+    }).catch(() => {
+      if (!isCurrent()) return;
       setVoice("idle");
       setAudioNeedsActivation(true);
     });
@@ -1091,7 +1201,7 @@ export function PracticalVoiceInterviewRoom({
   const timerTone = timeLeft <= 2 * 60 ? "danger" : timeLeft <= 5 * 60 ? "warning" : "ok";
   const timerPercent = Math.max(0, Math.min(100, (timeLeft / (20 * 60)) * 100));
   const explorerItems = buildExplorerTree();
-  const micLabel = status === "recording" ? "Pausar" : status === "thinking" ? "Pensando" : "Hablar";
+  const micLabel = status === "recording" ? "Enviar voz" : status === "thinking" ? "Pensando" : "Hablar";
   const headerButtonClass = "inline-flex h-9 min-w-[104px] items-center justify-center gap-1.5 rounded-lg border border-white/12 bg-white/[0.06] px-3 text-xs font-semibold text-slate-100 transition hover:border-white/20 hover:bg-white/[0.1] disabled:opacity-50";
   const headerPrimaryButtonClass = "inline-flex h-9 min-w-[104px] items-center justify-center gap-1.5 rounded-lg border border-emerald-300/30 bg-emerald-400 px-3 text-xs font-bold text-slate-950 transition hover:bg-emerald-300";
   const headerDangerButtonClass = "inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/12 bg-white/[0.06] text-white/75 transition hover:border-red-300/35 hover:bg-red-400/10 hover:text-red-100";
@@ -1298,7 +1408,8 @@ export function PracticalVoiceInterviewRoom({
             )}
           </div>
           <div className="flex shrink-0 items-center gap-1.5">
-            {audioNeedsActivation && (
+            {heardText && <p role="status" className="fixed bottom-24 left-1/2 z-50 max-w-[90vw] -translate-x-1/2 rounded-xl border border-teal-300/30 bg-slate-950/95 px-4 py-2 text-sm text-teal-100 shadow-lg">Te escuch?: {heardText}</p>}
+      {audioNeedsActivation && (
               <button onClick={activateVoice} className="rounded-lg bg-emerald-500 px-3 py-2 text-xs font-semibold text-slate-950">
                 Activar voz
               </button>
@@ -1337,7 +1448,7 @@ export function PracticalVoiceInterviewRoom({
                 <span className={`text-[10px] font-black uppercase ${
                   timerTone === "danger" ? "text-red-100" : timerTone === "warning" ? "text-amber-100" : "text-emerald-100"
                 }`}>
-                  {timerTone === "danger" ? "Finaliza" : timerTone === "warning" ? "Atencion" : "Tiempo"}
+                  {!timerActive ? "Preparación" : timerTone === "danger" ? "Finaliza" : timerTone === "warning" ? "Atencion" : "Tiempo"}
                 </span>
                 <span className="font-mono text-base font-black leading-none text-white">{minutes}:{seconds}</span>
               </div>

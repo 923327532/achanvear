@@ -4,18 +4,22 @@
 import type { LegalDocumentVersion } from "../types/compliance.types";
 
 // Renderizador mínimo de contenido: encabezados "## " y párrafos separados por línea en blanco.
+function cleanText(text: string) {
+  return text.replace(/\*\*([^*]+)\*\*/g, "$1").replace(/__([^_]+)__/g, "$1").replace(/`([^`]+)`/g, "$1");
+}
+
 function renderContent(content: string) {
-  const blocks = content.split(/\n\n+/);
+  const blocks = content.replace(/\r\n/g, "\n").split(/\n\n+/);
   return blocks.map((block, index) => {
     const trimmed = block.trim();
     if (!trimmed) return null;
-    if (trimmed.startsWith("## ")) {
+    if (/^#{1,6}\s/.test(trimmed)) {
       return (
         <h2
           key={index}
           className="mt-8 mb-3 text-xl font-bold text-[#1B3A6B] first:mt-0"
         >
-          {trimmed.replace(/^##\s+/, "")}
+          {cleanText(trimmed.replace(/^#{1,6}\s+/, ""))}
         </h2>
       );
     }
@@ -23,7 +27,7 @@ function renderContent(content: string) {
       <p key={index} className="mb-4 text-[15px] leading-7 text-slate-700">
         {trimmed.split(/\n/).map((line, i) => (
           <span key={i}>
-            {line}
+            {cleanText(line.replace(/^#{1,6}\s+/, ""))}
             {i < trimmed.split(/\n/).length - 1 && <br />}
           </span>
         ))}
@@ -32,14 +36,16 @@ function renderContent(content: string) {
   });
 }
 
-export function LegalDocumentViewer({ document }: { document: LegalDocumentVersion }) {
+export function LegalDocumentViewer({ document, embedded = false }: { document: LegalDocumentVersion; embedded?: boolean }) {
+  const Heading = embedded ? "h2" : "h1";
+  const status = document.status === "PUBLISHED" ? "Publicado" : document.status === "DRAFT" ? "En revisión" : "Archivado";
   return (
     <article className="mx-auto max-w-3xl rounded-2xl border border-slate-200 bg-white p-6 sm:p-10 shadow-sm">
-      <h1 className="text-2xl font-bold text-[#1B3A6B] sm:text-3xl">{document.title}</h1>
+      <Heading className="text-2xl font-semibold tracking-tight text-[#1B3A6B] sm:text-3xl">{cleanText(document.title)}</Heading>
       <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-slate-500">
         <span>Versión: {document.version}</span>
         <span aria-hidden>·</span>
-        <span>Estado: Vigente</span>
+        <span>Estado: {status}</span>
       </div>
       <div className="mt-8 border-t border-slate-100 pt-6">{renderContent(document.content)}</div>
     </article>

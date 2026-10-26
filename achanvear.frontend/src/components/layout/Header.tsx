@@ -88,7 +88,7 @@ export function Header() {
               )}
             </div>
           ))}
-          <Link href="/about" className="text-base font-semibold leading-6 text-gray-900 hover:text-teal-600 transition-colors">
+          <Link href="/nosotros" className="text-base font-semibold leading-6 text-gray-900 hover:text-teal-600 transition-colors">
             Nosotros
           </Link>
         </div>
@@ -148,7 +148,7 @@ export function Header() {
                 )}
               </div>
             ))}
-            <Link href="/about" className="block py-2 text-base font-semibold leading-6 text-gray-900 hover:text-teal-600" onClick={() => setOpenMenu(null)}>
+            <Link href="/nosotros" className="block py-2 text-base font-semibold leading-6 text-gray-900 hover:text-teal-600" onClick={() => setOpenMenu(null)}>
               Nosotros
             </Link>
             {user ? (

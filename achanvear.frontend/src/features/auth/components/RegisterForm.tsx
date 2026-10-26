@@ -361,7 +361,7 @@ export function RegisterForm() {
               />
               <span className="text-sm text-slate-600">
                 Acepto los{" "}
-                <Link href="/terms" className="font-medium underline" style={{ color: "#1B3A6B" }}>
+                <Link href="/terms" target="_blank" rel="noopener noreferrer" className="font-medium underline" style={{ color: "#1B3A6B" }}>
                   términos y condiciones
                 </Link>
               </span>
@@ -384,7 +384,7 @@ export function RegisterForm() {
               />
               <span className="text-sm text-slate-600">
                 He leído y acepto la{" "}
-                <Link href="/privacy" className="font-medium underline" style={{ color: "#1B3A6B" }}>
+                <Link href="/privacy" target="_blank" rel="noopener noreferrer" className="font-medium underline" style={{ color: "#1B3A6B" }}>
                   Política de Privacidad
                 </Link>
               </span>

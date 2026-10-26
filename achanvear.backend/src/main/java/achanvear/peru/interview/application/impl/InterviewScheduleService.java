@@ -135,15 +135,18 @@ public class InterviewScheduleService implements
     }
 
     @Override
+    @Transactional(noRollbackFor = IllegalStateException.class)
     public EnterInterviewResponse execute(EnterInterviewCommand command) {
         InterviewSchedule schedule = scheduleRepository.findByToken(command.token())
                 .orElseThrow(() -> new IllegalArgumentException("Token no valido: " + command.token()));
 
-        // Validar ventana de tiempo (5 min antes, 5 tolerancia)
-        schedule.validateEntry(LocalDateTime.now(java.time.ZoneOffset.UTC));
-        scheduleRepository.save(schedule);
+        try {
+            schedule.validateEntry(LocalDateTime.now(java.time.ZoneOffset.UTC));
+        } finally {
+            scheduleRepository.save(schedule);
+        }
 
-        log.info("Ingreso autorizado para schedule {} con token {}", schedule.getId(), command.token());
+        log.info("Ingreso autorizado para schedule {}", schedule.getId());
         return new EnterInterviewResponse(
                 schedule.getId(),
                 schedule.getHiringProcessId(),
@@ -171,7 +174,8 @@ public class InterviewScheduleService implements
             // Generar slots HTML dinamicamente
             StringBuilder slotsHtml = new StringBuilder();
             for (int i = 0; i < slots.size(); i++) {
-                String slotLabel = slots.get(i).getDateTime().format(SLOT_FORMATTER);
+                String slotLabel = slots.get(i).getDateTime().atOffset(java.time.ZoneOffset.UTC)
+                        .atZoneSameInstant(java.time.ZoneId.of("America/Lima")).format(SLOT_FORMATTER) + " (hora del Peru)";
                 String slotUrl = buildSlotUrl(scheduleId, i);
                 slotsHtml.append("""
                     <div style="background-color: #e3f2fd; border: 1px solid #bbdefb; border-radius: 8px; padding: 15px; margin-bottom: 10px;">

@@ -141,6 +141,25 @@ def build_workspace_challenge(
 ) -> dict:
     if workspace_type == PracticalWorkspaceType.CODING:
         title = job_title.splitlines()[0].lower()
+        if "java" in title and "javascript" not in title:
+            return {
+                "title": "Java: servicio para una API de postulaciones",
+                "workspace_tool": "code_project",
+                "interviewer_profile": interviewer_profile(workspace_type, career, job_title),
+                "language": "java", "entry_file": "Main.java",
+                "job_context": job_title,
+                "prompt": (
+                    "Implementa en Java un servicio que registre postulaciones con nombre y correo, rechace correos duplicados "
+                    "y permita consultar por identificador. Valida los datos y explica tus pruebas de casos borde. "
+                    "Para el puesto con Spring Framework, explica como expondrias este servicio mediante un controlador REST, "
+                    "inyeccion de dependencias, validacion de entradas y respuestas HTTP apropiadas. "
+                    "El archivo Main.java debe ejecutar una demostracion de la logica sin dependencias externas. "
+                    "Documenta en tus notas el contrato de la API y las decisiones de Spring. Puesto: " + job_title
+                ),
+                "files": [{"path": "Main.java", "language": "java", "content": "import java.util.*;\n\npublic class Main {\n    public static void main(String[] args) {\n        // Demuestra tu servicio de postulaciones y sus validaciones.\n    }\n}\n"}],
+                "starter_code": "public class Main { public static void main(String[] args) { } }",
+                "expected_output": ["Registro valido", "Correo duplicado rechazado", "Consulta por identificador", "Contrato REST y diseno con Spring"],
+            }
         if "html" in title or ("css" in title and "junior" in title):
             return {
                 "title": "HTML y CSS: pagina accesible",

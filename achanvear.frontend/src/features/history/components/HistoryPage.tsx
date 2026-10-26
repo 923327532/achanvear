@@ -122,14 +122,14 @@ function HistoryCard({ item }: { item: HistoryItem }) {
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-md transition-all duration-200">
-      <div className="flex items-start gap-4">
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 sm:p-6 hover:shadow-md transition-all duration-200">
+      <div className="flex items-start gap-4 sm:gap-5">
         <div className={`w-10 h-10 rounded-xl ${config.bg} flex items-center justify-center flex-shrink-0`}>
           <Icon className={`w-5 h-5 ${config.color}`} />
         </div>
 
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
+          <div className="flex flex-wrap items-center gap-2 mb-3">
             <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${config.bg} ${config.color}`}>
               {config.label}
             </span>
@@ -137,9 +137,9 @@ function HistoryCard({ item }: { item: HistoryItem }) {
               {STATUS_LABELS[item.status] ?? item.status}
             </span>
           </div>
-          <h3 className="text-sm font-semibold text-gray-800 mb-1">{item.title}</h3>
-          <p className="text-xs text-gray-500 mb-2">{item.description}</p>
-          <div className="flex items-center gap-3 text-xs text-gray-400">
+          <h3 className="break-words text-base font-semibold leading-7 text-gray-800 mb-2">{item.title}</h3>
+          <p className="break-words text-sm leading-7 text-gray-500 mb-4">{item.description}</p>
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-3 border-t border-gray-100 pt-4 text-xs text-gray-500 sm:text-sm">
             <span className="flex items-center gap-1">
               <Clock className="w-3 h-3" />
               {formatDate(item.date)}
@@ -209,7 +209,7 @@ export function HistoryPage({ companyId }: Props) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="w-full min-w-0 space-y-5">
       <div className="flex items-center justify-between mb-2">
         <p className="text-sm text-gray-500">
           {total} actividades registradas
@@ -221,7 +221,7 @@ export function HistoryPage({ companyId }: Props) {
       ))}
 
       {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-3 pt-4">
+        <div className="flex flex-wrap items-center justify-between gap-4 border-t border-gray-200 pt-6">
           <button
             onClick={() => setPage((p) => Math.max(0, p - 1))}
             disabled={page === 0}
@@ -231,7 +231,7 @@ export function HistoryPage({ companyId }: Props) {
             Anterior
           </button>
 
-          <div className="flex items-center gap-1.5">
+          <div className="flex max-w-full flex-wrap items-center gap-2">
             {Array.from({ length: totalPages }, (_, i) => (
               <button
                 key={i}

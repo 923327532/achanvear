@@ -29,8 +29,12 @@ export function useMessages(conversationId: string | null) {
     queryKey: ["chat", "messages", conversationId],
     queryFn: async () => {
       const messages = await chatApi.getMessages(conversationId!);
-      await chatApi.markRead(conversationId!);
-      queryClient.invalidateQueries({ queryKey: ["chat", "conversations"] });
+      try {
+        await chatApi.markRead(conversationId!);
+        queryClient.invalidateQueries({ queryKey: ["chat", "conversations"] });
+      } catch {
+        // A failed read receipt must not discard successfully retrieved messages or attachments.
+      }
       return messages;
     },
     enabled: !!conversationId,
