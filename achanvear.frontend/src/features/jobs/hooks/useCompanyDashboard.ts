@@ -2,6 +2,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { jobApi } from "../api/jobApi";
 import { profileApi } from "@/features/profile/api/profileApi";
+import { useAuth } from "@/features/auth/hooks/useAuth";
 import type { Job } from "../types/job.types";
 
 export interface CompanyDashboardData {
@@ -19,32 +20,41 @@ export interface CompanyDashboardData {
 }
 
 export function useCompanyDashboard(searchQuery?: string) {
+  const { status } = useAuth();
+  const enabled = status === "AUTHENTICATED";
+
   const jobsQuery = useQuery({
     queryKey: ["my-job-posts", searchQuery],
     queryFn: () => jobApi.getMyPosts({ size: 100, search: searchQuery }),
     retry: false,
+    enabled,
   });
 
   const statsQuery = useQuery({
     queryKey: ["company-hiring-stats"],
     queryFn: () => jobApi.getCompanyHiringStats(),
     retry: false,
+    enabled,
   });
 
   const companyQuery = useQuery({
     queryKey: ["company-profile"],
     queryFn: () => profileApi.getCompanyProfile(),
     retry: false,
+    enabled,
   });
 
-  const isLoading = jobsQuery.isLoading || statsQuery.isLoading || companyQuery.isLoading;
+  const isLoading =
+    status === "PENDING" ||
+    jobsQuery.isLoading ||
+    statsQuery.isLoading ||
+    companyQuery.isLoading;
   const isError = jobsQuery.isError || statsQuery.isError || companyQuery.isError;
   const error = jobsQuery.error || statsQuery.error || companyQuery.error;
 
   const hasCompany = companyQuery.isSuccess && !!companyQuery.data;
 
   const data: CompanyDashboardData | undefined = (() => {
-
     const jobs = jobsQuery.data?.items ?? [];
     const activeRecentJobs = jobs.filter((job) => job.status === "PUBLISHED");
     const company = hasCompany ? companyQuery.data! : null;
@@ -80,4 +90,4 @@ export function useCompanyDashboard(searchQuery?: string) {
     statsError: statsQuery.isError,
     refetch,
   };
-} 
+}

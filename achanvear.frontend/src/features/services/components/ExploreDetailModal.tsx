@@ -4,7 +4,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
-import { X, Star, Clock, DollarSign, MessageSquare, Phone, ChevronDown, ChevronUp } from "lucide-react";
+import { X, Star, Clock, MessageSquare, Phone, ChevronDown, ChevronUp } from "lucide-react";
 import { CATEGORY_LABELS, CATEGORY_COLORS } from "../types/service.types";
 import type { ExploreService } from "../types/service.types";
 import { RateFreelancerModal } from "./RateFreelancerModal";
@@ -37,6 +37,9 @@ export function ExploreDetailModal({ open, service, onClose, onHire }: Props) {
   if (!open || !service) return null;
 
   const { freelancer } = service;
+  const showTitle =
+    !!freelancer.title?.trim() &&
+    freelancer.title.trim().toLowerCase() !== freelancer.name.trim().toLowerCase();
 
   const displayedRatings = showAllReviews ? ratings : ratings.slice(0, 5);
   const hasMoreRatings = ratings.length > 5;
@@ -67,7 +70,9 @@ export function ExploreDetailModal({ open, service, onClose, onHire }: Props) {
                       <span className="text-xs font-medium text-[#0EA5A0]">✓ Verificado</span>
                     )}
                   </div>
-                  <p className="break-words text-xs text-gray-500">{freelancer.title}</p>
+                  {showTitle && (
+                    <p className="break-words text-xs text-gray-500">{freelancer.title}</p>
+                  )}
                 </div>
               </div>
               <span className={`self-start shrink-0 text-xs font-medium px-2.5 py-1 rounded-full sm:self-auto ${CATEGORY_COLORS[service.category]}`}>
@@ -85,7 +90,7 @@ export function ExploreDetailModal({ open, service, onClose, onHire }: Props) {
                 <Star key={s} className={`w-4 h-4 ${s <= Math.floor(service.rating) ? "fill-amber-400 text-amber-400" : "fill-gray-200 text-gray-200"}`} />
               ))}
               <span className="text-sm font-bold text-gray-700">{service.rating > 0 ? service.rating : "—"}</span>
-              <span className="text-sm text-gray-400">— {service.reviewCount > 0 ? `${service.reviewCount} reseñas verificadas` : "Sin reseñas"}</span>
+              <span className="text-sm text-gray-400">— {service.reviewCount > 0 ? `${service.reviewCount} ${service.reviewCount === 1 ? "reseña verificada" : "reseñas verificadas"}` : "Sin reseñas"}</span>
             </div>
 
             <div className="grid grid-cols-1 gap-3 min-[400px]:grid-cols-2">
@@ -104,12 +109,12 @@ export function ExploreDetailModal({ open, service, onClose, onHire }: Props) {
               </div>
             </div>
 
-            <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4 flex gap-3">
-              <DollarSign className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" />
+            <div className="bg-teal-50 border border-teal-100 rounded-xl p-4 flex gap-3">
+              <MessageSquare className="w-5 h-5 text-[#0EA5A0] flex-shrink-0 mt-0.5" />
               <div className="min-w-0">
-                <p className="text-xs font-semibold text-emerald-700 mb-0.5">Pago protegido con Escrow</p>
-                <p className="text-xs text-emerald-600">
-                  Tu pago queda retenido hasta que confirmes que el servicio fue entregado correctamente.
+                <p className="text-xs font-semibold text-teal-800 mb-0.5">Antes de contratar</p>
+                <p className="text-xs text-teal-700">
+                  Conversa con el profesional para acordar el alcance, el plazo y el presupuesto.
                 </p>
               </div>
             </div>

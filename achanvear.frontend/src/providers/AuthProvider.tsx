@@ -1,6 +1,8 @@
+// providers/AuthProvider.tsx
 "use client";
 
 import { createContext, ReactNode, useContext, useEffect, useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { authApi } from "@/features/auth/api/authApi";
 import { clearAuthToken, getAuthToken, setAuthToken } from "@/lib/storage";
 import type {
@@ -15,6 +17,7 @@ import type {
 const AuthContext = createContext<AuthContextState | null>(null);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
+  const queryClient = useQueryClient();
   const [user, setUser] = useState<UserProfile | null>(null);
   const [status, setStatus] = useState<AuthStatus>("PENDING");
   const [is2FARequired, setIs2FARequired] = useState(false);
@@ -51,14 +54,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const response = await authApi.login(payload);
 
     if (response.tokenType === "2FA_REQUIRED") {
-      // 2FA required - store temp token, don't authenticate yet
       setIs2FARequired(true);
       setTempToken(response.token);
       setPendingUser(response.user);
       throw new Error("2FA_REQUIRED");
     }
 
-    // Normal login
+    queryClient.clear();
     setAuthToken(response.token);
     setUser(response.user);
     setStatus("AUTHENTICATED");
@@ -67,6 +69,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const complete2FALogin = async (tempTokenValue: string, code: string): Promise<UserProfile> => {
     const response = await authApi.complete2FALogin(tempTokenValue, code);
+    queryClient.clear();
     setAuthToken(response.token);
     setUser(response.user);
     setStatus("AUTHENTICATED");
@@ -78,6 +81,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const register = async (payload: RegisterRequest): Promise<UserProfile> => {
     const response = await authApi.register(payload);
+    queryClient.clear();
     setAuthToken(response.token);
     setUser(response.user);
     setStatus("AUTHENTICATED");
@@ -90,6 +94,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const logout = () => {
     clearAuthToken();
+    queryClient.clear();
     setUser(null);
     setStatus("UNAUTHENTICATED");
     setIs2FARequired(false);
