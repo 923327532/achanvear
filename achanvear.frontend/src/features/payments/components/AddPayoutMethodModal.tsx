@@ -51,6 +51,7 @@ export function AddPayoutMethodModal({ open, onClose }: Props) {
   if (!open) return null;
 
   const brand = detectCardBrand(number.replace(/\s/g, ""));
+  const knownBrand = brand !== "Desconocida";
   const last4 = number.replace(/\s/g, "").slice(-4);
   const maskedCard = `•••• •••• •••• ${last4}`;
 
@@ -88,7 +89,7 @@ export function AddPayoutMethodModal({ open, onClose }: Props) {
         // El número de tarjeta NUNCA se envía al backend: solo datos enmascarados.
         cardToken: `izp_tok_${crypto.randomUUID().replace(/-/g, "").slice(0, 20)}`,
         maskedCard,
-        cardBrand: brand,
+        ...(knownBrand ? { cardBrand: brand } : {}),
         lastFourDigits: last4,
         accountHolderName: holder.trim(),
       });
@@ -109,7 +110,7 @@ export function AddPayoutMethodModal({ open, onClose }: Props) {
           </div>
           <h3 className="text-lg font-bold text-gray-800 mb-2">Tarjeta registrada</h3>
           <p className="text-sm text-gray-500">
-            {brand} {maskedCard} quedó guardada como método de retiro.
+            {knownBrand ? `${brand} ` : ""}{maskedCard} quedó guardada como método de retiro.
           </p>
         </div>
       </div>
@@ -131,7 +132,7 @@ export function AddPayoutMethodModal({ open, onClose }: Props) {
           <div className="flex items-center gap-2 bg-blue-50 border border-blue-100 rounded-xl px-4 py-3">
             <Lock className="w-4 h-4 text-blue-600 flex-shrink-0" />
             <p className="text-xs text-blue-700">
-              Recibirás tus ganancias en esta tarjeta cuando solicites un retiro. Tiyuy
+              Recibirás tus ganancias en esta tarjeta cuando solicites un retiro. Achanvear
               no almacena el número completo ni el CVV.
             </p>
           </div>
@@ -149,7 +150,7 @@ export function AddPayoutMethodModal({ open, onClose }: Props) {
                 inputMode="numeric"
                 className="w-full border border-gray-200 rounded-xl pl-10 pr-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#0EA5A0]/30 focus:border-[#0EA5A0] transition-colors"
               />
-              {number && brand !== "Desconocida" && (
+              {number && knownBrand && (
                 <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[10px] font-bold text-gray-400 uppercase">
                   {brand}
                 </span>

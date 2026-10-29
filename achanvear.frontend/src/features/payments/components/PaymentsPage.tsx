@@ -10,49 +10,82 @@ import {
   CreditCard,
   TrendingUp,
   Lock,
+  AlertCircle,
 } from "lucide-react";
 import { useProtectedRoute } from "@/shared/hooks/useProtectedRoute";
 import {
   useWallet,
   useFreelancerWalletSummary,
   useWalletTransactions,
-  useEscrowList,
   usePayoutMethods,
   usePayoutHistory,
 } from "../hooks/usePayments";
+import { useEscrowRecords } from "../hooks/useEscrowRecords";
 import { WithdrawModal } from "./WithdrawModal";
 import { AddPayoutMethodModal } from "./AddPayoutMethodModal";
-import { PAYOUT_STATUS_CONFIG } from "../types/payments.types";
+import {
+  PAYOUT_STATUS_CONFIG,
+  MILESTONE_STATUS_CONFIG,
+  ESCROW_STATUS_CONFIG,
+} from "../types/payments.types";
+import type { EscrowStatus, MilestoneStatus, PayoutStatus } from "../types/payments.types";
+
+type StatusStyle = { label: string; color: string };
+
+const NEUTRAL_COLOR = "bg-slate-100 text-slate-600";
+
+function payoutStatus(status: string): StatusStyle {
+  return PAYOUT_STATUS_CONFIG[status as PayoutStatus] ?? { label: status || "—", color: NEUTRAL_COLOR };
+}
+
+function milestoneStatus(status: string): StatusStyle {
+  if (status === "RELEASED") return { label: "Pagado", color: "bg-emerald-100 text-emerald-700" };
+  return MILESTONE_STATUS_CONFIG[status as MilestoneStatus] ?? { label: status || "—", color: NEUTRAL_COLOR };
+}
+
+function escrowStatus(status: string): StatusStyle {
+  return ESCROW_STATUS_CONFIG[status as EscrowStatus] ?? { label: status || "—", color: NEUTRAL_COLOR };
+}
+
+function currencySymbol(currency?: string) {
+  if (!currency || currency === "PEN") return "S/.";
+  if (currency === "USD") return "US$";
+  return currency;
+}
 
 export function PaymentsPage() {
   useProtectedRoute();
 
-  const { wallet } = useWallet();
-  const { summary, isLoading: loadingSummary } = useFreelancerWalletSummary();
-  const { transactions } = useWalletTransactions();
-  const { escrows } = useEscrowList();
+  const { wallet, isError: walletError, refetch: refetchWallet } = useWallet();
+  const {
+    summary,
+    isLoading: loadingSummary,
+    isError: summaryError,
+    refetch: refetchSummary,
+  } = useFreelancerWalletSummary();
+  const { transactions, isError: transactionsError } = useWalletTransactions();
+  const { escrows, isError: escrowError } = useEscrowRecords();
   const { methods } = usePayoutMethods();
   const { payouts } = usePayoutHistory();
 
   const [withdrawOpen, setWithdrawOpen] = useState(false);
   const [addMethodOpen, setAddMethodOpen] = useState(false);
 
+  const currency = summary?.currency ?? wallet.currency;
+
   const fmt = (n: number) =>
     n.toLocaleString("es-PE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const money = (n: number) => `${currencySymbol(currency)} ${fmt(n)}`;
 
   const available = summary?.availableForWithdrawal ?? wallet.balance ?? 0;
   const pending = summary?.pendingRelease ?? 0;
-  const inProcess = escrows
-    .filter((e) => e.status === "HELD" || e.status === "DISPUTED")
-    .reduce((acc, e) => acc + e.amount, 0);
   const withdrawalsInProcess = payouts
     .filter((p) => p.status === "REQUESTED" || p.status === "PROCESSING")
     .reduce((acc, p) => acc + p.amount, 0);
   const totalWithdrawn = wallet.totalWithdrawn ?? 0;
 
-  // ── Filas del historial ──────────────────────────────────────────────────────
-
   type HistoryRow = {
+    key: string;
     id: string;
     title: string;
     detail: string;
@@ -60,57 +93,56 @@ export function PaymentsPage() {
     gross: number;
     commission: number;
     net: number;
-    status: { label: string; color: string };
+    status: StatusStyle;
     method: string;
     sign: string;
   };
 
   const rows: HistoryRow[] = [];
 
-  (summary?.recentPayments ?? []).forEach((p) => {
+  (summary?.recentPayments ?? []).forEach((p, i) => {
     rows.push({
-      id: p.milestoneId.slice(0, 8),
+      key: `pay-${p.milestoneId}-${i}`,
+      id: (p.milestoneId ?? "").slice(0, 8),
       title: p.milestoneTitle,
       detail: p.projectTitle,
       date: p.date,
       gross: p.grossAmount,
       commission: p.platformCommission + p.mpCommission,
       net: p.netAmount,
-      status: { label: "Pagado", color: "bg-emerald-100 text-emerald-700" },
+      status: milestoneStatus(p.status),
       method: "Mercado Pago",
       sign: "+",
     });
   });
 
   escrows
-    .filter((e) => e.status === "HELD" || e.status === "DISPUTED")
-    .forEach((e) => {
+    .filter((e) => e.status !== "RELEASED" && e.status !== "REFUNDED")
+    .forEach((e, i) => {
       rows.push({
-        id: e.milestoneId.slice(0, 8),
-        title: e.projectName,
-        detail: "Fondos retenidos (fideicomiso)",
-        date: e.heldAt ?? e.createdAt,
+        key: `esc-${e.escrowId}-${i}`,
+        id: (e.milestoneId ?? "").slice(0, 8),
+        title: "Fondos retenidos",
+        detail: `Proyecto #${(e.projectId ?? "").slice(0, 8)}`,
+        date: e.disputedAt ?? e.heldAt,
         gross: e.amount,
-        commission: 0,
-        net: e.amount,
-        status:
-          e.status === "DISPUTED"
-            ? { label: "En disputa", color: "bg-purple-100 text-purple-700" }
-            : { label: "En proceso", color: "bg-blue-100 text-blue-700" },
+        commission: (e.platformCommission ?? 0) + (e.mpCommission ?? 0),
+        net: e.freelancerAmount ?? e.amount,
+        status: escrowStatus(e.status),
         method: "Mercado Pago",
         sign: "+",
       });
     });
 
   transactions.forEach((t) => {
-    // Los retiros (WITHDRAWAL) ya se muestran desde el historial de payouts con su estado real.
     if (t.type === "WITHDRAWAL") return;
-    const statusMap: Record<string, { label: string; color: string }> = {
+    const statusMap: Record<string, StatusStyle> = {
       DEPOSIT: { label: "Depósito", color: "bg-emerald-100 text-emerald-700" },
       PAYMENT: { label: "Pago", color: "bg-blue-100 text-blue-700" },
       REFUND: { label: "Reembolso", color: "bg-purple-100 text-purple-700" },
     };
     rows.push({
+      key: `tx-${t.id}`,
       id: t.id.slice(0, 8),
       title: t.description || t.referenceType,
       detail: t.type,
@@ -118,16 +150,16 @@ export function PaymentsPage() {
       gross: t.amount,
       commission: 0,
       net: t.amount,
-      status: statusMap[t.type] ?? { label: t.type, color: "bg-slate-100 text-slate-600" },
+      status: statusMap[t.type] ?? { label: t.type, color: NEUTRAL_COLOR },
       method: "Wallet",
       sign: "+",
     });
   });
 
   payouts.forEach((p) => {
-    const status = PAYOUT_STATUS_CONFIG[p.status];
     const method = methods.find((m) => m.id === p.payoutMethodId);
     rows.push({
+      key: `po-${p.id}`,
       id: p.id.slice(0, 8),
       title:
         "Retiro a " +
@@ -139,7 +171,7 @@ export function PaymentsPage() {
       gross: p.amount,
       commission: 0,
       net: p.amount,
-      status: { label: status.label, color: status.color },
+      status: payoutStatus(p.status),
       method: method ? `${method.cardBrand ?? "Tarjeta"} ${method.maskedCard}` : "Izipay",
       sign: "-",
     });
@@ -150,13 +182,15 @@ export function PaymentsPage() {
   const formatDate = (iso: string | null) => {
     if (!iso) return "—";
     const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return "—";
     return d.toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric" });
   };
+
+  const partialError = transactionsError || escrowError;
 
   return (
     <div className="min-h-screen bg-[#f5f7fb]">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-10">
-        {/* Header */}
         <div className="mb-6">
           <h1 className="text-2xl sm:text-3xl font-bold text-[#0a1628] tracking-tight">Pagos</h1>
           <p className="text-sm text-slate-500 mt-1">
@@ -164,19 +198,34 @@ export function PaymentsPage() {
           </p>
         </div>
 
-        {/* Resumen */}
         {loadingSummary ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
             {[1, 2, 3, 4].map((i) => (
               <div key={i} className="h-32 bg-gray-100 rounded-2xl animate-pulse" />
             ))}
           </div>
+        ) : summaryError ? (
+          <div
+            role="alert"
+            className="mb-8 flex flex-col items-center gap-3 rounded-2xl border border-red-100 bg-red-50 p-8 text-center"
+          >
+            <AlertCircle className="w-8 h-8 text-red-400" />
+            <p className="text-sm font-medium text-red-700">No se pudo cargar tu resumen de pagos.</p>
+            <button
+              onClick={() => {
+                refetchSummary();
+                refetchWallet();
+              }}
+              className="rounded-xl bg-[#1B3A6B] px-4 py-2 text-xs font-semibold text-white hover:bg-[#16305a] transition-colors"
+            >
+              Reintentar
+            </button>
+          </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            {/* Disponible */}
             <div className="bg-gradient-to-br from-[#1B3A6B] to-[#0EA5A0] rounded-2xl p-5 text-white shadow-sm">
               <p className="text-xs font-medium text-white/80 mb-2">Disponible para retirar</p>
-              <p className="text-3xl font-bold mb-4">S/. {fmt(available)}</p>
+              <p className="text-3xl font-bold mb-4">{money(available)}</p>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setWithdrawOpen(true)}
@@ -195,53 +244,64 @@ export function PaymentsPage() {
               </div>
             </div>
 
-            {/* Pendiente */}
             <div className="bg-white border border-amber-100 rounded-2xl p-5 shadow-sm">
               <div className="flex items-center justify-between mb-2">
                 <p className="text-xs font-medium text-gray-500">Pendiente por recibir</p>
                 <Clock className="w-4 h-4 text-amber-500" />
               </div>
-              <p className="text-3xl font-bold text-amber-600 mb-1">S/. {fmt(pending)}</p>
+              <p className="text-3xl font-bold text-amber-600 mb-1">{money(pending)}</p>
               <p className="text-xs text-gray-400">Trabajos en revisión / por liberar</p>
             </div>
 
-            {/* Retiros en proceso */}
             <div className="bg-white border border-blue-100 rounded-2xl p-5 shadow-sm">
               <div className="flex items-center justify-between mb-2">
                 <p className="text-xs font-medium text-gray-500">Retiros en proceso</p>
                 <Lock className="w-4 h-4 text-blue-500" />
               </div>
-              <p className="text-3xl font-bold text-blue-600 mb-1">S/. {fmt(withdrawalsInProcess)}</p>
+              <p className="text-3xl font-bold text-blue-600 mb-1">{money(withdrawalsInProcess)}</p>
               <p className="text-xs text-gray-400">Desembolsos en curso a tu tarjeta</p>
             </div>
 
-            {/* Total retirado */}
             <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
               <div className="flex items-center justify-between mb-2">
                 <p className="text-xs font-medium text-gray-500">Total retirado</p>
                 <TrendingUp className="w-4 h-4 text-emerald-500" />
               </div>
-              <p className="text-3xl font-bold text-emerald-600 mb-1">S/. {fmt(totalWithdrawn)}</p>
+              <p className="text-3xl font-bold text-emerald-600 mb-1">
+                {walletError ? "—" : money(totalWithdrawn)}
+              </p>
               <p className="text-xs text-gray-400">Fondos enviados a tu tarjeta</p>
             </div>
           </div>
         )}
 
-        {/* Historial de movimientos */}
         <section className="mb-8">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-bold text-[#0F172A]">Historial de movimientos</h2>
             <span className="text-xs text-slate-400">{rows.length} movimientos</span>
           </div>
+          {partialError && rows.length > 0 && (
+            <p role="alert" className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-800">
+              Algunos movimientos no se pudieron cargar. Recarga la página para intentarlo de nuevo.
+            </p>
+          )}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
             {rows.length === 0 ? (
-              <div className="p-10 text-center">
-                <Wallet className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-                <p className="text-sm text-gray-500">Aún no tienes movimientos</p>
-                <p className="text-xs text-gray-400">
-                  Tus pagos aparecerán aquí cuando completes trabajos.
-                </p>
-              </div>
+              partialError ? (
+                <div role="alert" className="p-10 text-center">
+                  <AlertCircle className="w-10 h-10 text-red-300 mx-auto mb-3" />
+                  <p className="text-sm text-gray-500">No se pudieron cargar tus movimientos.</p>
+                  <p className="text-xs text-gray-400">Recarga la página para intentarlo de nuevo.</p>
+                </div>
+              ) : (
+                <div className="p-10 text-center">
+                  <Wallet className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+                  <p className="text-sm text-gray-500">Aún no tienes movimientos</p>
+                  <p className="text-xs text-gray-400">
+                    Tus pagos aparecerán aquí cuando completes trabajos.
+                  </p>
+                </div>
+              )
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
@@ -259,7 +319,7 @@ export function PaymentsPage() {
                   </thead>
                   <tbody className="divide-y divide-gray-50">
                     {rows.map((r) => (
-                      <tr key={r.id} className="hover:bg-slate-50">
+                      <tr key={r.key} className="hover:bg-slate-50">
                         <td className="px-4 py-3">
                           <p className="font-semibold text-gray-800">{r.title}</p>
                           <p className="text-xs text-gray-400 font-mono">#{r.id}</p>
@@ -277,7 +337,7 @@ export function PaymentsPage() {
                             r.sign === "-" ? "text-red-600" : "text-emerald-600"
                           }`}
                         >
-                          {r.sign} S/. {fmt(r.net)}
+                          {r.sign} {money(r.net)}
                         </td>
                         <td className="px-4 py-3">
                           <span
@@ -296,7 +356,6 @@ export function PaymentsPage() {
           </div>
         </section>
 
-        {/* Métodos de retiro */}
         <section>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-bold text-[#0F172A]">Métodos de retiro</h2>
@@ -353,7 +412,6 @@ export function PaymentsPage() {
           </div>
         </section>
 
-        {/* Modals */}
         <WithdrawModal
           open={withdrawOpen}
           availableBalance={available}

@@ -1,21 +1,22 @@
 // features/settings/components/FinancesSection.tsx
 "use client";
-import { CommissionPolicyNotice } from "@/components/payments/CommissionPolicyNotice";
 
 import { useState } from "react";
-import { CreditCard, Loader2, Plus, Trash2, Star, Check, MoreHorizontal, ShieldCheck } from "lucide-react";
-import { useCommissions, useUpdateFinances } from "../hooks/useSettings";
+import { AlertCircle, CreditCard, Loader2, Plus, Trash2, Star, Check, MoreHorizontal } from "lucide-react";
+import { useUpdateFinances } from "../hooks/useSettings";
 import {
   usePayoutMethods,
   useRemovePayoutMethod,
   useSetDefaultPayoutMethod,
+  useFreelancerWalletSummary,
 } from "@/features/payments/hooks/usePayments";
 import { AddPayoutMethodModal } from "@/features/payments/components/AddPayoutMethodModal";
+import { ConfirmModal } from "@/shared/components/ui/ConfirmModal";
 import type { PreferredCurrency } from "../types/settings.types";
 import type { PayoutMethod } from "@/features/payments/types/payments.types";
 
 interface Props {
-  profile: any; // idealmente tipar con SettingsProfile exportado de settingsApi
+  profile: any;
 }
 
 const cardThemes = [
@@ -24,9 +25,33 @@ const cardThemes = [
   { match: ["AMEX", "AMERICAN"], bg: "from-[#0f766e] via-[#0891b2] to-[#67e8f9]", chip: "bg-cyan-100/90", brand: "AMEX" },
 ];
 
+const neutralTheme = { bg: "from-slate-700 via-slate-800 to-slate-900", chip: "bg-slate-100/90", brand: "" };
+
 function getCardTheme(method: PayoutMethod) {
   const source = `${method.cardBrand ?? ""} ${method.maskedCard ?? ""}`.toUpperCase();
-  return cardThemes.find((theme) => theme.match.some((term) => source.includes(term))) ?? cardThemes[0];
+  return cardThemes.find((theme) => theme.match.some((term) => source.includes(term))) ?? neutralTheme;
+}
+
+function currencySymbol(currency?: string) {
+  if (!currency || currency === "PEN") return "S/";
+  if (currency === "USD") return "US$";
+  return currency;
+}
+
+function money(amount: number, currency?: string) {
+  const value = Number(amount ?? 0).toLocaleString("es-PE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return `${currencySymbol(currency)} ${value}`;
+}
+
+function formatPaymentDate(date: string | null) {
+  if (!date) return "—";
+  const parsed = new Date(date);
+  if (Number.isNaN(parsed.getTime())) return "—";
+  return parsed.toLocaleDateString("es-PE", { day: "numeric", month: "short", year: "numeric" });
+}
+
+function errorMessage(err: unknown, fallback: string) {
+  return err instanceof Error && err.message ? err.message : fallback;
 }
 
 function PayoutCard({
@@ -43,6 +68,9 @@ function PayoutCard({
   onRemove: () => void;
 }) {
   const theme = getCardTheme(method);
+  const cardNumber = method.maskedCard?.trim()
+    ? method.maskedCard
+    : `•••• •••• •••• ${method.lastFourDigits || "••••"}`;
 
   return (
     <div className="relative min-w-0">
@@ -59,7 +87,7 @@ function PayoutCard({
           <div className="flex items-start justify-between gap-3 pr-10">
             <div className="min-w-0">
               <p className="text-sm font-semibold tracking-wide">Tarjeta de retiro</p>
-              <p className="mt-1 truncate text-xs text-white/75">{method.provider || "Izipay Dispersion"}</p>
+              {method.provider && <p className="mt-1 truncate text-xs text-white/75">{method.provider}</p>}
             </div>
             {method.isDefault && (
               <span className="flex-shrink-0 rounded-full bg-white/18 px-2.5 py-1 text-[11px] font-medium backdrop-blur">
@@ -80,7 +108,7 @@ function PayoutCard({
             {/* RESPONSIVE: más chico y con menos espaciado de letras en celular; a 284px el número
                 completo (22 caracteres) no cabía en el ancho de la tarjeta */}
             <p className="whitespace-nowrap font-mono text-xs tracking-[0.08em] text-white drop-shadow-sm sm:text-sm sm:tracking-[0.12em]">
-              4000  1234  5678  {method.lastFourDigits || "****"}
+              {cardNumber}
             </p>
           </div>
 
@@ -88,10 +116,10 @@ function PayoutCard({
             <div className="min-w-0">
               <p className="text-[10px] uppercase tracking-[0.18em] text-white/65">Titular</p>
               <p className="truncate font-mono text-xs uppercase tracking-[0.12em]">
-                {method.accountHolderName || "Profesional"}
+                {method.accountHolderName || "—"}
               </p>
             </div>
-            <p className="flex-shrink-0 text-xl font-black italic tracking-tight">{theme.brand}</p>
+            {theme.brand && <p className="flex-shrink-0 text-xl font-black italic tracking-tight">{theme.brand}</p>}
           </div>
         </div>
       </div>
@@ -122,7 +150,7 @@ function PayoutCard({
                 className="flex w-full items-center gap-2 px-4 py-2.5 text-sm font-medium text-red-600 transition-colors hover:bg-red-50"
               >
                 <Trash2 className="h-4 w-4" />
-                Eliminar metodo
+                Eliminar método
               </button>
             </div>
           </>
@@ -139,46 +167,91 @@ export function FinancesSection({ profile }: Props) {
   const [saved, setSaved] = useState(false);
   const [methodModalOpen, setMethodModalOpen] = useState(false);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [pendingRemoveId, setPendingRemoveId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
-  const { commissions, isLoading: loadingCommissions } = useCommissions();
+  const { summary, isLoading: loadingPayments, isError: paymentsError, refetch: refetchPayments } = useFreelancerWalletSummary();
   const { updateAsync: updateFinances, isLoading: isSaving } = useUpdateFinances(profile);
   const { methods, isLoading: loadingMethods } = usePayoutMethods();
   const { removeAsync } = useRemovePayoutMethod();
   const { setDefaultAsync } = useSetDefaultPayoutMethod();
 
   const handleSave = async () => {
-    await updateFinances({ preferredCurrency: currency });
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    setActionError(null);
+    try {
+      await updateFinances({ preferredCurrency: currency });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (err) {
+      setActionError(errorMessage(err, "No se pudieron guardar los cambios. Inténtalo de nuevo."));
+    }
   };
 
-  const handleRemove = async (id: string) => {
-    await removeAsync(id);
-    setOpenMenuId(null);
+  const handleRemove = async () => {
+    if (!pendingRemoveId) return;
+    const id = pendingRemoveId;
+    setPendingRemoveId(null);
+    setActionError(null);
+    try {
+      await removeAsync(id);
+    } catch (err) {
+      setActionError(errorMessage(err, "No se pudo eliminar el método de retiro. Inténtalo de nuevo."));
+    } finally {
+      setOpenMenuId(null);
+    }
   };
 
   const handleSetDefault = async (id: string) => {
-    await setDefaultAsync(id);
-    setOpenMenuId(null);
+    setActionError(null);
+    try {
+      await setDefaultAsync(id);
+    } catch (err) {
+      setActionError(errorMessage(err, "No se pudo establecer la tarjeta como principal. Inténtalo de nuevo."));
+    } finally {
+      setOpenMenuId(null);
+    }
   };
+
+  const payments = summary?.recentPayments ?? [];
+  const paymentsCurrency = summary?.currency;
 
   return (
     <div className="space-y-6">
+      {pendingRemoveId && (
+        <ConfirmModal
+          title="¿Eliminar método de retiro?"
+          description="Ya no podrás recibir retiros en esta tarjeta."
+          confirmLabel="Eliminar"
+          cancelLabel="Cancelar"
+          onConfirm={handleRemove}
+          onCancel={() => setPendingRemoveId(null)}
+        />
+      )}
+
       {/* RESPONSIVE: p-4 en celular, p-6 desde sm (en las 4 tarjetas de sección) */}
       <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-          <div className="min-w-0">
-            <h2 className="text-lg font-bold text-[#1B3A6B]">Finanzas y Pagos</h2>
-            <p className="mt-1 text-sm text-slate-500">
-              Configura moneda, tarjetas de retiro y revisa la comision de la plataforma.
-            </p>
-          </div>
-          <div className="inline-flex flex-shrink-0 items-center gap-2 self-start rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700">
-            <ShieldCheck className="h-3.5 w-3.5" />
-            <CommissionPolicyNotice />
-          </div>
+        <div className="min-w-0">
+          <h2 className="text-lg font-bold text-[#1B3A6B]">Finanzas y Pagos</h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Configura tu moneda, tus tarjetas de retiro y revisa tus comisiones.
+          </p>
         </div>
       </div>
+
+      {actionError && (
+        <div
+          role="alert"
+          className="flex items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+        >
+          <span className="flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 flex-shrink-0" />
+            {actionError}
+          </span>
+          <button onClick={() => setActionError(null)} className="text-xs font-medium underline">
+            Cerrar
+          </button>
+        </div>
+      )}
 
       {/* Moneda preferida */}
       <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
@@ -242,53 +315,79 @@ export function FinancesSection({ profile }: Props) {
                 menuOpen={openMenuId === m.id}
                 onToggleMenu={() => setOpenMenuId(openMenuId === m.id ? null : m.id)}
                 onSetDefault={() => handleSetDefault(m.id)}
-                onRemove={() => handleRemove(m.id)}
+                onRemove={() => {
+                  setOpenMenuId(null);
+                  setPendingRemoveId(m.id);
+                }}
               />
             ))}
           </div>
         )}
       </div>
 
-      {/* Historial de comisiones */}
+      {/* Pagos recientes */}
       <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
-        <label className="block text-sm font-semibold text-gray-700 mb-3">
-          Historial de Comisiones
-        </label>
-        {/* RESPONSIVE: la tabla se muestra SIEMPRE con sus 5 columnas. En pantallas angostas se desplaza
-            horizontalmente dentro de su recuadro (min-w-[560px]) en vez de recortarse (antes overflow-hidden). */}
+        <label className="block text-sm font-semibold text-gray-700 mb-3">Pagos recientes</label>
         <div className="rounded-xl border border-gray-100 overflow-x-auto">
-          <table className="w-full min-w-[560px] text-sm">
+          <table className="w-full min-w-[720px] text-sm">
             <thead className="bg-gray-50">
               <tr>
                 <th className="text-left text-xs font-semibold text-gray-500 px-4 py-3">Fecha</th>
                 <th className="text-left text-xs font-semibold text-gray-500 px-4 py-3">Proyecto</th>
-                <th className="text-right text-xs font-semibold text-gray-500 px-4 py-3">Monto Bruto</th>
-                <th className="text-right text-xs font-semibold text-gray-500 px-4 py-3">Comisión</th>
-                <th className="text-right text-xs font-semibold text-gray-500 px-4 py-3">Monto Neto</th>
+                <th className="text-right text-xs font-semibold text-gray-500 px-4 py-3">Monto bruto</th>
+                <th className="text-right text-xs font-semibold text-gray-500 px-4 py-3">Comisión plataforma</th>
+                <th className="text-right text-xs font-semibold text-gray-500 px-4 py-3">Procesador</th>
+                <th className="text-right text-xs font-semibold text-gray-500 px-4 py-3">Monto neto</th>
               </tr>
             </thead>
             <tbody>
-              {loadingCommissions ? (
+              {loadingPayments ? (
                 <tr>
-                  <td colSpan={5} className="text-center py-6">
+                  <td colSpan={6} className="text-center py-6">
                     <Loader2 className="w-4 h-4 animate-spin mx-auto text-gray-400" />
                   </td>
                 </tr>
-              ) : commissions.map((c, i) => (
-                <tr key={i} className="border-t border-gray-50">
-                  <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">{c.date}</td>
-                  <td className="px-4 py-3 text-sm text-gray-700">{c.project}</td>
-                  <td className="px-4 py-3 text-sm text-gray-700 text-right whitespace-nowrap">
-                    S/. {c.grossAmount.toLocaleString("es-PE")}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-red-500 text-right whitespace-nowrap">
-                    -S/. {(c.grossAmount * 0.05).toFixed(2)}
-                  </td>
-                  <td className="px-4 py-3 text-sm font-semibold text-[#0EA5A0] text-right whitespace-nowrap">
-                    S/. {c.netAmount.toLocaleString("es-PE")}
+              ) : paymentsError ? (
+                <tr>
+                  <td colSpan={6} className="text-center py-6">
+                    <p className="text-sm text-red-600">No se pudieron cargar tus pagos recientes.</p>
+                    <button
+                      onClick={() => refetchPayments()}
+                      className="mt-2 text-xs font-medium text-[#1B3A6B] underline"
+                    >
+                      Reintentar
+                    </button>
                   </td>
                 </tr>
-              ))}
+              ) : payments.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="text-center py-6 text-sm text-gray-400">
+                    Aún no tienes pagos registrados.
+                  </td>
+                </tr>
+              ) : (
+                payments.map((row, i) => (
+                  <tr key={`${row.milestoneId}-${i}`} className="border-t border-gray-50">
+                    <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">{formatPaymentDate(row.date)}</td>
+                    <td className="px-4 py-3 text-sm text-gray-700">
+                      <p>{row.projectTitle}</p>
+                      {row.milestoneTitle && <p className="text-xs text-gray-400">{row.milestoneTitle}</p>}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-700 text-right whitespace-nowrap">
+                      {money(row.grossAmount, paymentsCurrency)}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-red-500 text-right whitespace-nowrap">
+                      -{money(row.platformCommission, paymentsCurrency)}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-red-500 text-right whitespace-nowrap">
+                      -{money(row.mpCommission, paymentsCurrency)}
+                    </td>
+                    <td className="px-4 py-3 text-sm font-semibold text-[#0EA5A0] text-right whitespace-nowrap">
+                      {money(row.netAmount, paymentsCurrency)}
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

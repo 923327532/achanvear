@@ -11,6 +11,7 @@ import {
   useRemoveSavedCard,
   useSetDefaultSavedCard,
 } from "../hooks/usePayments";
+import { ConfirmModal } from "@/shared/components/ui/ConfirmModal";
 import {
   Wallet,
   Lock,
@@ -25,6 +26,7 @@ import {
   ShieldCheck,
   Landmark,
   Building2,
+  AlertCircle,
 } from "lucide-react";
 
 type PaymentMethodView = {
@@ -46,20 +48,35 @@ const bankThemes = [
   { match: ["BBVA"], name: "BBVA", bg: "from-[#001b5f] via-[#004c99] to-[#00a3e0]", chip: "bg-sky-100/90" },
   { match: ["INTERBANK"], name: "Interbank", bg: "from-[#003d2b] via-[#00a859] to-[#7ac143]", chip: "bg-emerald-100/90" },
   { match: ["SCOTIA", "SCOTIABANK"], name: "Scotiabank", bg: "from-[#8a0014] via-[#e30613] to-[#ff6b6b]", chip: "bg-red-100/90" },
-  { match: ["NACION", "NACIÓN", "BANCO DE LA NACION", "BANCO DE LA NACIÓN"], name: "Banco de la Nacion", bg: "from-[#5b0013] via-[#a0062d] to-[#d6a03d]", chip: "bg-amber-100/90" },
+  { match: ["NACION", "NACIÓN", "BANCO DE LA NACION", "BANCO DE LA NACIÓN"], name: "Banco de la Nación", bg: "from-[#5b0013] via-[#a0062d] to-[#d6a03d]", chip: "bg-amber-100/90" },
+];
+
+const networks = [
+  { match: ["VISA"], name: "VISA" },
+  { match: ["MASTERCARD"], name: "MC" },
+  { match: ["AMEX", "AMERICAN"], name: "AMEX" },
 ];
 
 function getBankTheme(method: PaymentMethodView) {
   const source = `${method.issuerName ?? ""} ${method.label ?? ""} ${method.paymentType ?? ""}`.toUpperCase();
   return bankThemes.find((theme) => theme.match.some((term) => source.includes(term))) ?? {
-    name: method.issuerName || method.paymentType || "Visa",
+    name: method.issuerName || "",
     bg: "from-[#003b80] via-[#0066b3] to-[#0ea5a0]",
     chip: "bg-slate-100/90",
   };
 }
 
+function getNetwork(method: PaymentMethodView) {
+  const source = `${method.issuerName ?? ""} ${method.label ?? ""} ${method.paymentType ?? ""}`.toUpperCase();
+  return networks.find((n) => n.match.some((term) => source.includes(term)))?.name ?? "";
+}
+
 function formatCardNumber(lastFour?: string | null) {
-  return `4000  1234  5678  ${lastFour || "****"}`;
+  return `•••• •••• •••• ${lastFour || "••••"}`;
+}
+
+function errorMessage(err: unknown, fallback: string) {
+  return err instanceof Error && err.message ? err.message : fallback;
 }
 
 function MethodMenu({
@@ -85,6 +102,7 @@ function MethodMenu({
     <div className="relative">
       <button
         onClick={onToggle}
+        aria-label="Opciones del método de pago"
         className={`flex h-8 w-8 items-center justify-center rounded-lg transition-all ${
           light ? "bg-white/15 text-white hover:bg-white/25" : "text-slate-400 hover:bg-slate-100 hover:text-slate-600"
         }`}
@@ -111,7 +129,7 @@ function MethodMenu({
               className="flex w-full items-center gap-2 px-4 py-2.5 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 disabled:opacity-50"
             >
               <Trash2 className="h-4 w-4" />
-              Eliminar metodo
+              Eliminar método
             </button>
           </div>
         </>
@@ -138,6 +156,7 @@ function PaymentCardPreview({
   isRemoving: boolean;
 }) {
   const theme = getBankTheme(method);
+  const network = getNetwork(method);
 
   if (method.kind !== "CARD") {
     return (
@@ -174,8 +193,8 @@ function PaymentCardPreview({
         <div className="relative flex h-full flex-col justify-between">
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-xl font-semibold tracking-wide">Visa Empresarial</p>
-              <p className="mt-1 text-xs text-white/75">{theme.name}</p>
+              <p className="text-xl font-semibold tracking-wide">Tarjeta</p>
+              {theme.name && <p className="mt-1 text-xs text-white/75">{theme.name}</p>}
             </div>
             {method.isPrimary && <span className="rounded-full bg-white/18 px-2.5 py-1 text-[11px] font-medium backdrop-blur">Principal</span>}
           </div>
@@ -193,13 +212,13 @@ function PaymentCardPreview({
           <div className="flex items-end justify-between gap-4">
             <div className="min-w-0">
               <p className="text-[10px] uppercase tracking-[0.18em] text-white/65">Titular</p>
-              <p className="truncate font-mono text-sm uppercase tracking-[0.14em]">{method.cardholderName || "Empresa"}</p>
+              <p className="truncate font-mono text-sm uppercase tracking-[0.14em]">{method.cardholderName || "—"}</p>
             </div>
             <div className="text-right">
               <p className="text-[10px] uppercase tracking-[0.18em] text-white/65">Vence</p>
               <p className="font-mono text-sm tracking-[0.12em]">{method.expirationDate || "--/--"}</p>
             </div>
-            <p className="text-2xl font-black italic tracking-tight">VISA</p>
+            {network && <p className="text-2xl font-black italic tracking-tight">{network}</p>}
           </div>
         </div>
       </div>
@@ -246,10 +265,12 @@ function MetricCard({
 export function CompanyPaymentsPage() {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [showAddMethodModal, setShowAddMethodModal] = useState(false);
+  const [pendingRemove, setPendingRemove] = useState<{ id: string; kind: "CARD" | "LOCAL" } | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const { methods: localPaymentMethods, isLoading: isLoadingMethods, refetch: refetchMethods } = useLocalPaymentMethods();
   const { removeAsync, isLoading: isRemovingMethod } = useRemoveLocalMethod();
   const { setDefaultAsync, isLoading: isSettingDefault } = useSetDefaultLocalMethod();
-  const { cards: savedCards, isLoading: isLoadingCards, refetch: refetchCards } = useSavedCards();
+  const { cards: savedCards, isLoading: isLoadingCards, isError: cardsError, refetch: refetchCards } = useSavedCards();
   const { removeAsync: removeCardAsync } = useRemoveSavedCard();
   const { setDefaultAsync: setDefaultCardAsync } = useSetDefaultSavedCard();
 
@@ -285,23 +306,48 @@ export function CompanyPaymentsPage() {
     await refetchCards();
   };
 
-  const handleRemoveMethod = async (id: string, kind: "CARD" | "LOCAL") => {
-    if (!window.confirm("Estas seguro de eliminar este metodo de pago?")) return;
-    if (kind === "CARD") await removeCardAsync(id);
-    else await removeAsync(id);
-    await refetchAllMethods();
-    setOpenMenuId(null);
+  const handleRemoveMethod = async () => {
+    if (!pendingRemove) return;
+    const { id, kind } = pendingRemove;
+    setPendingRemove(null);
+    setActionError(null);
+    try {
+      if (kind === "CARD") await removeCardAsync(id);
+      else await removeAsync(id);
+      await refetchAllMethods();
+    } catch (err) {
+      setActionError(errorMessage(err, "No se pudo eliminar el método de pago. Inténtalo de nuevo."));
+    } finally {
+      setOpenMenuId(null);
+    }
   };
 
   const handleSetDefaultMethod = async (id: string, kind: "CARD" | "LOCAL") => {
-    if (kind === "CARD") await setDefaultCardAsync(id);
-    else await setDefaultAsync(id);
-    await refetchAllMethods();
-    setOpenMenuId(null);
+    setActionError(null);
+    try {
+      if (kind === "CARD") await setDefaultCardAsync(id);
+      else await setDefaultAsync(id);
+      await refetchAllMethods();
+    } catch (err) {
+      setActionError(errorMessage(err, "No se pudo establecer el método como principal. Inténtalo de nuevo."));
+    } finally {
+      setOpenMenuId(null);
+    }
   };
 
   return (
     <div className="min-h-full bg-[#f5f7fb] px-4 py-5 sm:px-6 lg:px-8">
+      {pendingRemove && (
+        <ConfirmModal
+          title="¿Eliminar método de pago?"
+          description="Ya no podrás usarlo para tus operaciones."
+          confirmLabel="Eliminar"
+          cancelLabel="Cancelar"
+          onConfirm={handleRemoveMethod}
+          onCancel={() => setPendingRemove(null)}
+        />
+      )}
+
       <div className="mx-auto flex max-w-7xl flex-col gap-6">
         <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -312,18 +358,33 @@ export function CompanyPaymentsPage() {
               </div>
               <h1 className="text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">Gestión financiera</h1>
               <p className="mt-1 max-w-2xl text-sm text-slate-500">
-                Controla metodos de pago, fondos retenidos y facturación desde una vista operativa.
+                Controla métodos de pago, fondos retenidos y facturación desde una vista operativa.
               </p>
             </div>
             <button onClick={() => setShowAddMethodModal(true)} className="inline-flex items-center justify-center gap-2 rounded-lg bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800">
               <Plus className="h-4 w-4" />
-              Agregar metodo
+              Agregar método
             </button>
           </div>
         </section>
 
+        {actionError && (
+          <div
+            role="alert"
+            className="flex items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+          >
+            <span className="flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 flex-shrink-0" />
+              {actionError}
+            </span>
+            <button onClick={() => setActionError(null)} className="text-xs font-medium underline">
+              Cerrar
+            </button>
+          </div>
+        )}
+
         <section className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-          <MetricCard icon={Wallet} label="Creditos disponibles" value="S/ 0.00" hint="Saldo operativo" tone="blue" />
+          <MetricCard icon={Wallet} label="Créditos disponibles" value="S/ 0.00" hint="Saldo operativo" tone="blue" />
           <MetricCard icon={Lock} label="Fondos retenidos" value="S/ 0.00" hint="0 proyectos en escrow" tone="amber" />
           <MetricCard icon={Receipt} label="Comisiones pagadas" value="S/ 0.00" hint="Mes actual" tone="slate" />
         </section>
@@ -332,7 +393,7 @@ export function CompanyPaymentsPage() {
           <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
-                <h2 className="text-lg font-bold text-slate-950">Metodos de pago</h2>
+                <h2 className="text-lg font-bold text-slate-950">Métodos de pago</h2>
                 <p className="mt-1 text-sm text-slate-500">Tarjetas y cuentas disponibles para operaciones de empresa.</p>
               </div>
               <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
@@ -353,20 +414,31 @@ export function CompanyPaymentsPage() {
                     open={openMenuId === method.id}
                     onToggleMenu={() => setOpenMenuId(openMenuId === method.id ? null : method.id)}
                     onSetDefault={() => handleSetDefaultMethod(method.id, method.kind)}
-                    onRemove={() => handleRemoveMethod(method.id, method.kind)}
+                    onRemove={() => {
+                      setOpenMenuId(null);
+                      setPendingRemove({ id: method.id, kind: method.kind });
+                    }}
                     isSettingDefault={isSettingDefault}
                     isRemoving={isRemovingMethod}
                   />
                 ))}
               </div>
+            ) : cardsError ? (
+              <div role="alert" className="flex flex-col items-center justify-center rounded-xl border border-red-100 bg-red-50 px-6 py-14 text-center">
+                <AlertCircle className="mb-3 h-10 w-10 text-red-300" />
+                <p className="text-sm font-semibold text-red-700">No se pudieron cargar tus métodos de pago</p>
+                <button onClick={() => refetchAllMethods()} className="mt-5 inline-flex items-center gap-2 rounded-lg bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">
+                  Reintentar
+                </button>
+              </div>
             ) : (
               <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50 px-6 py-14 text-center">
                 <CreditCard className="mb-3 h-10 w-10 text-slate-300" />
-                <p className="text-sm font-semibold text-slate-700">Aun no hay metodos de pago</p>
-                <p className="mt-1 max-w-sm text-xs text-slate-500">Agrega una tarjeta con Culqi o un metodo local para futuras operaciones.</p>
+                <p className="text-sm font-semibold text-slate-700">Aún no hay métodos de pago</p>
+                <p className="mt-1 max-w-sm text-xs text-slate-500">Agrega una tarjeta con Culqi o un método local para futuras operaciones.</p>
                 <button onClick={() => setShowAddMethodModal(true)} className="mt-5 inline-flex items-center gap-2 rounded-lg bg-slate-950 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">
                   <Plus className="h-4 w-4" />
-                  Agregar metodo
+                  Agregar método
                 </button>
               </div>
             )}
@@ -393,7 +465,7 @@ export function CompanyPaymentsPage() {
               </div>
               <div className="mt-5 rounded-lg bg-slate-50 p-5 text-center">
                 <p className="text-sm font-medium text-slate-600">No hay proyectos en escrow</p>
-                <p className="mt-1 text-xs text-slate-400">Apareceran cuando contrates freelancers.</p>
+                <p className="mt-1 text-xs text-slate-400">Aparecerán cuando contrates freelancers.</p>
               </div>
             </div>
 
@@ -417,7 +489,7 @@ export function CompanyPaymentsPage() {
                 <Building2 className="h-5 w-5 text-slate-300" />
                 <div>
                   <p className="text-sm font-medium text-slate-600">Sin facturas registradas</p>
-                  <p className="text-xs text-slate-400">Las facturas apareceran cuando realices pagos.</p>
+                  <p className="text-xs text-slate-400">Las facturas aparecerán cuando realices pagos.</p>
                 </div>
               </div>
             </div>

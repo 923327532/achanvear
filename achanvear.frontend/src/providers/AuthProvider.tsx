@@ -94,12 +94,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const logout = () => {
     clearAuthToken();
-    queryClient.clear();
-    setUser(null);
-    setStatus("UNAUTHENTICATED");
-    setIs2FARequired(false);
-    setTempToken(null);
-    setPendingUser(null);
+    window.location.assign("/login");
   };
 
   const value = useMemo(
