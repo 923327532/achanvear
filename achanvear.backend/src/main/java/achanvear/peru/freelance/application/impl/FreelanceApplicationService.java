@@ -385,6 +385,7 @@ public class FreelanceApplicationService implements
 
         freelanceProjectRepository.save(project);
         createEscrowPaymentPlanIfMissing(project, acceptedProposal);
+        project.pullDomainEvents().forEach(eventPublisher::publish);
 
         return freelanceApplicationMapper.toProjectResponse(project);
     }

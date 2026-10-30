@@ -119,7 +119,7 @@ public class ProfileApplicationService implements
                       (p.client_user_id = ? AND p.selected_freelancer_user_id = ?)))
                 """, Boolean.class, reviewerId, profile.getUserId(), profile.getUserId(), reviewerId);
         if (!Boolean.TRUE.equals(eligible)) {
-            throw new org.springframework.security.access.AccessDeniedException("A completed contract is required to rate this user");
+            throw new ForbiddenOperationException("Solo puedes calificar a profesionales con los que completaste un contrato");
         }
         profile.addRating(
                 UUID.fromString(command.reviewerUserId()),

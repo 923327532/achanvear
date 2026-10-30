@@ -24,6 +24,7 @@ public class GetPaymentTransactionsUseCaseImpl implements GetPaymentTransactions
 
     @Override
     public PaymentTransactionPageResponse execute(UUID userId, int page, int size) {
+        if (page < 0 || size < 1 || size > 100) throw new IllegalArgumentException("page >= 0 and size between 1 and 100 are required");
         // Obtener milestones donde el usuario es cliente o freelancer
         var asClient = milestoneRepository.findByClientUserId(userId);
         var asFreelancer = milestoneRepository.findByFreelancerUserId(userId);
@@ -81,7 +82,7 @@ public class GetPaymentTransactionsUseCaseImpl implements GetPaymentTransactions
 
         // Paginar
         int total = allTransactions.size();
-        int fromIndex = page * size;
+        int fromIndex = (int) Math.min((long) page * size, total);
         int toIndex = Math.min(fromIndex + size, total);
 
         List<PaymentTransactionResponse> pagedList = (fromIndex < total)

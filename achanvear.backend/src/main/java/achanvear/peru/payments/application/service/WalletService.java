@@ -273,18 +273,7 @@ public class WalletService {
             String lastFourDigits,
             String accountHolderName
     ) {
-        PayoutMethod method = PayoutMethod.create(
-                userId, "IZIPAY", cardToken, maskedCard, cardBrand, lastFourDigits, accountHolderName
-        );
-
-        // El primer método registrado queda como principal
-        if (payoutMethodRepository.findByUserId(userId).isEmpty()) {
-            method.markAsDefault();
-        }
-
-        payoutMethodRepository.save(method);
-        auditService.logPayoutMethodAdded(userId, method.getId().value().toString(), maskedCard, null);
-        return method;
+        throw new IllegalStateException("El registro de tarjetas de retiro no está disponible hasta integrar la tokenización y verificación del proveedor");
     }
 
     /**
@@ -347,13 +336,14 @@ public class WalletService {
         // Idempotencia: si ya existe una solicitud con la misma clave, se devuelve.
         Optional<Payout> existing = payoutRepository.findByIdempotencyKey(key);
         if (existing.isPresent()) {
+            if (!existing.get().getUserId().equals(userId)) throw new SecurityException("Acceso denegado");
             return existing.get();
         }
 
         if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("Monto de retiro inválido");
         }
-        if (amount.compareTo(new BigDecimal("1.00")) < 0) {
+        if (amount.compareTo(PayoutPolicy.MINIMUM_AMOUNT) < 0) {
             throw new IllegalArgumentException("El monto mínimo de retiro es S/ 1.00");
         }
 

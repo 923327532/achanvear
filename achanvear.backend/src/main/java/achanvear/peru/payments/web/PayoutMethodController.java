@@ -4,6 +4,9 @@ import achanvear.peru.payments.application.service.WalletService;
 import achanvear.peru.payments.domain.model.PayoutMethod;
 import achanvear.peru.shared.security.AuthenticatedUser;
 import achanvear.peru.shared.web.ApiResponse;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import org.springframework.http.ResponseEntity;
@@ -48,7 +51,7 @@ public class PayoutMethodController {
     @PostMapping
     public ResponseEntity<ApiResponse<PayoutMethodResponse>> register(
             @AuthenticationPrincipal AuthenticatedUser user,
-            @RequestBody RegisterPayoutMethodRequest request
+            @Valid @RequestBody RegisterPayoutMethodRequest request
     ) {
         PayoutMethod method = walletService.registerPayoutMethod(
                 user.getUserId(),

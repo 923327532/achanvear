@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { createSpanishUtterance } from "@/lib/browserSpeech";
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
 import { AlertTriangle, CheckCircle2, ChevronRight, Code2, Download, EyeOff, FileCode2, FilePlus2, FileText, Folder, FolderPlus, History, Layers3, Loader2, Mic, MicOff, PhoneOff, Play, Send, Stethoscope, UserRound, Video, X } from "lucide-react";
 import {
@@ -425,15 +426,7 @@ export function PracticalVoiceInterviewRoom({
       return;
     }
     window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = "es-PE";
-    utterance.rate = 0.95;
-    utterance.pitch = 1;
-    const voices = window.speechSynthesis.getVoices();
-    utterance.voice =
-      voices.find((voice) => voice.lang.toLowerCase().startsWith("es-pe")) ||
-      voices.find((voice) => voice.lang.toLowerCase().startsWith("es-")) ||
-      null;
+    const utterance = createSpanishUtterance(text);
     let started = false;
     utterance.onstart = () => {
       if (generation !== audioGenerationRef.current) return;

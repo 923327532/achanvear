@@ -29,6 +29,11 @@ public interface ServiceJpaRepository extends JpaRepository<ServiceJpaEntity, UU
             Pageable pageable
     );
 
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.transaction.annotation.Transactional
+    @Query("UPDATE ServiceJpaEntity s SET s.views = s.views + 1 WHERE s.id = :id AND s.status = 'ACTIVE' AND s.freelancerUserId <> :viewerId")
+    int recordView(@Param("id") UUID id, @Param("viewerId") UUID viewerId);
+
     long countByFreelancerUserIdAndStatus(UUID freelancerUserId, String status);
 
     @Query("SELECT COALESCE(SUM(s.sales), 0) FROM ServiceJpaEntity s WHERE s.freelancerUserId = :userId")

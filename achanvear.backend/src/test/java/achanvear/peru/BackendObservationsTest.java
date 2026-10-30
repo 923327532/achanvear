@@ -39,9 +39,9 @@ class BackendObservationsTest {
     }
     @Test void A3PolicyEndpointMatchesActualCharge() {
         var data = new achanvear.peru.payments.web.CommissionPolicyController().policy().getData();
-        assertEquals(new BigDecimal("5.00"), data.get("platformCommissionPercentage"));
+        assertEquals(new BigDecimal("5.00"), data.platformCommissionPercentage());
         assertEquals(new BigDecimal("50.00"), CommissionPolicy.calculateCommission(new BigDecimal("1000")).platformCommission());
-        assertEquals(new BigDecimal("0.50"), data.get("processorFixedFee"));
+        assertEquals(new BigDecimal("0.50"), data.processorFixedFee());
     }
     @Test void A12DeactivationCanBeReversedByOwningCompanyOnly() {
         var repo = mock(CompanyCollaboratorRepository.class);
@@ -170,7 +170,7 @@ class BackendObservationsTest {
                 mock(achanvear.peru.profile.domain.factory.TalentProfileFactory.class),
                 new achanvear.peru.profile.application.impl.ProfileApplicationMapper(),
                 mock(achanvear.peru.profile.application.port.out.ProfileValidationPort.class),mock(EventPublisher.class),jdbc);
-        assertThrows(org.springframework.security.access.AccessDeniedException.class, () -> service.execute(
+        assertThrows(achanvear.peru.shared.exception.ForbiddenOperationException.class, () -> service.execute(
                 new achanvear.peru.profile.application.command.RateProfileCommand(profile.getId().toString(),UUID.randomUUID().toString(),"COMPANY",5,true,"Test")));
         assertEquals(0,profile.getRatings().size()); verify(profiles,never()).save(any());
     }
@@ -262,9 +262,11 @@ class BackendObservationsTest {
         var subscriptions=mock(achanvear.peru.payments.domain.repository.SubscriptionRepository.class);
         var stats=mock(achanvear.peru.payments.domain.repository.CompanyProjectStatsRepository.class);
         when(stats.countPublishedProjectsByCompany(user)).thenReturn(0); // the stale freelance count must not be used
-        var overview=new achanvear.peru.payments.application.impl.GetPaymentsOverviewUseCaseImpl(stats,subscriptions,
-                mock(achanvear.peru.payments.domain.repository.MilestoneRepository.class),companies,jobs,
-                mock(achanvear.peru.payments.application.service.PublicationCreditService.class)).execute(user);
+        var overview=new achanvear.peru.payments.application.impl.GetPaymentsOverviewUseCaseImpl(subscriptions,companies,jobs,
+                mock(achanvear.peru.payments.application.service.PublicationCreditService.class),
+                new achanvear.peru.payments.application.service.PaymentFinancialQueryService(
+                        mock(achanvear.peru.payments.domain.repository.EscrowRepository.class),
+                        mock(achanvear.peru.payments.domain.repository.WalletRepository.class))).execute(user);
         var plan=new achanvear.peru.payments.application.impl.GetCurrentPlanUseCaseImpl(subscriptions,stats,companies,jobs).execute(user);
         assertEquals(2,overview.publishedProjectsCount()); assertEquals(0,overview.remainingFreeProjects()); assertFalse(overview.canPublishMoreProjects());
         assertEquals(2,plan.projectsUsed()); assertEquals(2,plan.projectsLimit());

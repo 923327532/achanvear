@@ -19,13 +19,16 @@ import java.util.List;
 @RequestMapping("/notifications")
 public class NotificationController {
 
+    private final achanvear.peru.notifications.application.InAppNotifications inApp;
     private final SendNotificationEmailUseCase sendNotificationEmailUseCase;
     private final ListNotificationsUseCase listNotificationsUseCase;
 
     public NotificationController(
             SendNotificationEmailUseCase sendNotificationEmailUseCase,
-            ListNotificationsUseCase listNotificationsUseCase
+            ListNotificationsUseCase listNotificationsUseCase,
+            achanvear.peru.notifications.application.InAppNotifications inApp
     ) {
+        this.inApp = inApp;
         this.sendNotificationEmailUseCase = sendNotificationEmailUseCase;
         this.listNotificationsUseCase = listNotificationsUseCase;
     }
@@ -66,11 +69,10 @@ public class NotificationController {
     // ─── GET /notifications/in-app ─────────────────────────────────────────────
     @GetMapping("/in-app")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<List<InAppNotificationResponse>>> getInAppNotifications(
+    public ResponseEntity<ApiResponse<List<achanvear.peru.notifications.application.InAppNotifications.Item>>> getInAppNotifications(
             @AuthenticationPrincipal AuthenticatedUser user
     ) {
-        // Return empty list for now - can be extended with a real in-app notification store
-        List<InAppNotificationResponse> notifications = new ArrayList<>();
+        var notifications = inApp.list(user.getUserId());
         return ResponseEntity.ok(
                 ApiResponse.success(notifications, "In-app notifications fetched successfully")
         );
@@ -82,7 +84,7 @@ public class NotificationController {
             @PathVariable String id,
             @AuthenticationPrincipal AuthenticatedUser user
     ) {
-        // Placeholder - mark notification as read
+        inApp.markRead(user.getUserId(), java.util.UUID.fromString(id));
         return ResponseEntity.ok(
                 ApiResponse.success(null, "Notification marked as read")
         );
@@ -93,21 +95,15 @@ public class NotificationController {
     public ResponseEntity<ApiResponse<Void>> markAllAsRead(
             @AuthenticationPrincipal AuthenticatedUser user
     ) {
-        // Placeholder - mark all notifications as read
+        inApp.markAllRead(user.getUserId());
         return ResponseEntity.ok(
                 ApiResponse.success(null, "All notifications marked as read")
         );
     }
 
-    // ─── DTO ───────────────────────────────────────────────────────────────────
-    // Coincide con el tipo Notification del frontend:
-    // { id, category, title, message, createdAt (ISO string), read }
-    record InAppNotificationResponse(
-            String id,
-            String category,
-            String title,
-            String message,
-            String createdAt,
-            boolean read
-    ) {}
+    @GetMapping("/in-app/unread-count")
+    @PreAuthorize("isAuthenticated()")
+    public ApiResponse<Long> unreadCount(@AuthenticationPrincipal AuthenticatedUser user) {
+        return ApiResponse.success(inApp.unread(user.getUserId()), "Unread count");
+    }
 }

@@ -197,33 +197,23 @@ export interface PaymentIntent {
 // ─── Escrow Detail ────────────────────────────────────────────────────────────
 
 export interface EscrowDetail {
-  id: string;
-  milestoneId: string;
-  amount: number;
-  currency: string;
+  escrowId: string; milestoneId: string; projectId: string;
+  projectTitle: string | null;
+  amount: number; platformCommission: number; mpCommission: number; freelancerAmount: number;
   status: EscrowStatus;
-  mpPaymentId: string | null;
-  mpPreferenceId: string | null;
-  clientId: string;
-  freelancerId: string;
-  projectName: string;
-  heldAt: string | null;
-  releasedAt: string | null;
-  createdAt: string;
+  heldAt: string | null; releasedAt: string | null; refundedAt: string | null;
+  disputedAt: string | null; disputeReason: string | null;
 }
 
 // ─── Dispute ──────────────────────────────────────────────────────────────────
 
 export interface Dispute {
-  id: string;
-  escrowId: string;
-  raisedBy: string;
-  reason: string;
-  description: string;
-  status: "OPEN" | "RESOLVED";
-  resolution: string | null;
-  resolvedAt: string | null;
-  createdAt: string;
+  disputeId: string; milestoneId: string; projectId: string;
+  raisedByUserId: string; raisedAgainstUserId: string;
+  reason: string; description: string | null;
+  status: "OPEN" | "UNDER_REVIEW" | "RESOLVED" | "DISMISSED";
+  resolution: string | null; resolvedByUserId: string | null;
+  resolvedAt: string | null; createdAt: string | null;
 }
 
 // ─── Audit Log ────────────────────────────────────────────────────────────────
@@ -237,7 +227,7 @@ export interface AuditLogEntry {
   oldValue: string | null;
   newValue: string | null;
   ipAddress: string | null;
-  userAgent: string | null;
+  metadata: string | null;
   createdAt: string;
 }
 

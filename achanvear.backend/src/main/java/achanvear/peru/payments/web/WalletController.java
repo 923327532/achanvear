@@ -216,7 +216,7 @@ public class WalletController {
 
     public record WalletTransactionResponse(
             String id,
-            String type,
+            @io.swagger.v3.oas.annotations.media.Schema(allowableValues = {"DEPOSIT", "WITHDRAWAL", "PAYMENT", "REFUND", "COMMISSION"}) String type,
             BigDecimal amount,
             BigDecimal balanceBefore,
             BigDecimal balanceAfter,

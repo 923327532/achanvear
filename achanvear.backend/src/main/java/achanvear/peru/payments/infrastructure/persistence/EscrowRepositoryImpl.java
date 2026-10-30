@@ -33,6 +33,11 @@ public class EscrowRepositoryImpl implements EscrowRepository {
     }
 
     @Override
+    public Optional<Escrow> findByMilestoneIdForUpdate(UUID milestoneId) {
+        return jpaRepository.findByMilestoneIdForUpdate(milestoneId).map(mapper::toDomain);
+    }
+
+    @Override
     public Optional<Escrow> findByMilestoneId(UUID milestoneId) {
         return jpaRepository.findByMilestoneId(milestoneId).map(mapper::toDomain);
     }

@@ -27,17 +27,15 @@ import java.util.List;
 @EnableMethodSecurity
 public class SecurityConfig {
 
-    private static final List<String> ALLOWED_ORIGINS = List.of(
-            "http://localhost:3000",
-            "https://achanvear.site",
-            "https://www.achanvear.site"
-    );
+    private final List<String> allowedOrigins;
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final DniRateLimitingFilter dniRateLimitingFilter;
 
     public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter,
-                          DniRateLimitingFilter dniRateLimitingFilter) {
+                          DniRateLimitingFilter dniRateLimitingFilter,
+                          @org.springframework.beans.factory.annotation.Value("${app.cors.allowed-origins}") String configuredOrigins) {
+        this.allowedOrigins = java.util.Arrays.stream(configuredOrigins.split(",")).map(String::trim).filter(origin -> !origin.isEmpty()).distinct().toList();
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.dniRateLimitingFilter = dniRateLimitingFilter;
     }
@@ -63,14 +61,7 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
-                .cors(cors -> cors.configurationSource(request -> {
-                    CorsConfiguration configuration = new CorsConfiguration();
-                    configuration.setAllowedOrigins(ALLOWED_ORIGINS);
-                    configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-                    configuration.setAllowedHeaders(List.of("*"));
-                    configuration.setAllowCredentials(true);
-                    return configuration;
-                }))
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
@@ -131,15 +122,20 @@ public class SecurityConfig {
      * por lo que necesitamos este filtro a nivel de aplicación.
      */
     @Bean
-    public CorsFilter corsFilter() {
+    public UrlBasedCorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(ALLOWED_ORIGINS);
+        config.setAllowedOrigins(allowedOrigins);
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
-        return new CorsFilter(source);
+        return source;
+    }
+
+    @Bean
+    public CorsFilter corsFilter() {
+        return new CorsFilter(corsConfigurationSource());
     }
 }

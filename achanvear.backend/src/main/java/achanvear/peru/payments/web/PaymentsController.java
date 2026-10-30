@@ -155,18 +155,20 @@ public class PaymentsController {
 
     @PostMapping("/milestones/{milestoneId}/process-culqi-payment")
     @PreAuthorize("hasAnyAuthority('COMPANY', 'COMPANY_COLLABORATOR')")
+    @org.springframework.transaction.annotation.Transactional
     public ResponseEntity<ApiResponse<String>> processCulqiPayment(
             @AuthenticationPrincipal AuthenticatedUser user,
             @PathVariable UUID milestoneId,
             @Valid @RequestBody CulqiProcessPaymentRequest request
     ) {
-        Milestone milestone = milestoneRepository.findById(new MilestoneId(milestoneId))
+        Milestone milestone = milestoneRepository.findByIdForUpdate(new MilestoneId(milestoneId))
                 .orElseThrow(() -> new IllegalStateException("Milestone not found: " + milestoneId));
 
         if (!milestone.getClientUserId().equals(user.getUserId())) {
             return ResponseEntity.status(403).body(ApiResponse.error("You cannot pay this milestone"));
         }
 
+        escrowService.assertCanFund(milestone);
         var charge = culqiGateway.createCharge(
                 milestone.getAmount(),
                 request.token(),

@@ -123,7 +123,7 @@ export function PaymentEscrowStep({ data, onUpdate, onNext, onBack }: PaymentEsc
             className="w-5 h-5 text-teal-600 rounded border-slate-300 focus:ring-teal-600 mt-0.5"
           />
           <span className="text-sm text-amber-800">
-            Acepto los términos y condiciones del sistema de Escrow, así como la política de comisiones de la plataforma
+            <a href="/terms" target="_blank" rel="noopener noreferrer" className="underline">Consultar términos vigentes</a>. Acepto los términos y condiciones del sistema de Escrow, así como la política de comisiones de la plataforma
           </span>
         </label>
       </div>

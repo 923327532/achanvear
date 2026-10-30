@@ -11,6 +11,7 @@ import java.util.UUID;
 public interface EscrowRepository {
     void save(Escrow escrow);
     Optional<Escrow> findById(EscrowId id);
+    Optional<Escrow> findByMilestoneIdForUpdate(UUID milestoneId);
     Optional<Escrow> findByMilestoneId(UUID milestoneId);
     Optional<Escrow> findByMpPaymentId(String mpPaymentId);
     List<Escrow> findByClientUserId(UUID clientUserId);

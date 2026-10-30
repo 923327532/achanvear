@@ -8,6 +8,9 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface EscrowJpaRepository extends JpaRepository<EscrowJpaEntity, UUID> {
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @org.springframework.data.jpa.repository.Query("select e from EscrowJpaEntity e where e.milestoneId = :milestoneId")
+    Optional<EscrowJpaEntity> findByMilestoneIdForUpdate(@org.springframework.data.repository.query.Param("milestoneId") UUID milestoneId);
     Optional<EscrowJpaEntity> findByMilestoneId(UUID milestoneId);
     Optional<EscrowJpaEntity> findByMpPaymentId(String mpPaymentId);
     List<EscrowJpaEntity> findByClientUserId(UUID clientUserId);

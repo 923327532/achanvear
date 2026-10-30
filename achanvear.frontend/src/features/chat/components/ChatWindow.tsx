@@ -5,6 +5,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { MoreVertical, Trash2, MessageSquare, Info, Clock, ArrowLeft } from "lucide-react";
 import { useMessages, useSendMessage, useDeleteMessage, useDeleteConversation } from "../hooks/useChat";
 
+import { ServiceContractsPanel } from "./ServiceContractsPanel";
 import { MessageBubble } from "./MessageBubble";
 import { MessageInput } from "./MessageInput";
 import type { Conversation, Message } from "../types/chat.types";
@@ -223,6 +224,7 @@ export function ChatWindow({ conversation, onConversationDeleted, onToggleInfoPa
       </div>
 
       {/* ── Messages con fondo profesional ── */}
+      <ServiceContractsPanel key={conversation.id} conversationId={conversation.id} />
       <div
         className="flex-1 min-h-0 overflow-y-auto px-3 py-3 space-y-1 sm:px-4"
         style={{

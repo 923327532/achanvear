@@ -68,7 +68,12 @@ public class Escrow extends AggregateRoot<EscrowId> {
             String mpPaymentId,
             String mpPreferenceId
     ) {
-        var commission = CommissionPolicy.calculateCommission(amount);
+        return create(milestoneId, projectId, clientUserId, freelancerUserId, amount, mpPaymentId, mpPreferenceId,
+                CommissionPolicy.calculateCommission(amount));
+    }
+
+    public static Escrow create(UUID milestoneId, UUID projectId, UUID clientUserId, UUID freelancerUserId,
+            BigDecimal amount, String mpPaymentId, String mpPreferenceId, CommissionPolicy.CommissionBreakdown commission) {
         Escrow escrow = new Escrow(
                 new EscrowId(UUID.randomUUID()),
                 milestoneId,

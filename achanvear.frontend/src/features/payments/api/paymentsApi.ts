@@ -249,38 +249,27 @@ export const escrowApi = {
     return parseResponse(res);
   },
 
-  // POST /payments/milestones/{milestoneId}/process-payment
-  processPayment: async (
-    milestoneId: string,
-    data: { mpPaymentId: string; mpPreferenceId: string }
-  ): Promise<EscrowDetail> => {
-    const res = await api.post<ApiResponse<EscrowDetail>>(
-      `/payments/milestones/${milestoneId}/process-payment`,
-      data
-    );
-    return parseResponse(res);
-  },
-
   // POST /payments/milestones/{milestoneId}/release
   releaseMilestone: async (milestoneId: string): Promise<EscrowDetail> => {
     const res = await api.post<ApiResponse<EscrowDetail>>(
-      `/payments/milestones/${milestoneId}/release`
+      `/payments/milestones/${milestoneId}/release`,
+      {}
     );
     return parseResponse(res);
   },
 
-  // POST /payments/milestones/{milestoneId}/refund
-  refundMilestone: async (milestoneId: string, reason: string): Promise<EscrowDetail> => {
-    const res = await api.post<ApiResponse<EscrowDetail>>(
-      `/payments/milestones/${milestoneId}/refund`,
+  // POST /payments/refunds/milestones/{milestoneId} (ADMIN)
+  refundMilestone: async (milestoneId: string, reason: string): Promise<RefundResponse> => {
+    const res = await api.post<ApiResponse<RefundResponse>>(
+      `/payments/refunds/milestones/${milestoneId}`,
       { reason }
     );
     return parseResponse(res);
   },
 
-  // GET /payments/milestones/{milestoneId}
+  // GET /payments/escrow/milestones/{milestoneId}
   getMilestoneDetail: async (milestoneId: string): Promise<EscrowDetail> => {
-    const res = await api.get<ApiResponse<EscrowDetail>>(`/payments/milestones/${milestoneId}`);
+    const res = await api.get<ApiResponse<EscrowDetail>>(`/payments/escrow/milestones/${milestoneId}`);
     return parseResponse(res);
   },
 
@@ -309,13 +298,13 @@ export const escrowApi = {
 // ─── Dispute API ──────────────────────────────────────────────────────────────
 
 export const disputeApi = {
-  // POST /payments/disputes
+  // POST /payments/disputes/open
   createDispute: async (data: {
-    escrowId: string;
+    milestoneId: string;
     reason: string;
     description: string;
   }): Promise<Dispute> => {
-    const res = await api.post<ApiResponse<Dispute>>("/payments/disputes", data);
+    const res = await api.post<ApiResponse<Dispute>>("/payments/disputes/open", data);
     return parseResponse(res);
   },
 
@@ -331,9 +320,9 @@ export const disputeApi = {
     return parseResponse(res);
   },
 
-  // GET /payments/disputes
+  // GET /payments/disputes/my-disputes
   getDisputes: async (): Promise<Dispute[]> => {
-    const res = await api.get<ApiResponse<Dispute[]>>("/payments/disputes");
+    const res = await api.get<ApiResponse<Dispute[]>>("/payments/disputes/my-disputes");
     return parseResponse(res);
   },
 
@@ -347,15 +336,9 @@ export const disputeApi = {
 // ─── Audit Log API ────────────────────────────────────────────────────────────
 
 export const auditApi = {
-  // GET /payments/audit-logs
-  getAuditLogs: async (params?: {
-    userId?: string;
-    action?: string;
-    entityType?: string;
-    page?: number;
-    size?: number;
-  }): Promise<AuditLogEntry[]> => {
-    const res = await api.get<ApiResponse<AuditLogEntry[]>>("/payments/audit-logs", { params });
+  // GET /payments/audit-logs/my-logs
+  getAuditLogs: async (): Promise<AuditLogEntry[]> => {
+    const res = await api.get<ApiResponse<AuditLogEntry[]>>("/payments/audit-logs/my-logs");
     return parseResponse(res);
   },
 };
@@ -363,13 +346,19 @@ export const auditApi = {
 // ─── Refund API ───────────────────────────────────────────────────────────────
 
 export const refundApi = {
-  // POST /payments/refunds
+  // POST /payments/refunds/milestones/{milestoneId}[/partial] (ADMIN)
   createRefund: async (data: {
-    escrowId: string;
+    milestoneId: string;
     reason: string;
     amount?: number;
-  }): Promise<EscrowDetail> => {
-    const res = await api.post<ApiResponse<EscrowDetail>>("/payments/refunds", data);
-    return parseResponse(res);
+  }): Promise<RefundResponse> => {
+    const { milestoneId, amount, reason } = data;
+    const path = `/payments/refunds/milestones/${milestoneId}${amount !== undefined ? "/partial" : ""}`;
+    return parseResponse(await api.post<ApiResponse<RefundResponse>>(path, { reason, ...(amount !== undefined ? { amount } : {}) }));
   },
 };
+
+export interface RefundResponse {
+  refundId: string; milestoneId: string; amount: number; reason: string;
+  mpRefundId: string | null; status: string; processedAt: string | null; createdAt: string | null;
+}

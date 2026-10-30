@@ -100,7 +100,7 @@ public class PayoutController {
             String userId,
             String payoutMethodId,
             BigDecimal amount,
-            String status,
+            @io.swagger.v3.oas.annotations.media.Schema(implementation = achanvear.peru.payments.domain.model.PayoutStatus.class) String status,
             String externalDisbursementId,
             String failureReason,
             String requestedAt,

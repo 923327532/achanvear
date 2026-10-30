@@ -12,7 +12,7 @@ import static org.mockito.Mockito.*;
 
 @EnabledIfEnvironmentVariable(named="REVIEW_DB_URL",matches=".+")
 class ServiceDatabaseTest {
-    @Test void A10_A11CardsReturnActualIdentityVerificationAndCurrentProfileRating() {
+    @Test void cardsReturnIdentityAndDoNotPresentProfileRatingsAsVerifiedServiceReviews() {
         var admin=new JdbcTemplate(new DriverManagerDataSource(System.getenv("REVIEW_DB_URL"),"postgres","review-local-only"));
         admin.execute("CREATE SCHEMA services_review");
         var jdbc=new JdbcTemplate(new DriverManagerDataSource(System.getenv("REVIEW_DB_URL")+"?currentSchema=services_review","postgres","review-local-only"));
@@ -36,7 +36,7 @@ class ServiceDatabaseTest {
         assertEquals(0,initial.reviewCount());
         jdbc.update("INSERT INTO profile_ratings VALUES(?,5),(?,3)",profile,profile);
         var rated=controller.explore(null,null,0,10,null).getBody().getData().items().get(0);
-        assertEquals(2,rated.reviewCount()); assertEquals(0,new BigDecimal("4").compareTo(rated.rating()));
+        assertEquals(0,rated.reviewCount()); assertEquals(0,BigDecimal.ZERO.compareTo(rated.rating()));
         jdbc.update("UPDATE freelancer_profiles SET status='PENDING_VALIDATION'");
         assertFalse(controller.explore(null,null,0,10,null).getBody().getData().items().get(0).freelancer().verified());
     }

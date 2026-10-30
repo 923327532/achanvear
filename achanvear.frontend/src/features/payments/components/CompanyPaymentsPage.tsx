@@ -2,6 +2,10 @@
 "use client";
 
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import api, { parseResponse, type ApiResponse } from "@/lib/axiosClient";
+import type { EscrowDetail } from "../types/payments.types";
+import { CommissionPolicyNotice } from "@/components/payments/CommissionPolicyNotice";
 import { AddPaymentMethodModal } from "./AddPaymentMethodModal";
 import {
   useLocalPaymentMethods,
@@ -263,6 +267,19 @@ function MetricCard({
 }
 
 export function CompanyPaymentsPage() {
+  const overview = useQuery({
+    queryKey: ["payments", "overview"],
+    queryFn: async () => parseResponse(await api.get<ApiResponse<{
+      pendingRelease: number; availableForWithdrawal: number; totalCommissionsPaid: number;
+    }>>("/payments/overview")),
+  });
+  const escrows = useQuery({
+    queryKey: ["payments", "escrow", "client"],
+    queryFn: async () => parseResponse(await api.get<ApiResponse<EscrowDetail[]>>("/payments/escrow/client")),
+  });
+  const activeEscrows = escrows.data?.filter(e => e.status === "HELD" || e.status === "DISPUTED") ?? [];
+  const money = (value?: number) => value === undefined ? (overview.isError ? "No disponible" : "Cargando...")
+    : new Intl.NumberFormat("es-PE", { style: "currency", currency: "PEN" }).format(value);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [showAddMethodModal, setShowAddMethodModal] = useState(false);
   const [pendingRemove, setPendingRemove] = useState<{ id: string; kind: "CARD" | "LOCAL" } | null>(null);
@@ -384,9 +401,9 @@ export function CompanyPaymentsPage() {
         )}
 
         <section className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-          <MetricCard icon={Wallet} label="Créditos disponibles" value="S/ 0.00" hint="Saldo operativo" tone="blue" />
-          <MetricCard icon={Lock} label="Fondos retenidos" value="S/ 0.00" hint="0 proyectos en escrow" tone="amber" />
-          <MetricCard icon={Receipt} label="Comisiones pagadas" value="S/ 0.00" hint="Mes actual" tone="slate" />
+          <MetricCard icon={Wallet} label="Saldo de wallet" value={money(overview.data?.availableForWithdrawal)} hint="Dinero disponible" tone="blue" />
+          <MetricCard icon={Lock} label="Fondos retenidos" value={money(overview.data?.pendingRelease)} hint="Escrow activo" tone="amber" />
+          <MetricCard icon={Receipt} label="Comisiones de proyectos" value={money(overview.data?.totalCommissionsPaid)} hint="Acumulado al liberar pagos" tone="slate" />
         </section>
 
         <section className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(360px,0.65fr)]">
@@ -463,9 +480,14 @@ export function CompanyPaymentsPage() {
                   </p>
                 </div>
               </div>
-              <div className="mt-5 rounded-lg bg-slate-50 p-5 text-center">
-                <p className="text-sm font-medium text-slate-600">No hay proyectos en escrow</p>
-                <p className="mt-1 text-xs text-slate-400">Aparecerán cuando contrates freelancers.</p>
+              <div className="mt-5 space-y-3 rounded-lg bg-slate-50 p-5">
+                {escrows.isPending ? <p className="text-sm">Cargando fondos retenidos...</p>
+                  : escrows.isError ? <p role="alert" className="text-sm text-red-600">No se pudieron consultar los fondos retenidos.</p>
+                  : activeEscrows.length === 0 ? <p className="text-sm text-slate-600">No hay fondos retenidos en escrow.</p>
+                  : activeEscrows.map(e => <div key={e.escrowId} className="flex justify-between gap-3 text-sm">
+                      <span>{e.projectTitle ?? "Proyecto"} ({e.status === "DISPUTED" ? "En disputa" : "Retenido"})</span>
+                      <span>{money(e.amount)}</span>
+                    </div>)}
               </div>
             </div>
 
@@ -481,14 +503,12 @@ export function CompanyPaymentsPage() {
               </div>
               <div className="rounded-lg border border-slate-100 bg-slate-50 p-4">
                 <p className="text-sm font-medium text-slate-700">Comisiones del Agente IA</p>
-                <p className="mt-1 text-xs leading-relaxed text-slate-500">
-                  Achanvear cobra entre 3% y 5% sobre proyectos freelance completados. Las vacantes tradicionales tienen un costo fijo.
-                </p>
+                <CommissionPolicyNotice />
               </div>
               <div className="mt-5 flex items-center gap-3 rounded-lg border border-dashed border-slate-200 p-4">
                 <Building2 className="h-5 w-5 text-slate-300" />
                 <div>
-                  <p className="text-sm font-medium text-slate-600">Sin facturas registradas</p>
+                  <p className="text-sm font-medium text-slate-600">Emisión de comprobantes no disponible</p>
                   <p className="text-xs text-slate-400">Las facturas aparecerán cuando realices pagos.</p>
                 </div>
               </div>

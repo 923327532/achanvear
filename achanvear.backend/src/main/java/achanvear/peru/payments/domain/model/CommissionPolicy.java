@@ -11,7 +11,7 @@ public final class CommissionPolicy {
 
     private CommissionPolicy() {}
 
-    // Comisión de la plataforma: 10% del monto total
+    // Comisión de la plataforma: 5% por hito
     private static final BigDecimal PLATFORM_COMMISSION_PERCENTAGE = new BigDecimal("5.00");
 
     // Comisión de Mercado Pago: 3.99% + tarifa fija
@@ -22,8 +22,28 @@ public final class CommissionPolicy {
      * Calcula las comisiones para un monto dado.
      */
     public static CommissionBreakdown calculateCommission(BigDecimal amount) {
+        return calculateCommission(amount, PLATFORM_COMMISSION_PERCENTAGE);
+    }
+
+    public record Tier(BigDecimal minimumInclusive, BigDecimal maximumInclusive, BigDecimal percentage) {}
+    private static final java.util.List<Tier> TIERS = java.util.List.of(
+            new Tier(BigDecimal.ZERO, new BigDecimal("4999.99"), new BigDecimal("5.00")),
+            new Tier(new BigDecimal("5000.00"), new BigDecimal("15000.00"), new BigDecimal("4.00")),
+            new Tier(new BigDecimal("15000.01"), null, new BigDecimal("3.00")));
+    public static java.util.List<Tier> getTiers() { return TIERS; }
+
+    public static BigDecimal platformRateForProject(BigDecimal projectTotal, boolean firstProject) {
+        if (projectTotal == null || projectTotal.signum() <= 0) throw new IllegalArgumentException("Project amount must be positive");
+        if (firstProject) return BigDecimal.ZERO;
+        return TIERS.stream().filter(t -> projectTotal.compareTo(t.minimumInclusive()) >= 0 &&
+                        (t.maximumInclusive() == null || projectTotal.compareTo(t.maximumInclusive()) <= 0))
+                .findFirst().orElseThrow(() -> new IllegalArgumentException("Project amount must use at most two decimal places")).percentage();
+    }
+
+    public static CommissionBreakdown calculateCommission(BigDecimal amount, BigDecimal platformPercentage) {
+        if (amount == null || amount.signum() < 0) throw new IllegalArgumentException("Invalid amount");
         BigDecimal platformCommission = amount
-                .multiply(PLATFORM_COMMISSION_PERCENTAGE)
+                .multiply(platformPercentage)
                 .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
 
         BigDecimal mpCommission = amount
@@ -52,6 +72,8 @@ public final class CommissionPolicy {
     /**
      * Obtiene el porcentaje de comisión de Mercado Pago.
      */
+    public static BigDecimal getProcessorFixedFee() { return MP_FIXED_FEE; }
+
     public static BigDecimal getMpCommissionPercentage() {
         return MP_COMMISSION_PERCENTAGE;
     }

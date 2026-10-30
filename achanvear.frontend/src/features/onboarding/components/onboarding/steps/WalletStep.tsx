@@ -24,7 +24,7 @@ export function WalletStep({ onNext }: WalletStepProps) {
         <p className="text-5xl font-bold tracking-tight mb-5">S/. 0.00</p>
         <span className="inline-flex items-center gap-1.5 rounded-full bg-white/20 backdrop-blur-sm px-3 py-1 text-xs font-semibold text-white">
           <Gift className="h-3.5 w-3.5" />
-          Primer trabajo GRATIS
+          Pagos con Escrow
         </span>
       </div>
 
@@ -37,9 +37,9 @@ export function WalletStep({ onNext }: WalletStepProps) {
             <Gift className="h-4.5 w-4.5 text-emerald-600" strokeWidth={1.75} />
           </div>
           <div>
-            <p className="text-sm font-semibold text-slate-900">Tu primer trabajo es 100% tuyo</p>
+            <p className="text-sm font-semibold text-slate-900">Conoce las condiciones de tus pagos</p>
             <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
-              No cobramos comisión en tu primer proyecto o servicio. Empieza a ganar sin costos adicionales.
+              Consulta las comisiones vigentes antes de aceptar un trabajo.
             </p>
           </div>
         </div>
@@ -76,7 +76,7 @@ export function WalletStep({ onNext }: WalletStepProps) {
           {[
             { label: "Completa trabajos:", desc: "Ya sea proyectos freelance o servicios que ofrezcas" },
             { label: "Recibe pagos:", desc: "El dinero se libera automáticamente a tu wallet cuando la empresa apruebe" },
-            { label: "Retira cuando quieras:", desc: "Transfiere a tu cuenta bancaria o Yape sin mínimos" },
+            { label: "Retiros:", desc: "Consulta los métodos habilitados y el mínimo de retiro en Pagos" },
           ].map(({ label, desc }) => (
             <div key={label} className="flex items-start gap-2.5">
               <CheckCircle2 className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#0EA5A0]" strokeWidth={2} />

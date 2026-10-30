@@ -31,6 +31,15 @@ public class CreateMilestoneDepositIntentUseCaseImpl implements CreateMilestoneD
 
     @Override
     public MilestoneDepositIntentResponse execute(CreateMilestoneDepositIntentCommand command) {
+        var plan = milestoneRepository.findByProjectId(command.projectId());
+        if (!plan.isEmpty()) {
+            var existing = plan.stream().filter(m -> m.getClientUserId().equals(command.clientUserId()) &&
+                    m.getFreelancerUserId().equals(command.freelancerUserId()) && m.getTitle().equals(command.title()) &&
+                    m.getAmount().compareTo(command.amount()) == 0).findFirst()
+                    .orElseThrow(() -> new IllegalArgumentException("Use the milestone and price agreed in the project payment plan"));
+            return new MilestoneDepositIntentResponse(existing.getId().value().toString(),existing.getId().value().toString(),
+                    null,null,existing.getStatus().name());
+        }
         var fraudAssessment = fraudDetectionService.assessTransaction(
                 command.clientUserId(),
                 command.freelancerUserId(),

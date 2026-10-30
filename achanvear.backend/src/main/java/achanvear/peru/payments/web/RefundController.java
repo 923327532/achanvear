@@ -5,6 +5,9 @@ import achanvear.peru.payments.application.service.RefundService;
 import achanvear.peru.payments.domain.model.Escrow;
 import achanvear.peru.shared.security.AuthenticatedUser;
 import achanvear.peru.shared.web.ApiResponse;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import org.springframework.http.ResponseEntity;
@@ -34,7 +37,7 @@ public class RefundController {
     public ResponseEntity<ApiResponse<RefundResponse>> processRefund(
             @AuthenticationPrincipal AuthenticatedUser user,
             @PathVariable UUID milestoneId,
-            @RequestBody RefundRequest request
+            @Valid @RequestBody RefundRequest request
     ) {
         Escrow escrow = refundService.processRefund(milestoneId, request.reason());
 
@@ -60,7 +63,7 @@ public class RefundController {
     public ResponseEntity<ApiResponse<RefundResponse>> processPartialRefund(
             @AuthenticationPrincipal AuthenticatedUser user,
             @PathVariable UUID milestoneId,
-            @RequestBody PartialRefundRequest request
+            @Valid @RequestBody PartialRefundRequest request
     ) {
         Escrow escrow = refundService.processPartialRefund(milestoneId, request.amount(), request.reason());
 
@@ -83,7 +86,7 @@ public class RefundController {
     ) {}
 
     public record PartialRefundRequest(
-            @NotBlank java.math.BigDecimal amount,
+            @NotNull @Positive java.math.BigDecimal amount,
             @NotBlank @Size(max = 2000) String reason
     ) {}
 }

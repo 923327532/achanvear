@@ -3,12 +3,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { X, Star, Clock, MessageSquare, Phone, ChevronDown, ChevronUp } from "lucide-react";
 import { CATEGORY_LABELS, CATEGORY_COLORS } from "../types/service.types";
 import type { ExploreService } from "../types/service.types";
-import { RateFreelancerModal } from "./RateFreelancerModal";
-import { useFreelancerComments } from "../hooks/useExploreServices";
+import { serviceContractsApi } from "../api/serviceContractsApi";
 
 interface Props {
   open: boolean;
@@ -28,11 +27,11 @@ function getAvatarColor(name: string) {
 }
 
 export function ExploreDetailModal({ open, service, onClose, onHire }: Props) {
-  const [rateModalOpen, setRateModalOpen] = useState(false);
   const [showAllReviews, setShowAllReviews] = useState(false);
-  const queryClient = useQueryClient();
 
-  const { ratings } = useFreelancerComments(service?.freelancer?.id, open);
+  const reviews = useQuery({ queryKey: ["services", "verified-reviews", service?.id],
+    queryFn: () => serviceContractsApi.reviews(service!.id), enabled: open && !!service });
+  const ratings = reviews.data ?? [];
 
   if (!open || !service) return null;
 
@@ -119,6 +118,7 @@ export function ExploreDetailModal({ open, service, onClose, onHire }: Props) {
               </div>
             </div>
 
+            {reviews.isError && <p role="alert" className="text-xs text-red-600">No se pudieron consultar las resenas verificadas.</p>}
             {ratings.length > 0 && (
               <div className="border-t border-gray-100 pt-4">
                 <div className="flex items-center justify-between mb-3">
@@ -139,11 +139,7 @@ export function ExploreDetailModal({ open, service, onClose, onHire }: Props) {
                             />
                           ))}
                         </div>
-                        {rating.recommended && (
-                          <span className="text-[10px] font-medium text-green-600 bg-green-50 px-1.5 py-0.5 rounded-full">
-                            Recomendado
-                          </span>
-                        )}
+
                       </div>
                       {rating.comment && (
                         <p className="break-words text-xs text-gray-600 leading-relaxed">{rating.comment}</p>
@@ -186,13 +182,7 @@ export function ExploreDetailModal({ open, service, onClose, onHire }: Props) {
                 <MessageSquare className="w-4 h-4" />
                 Mensaje
               </Link>
-              <button
-                onClick={() => setRateModalOpen(true)}
-                className="flex items-center justify-center gap-1.5 text-sm font-medium text-amber-600 border border-amber-200 rounded-xl py-2.5 hover:bg-amber-50 transition-colors"
-              >
-                <Star className="w-4 h-4" />
-                Calificar
-              </button>
+              <p className="text-xs text-slate-500">Califica desde el contrato completado en el chat.</p>
             </div>
           </div>
 
@@ -213,16 +203,7 @@ export function ExploreDetailModal({ open, service, onClose, onHire }: Props) {
         </div>
       </div>
 
-      <RateFreelancerModal
-        open={rateModalOpen}
-        freelancerId={freelancer.id}
-        freelancerName={freelancer.name}
-        onClose={() => setRateModalOpen(false)}
-        onSuccess={() => {
-          queryClient.invalidateQueries({ queryKey: ["services", "freelancer-ratings", freelancer.id] });
-          queryClient.invalidateQueries({ queryKey: ["services", "explore"] });
-        }}
-      />
+
     </>
   );
 }

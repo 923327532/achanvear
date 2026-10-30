@@ -458,31 +458,6 @@ export function useCreateDepositIntent() {
   };
 }
 
-export function useProcessPayment() {
-  const queryClient = useQueryClient();
-
-  const mutation = useMutation({
-    mutationFn: ({
-      milestoneId,
-      mpPaymentId,
-      mpPreferenceId,
-    }: {
-      milestoneId: string;
-      mpPaymentId: string;
-      mpPreferenceId: string;
-    }) => escrowApi.processPayment(milestoneId, { mpPaymentId, mpPreferenceId }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["payments", "escrow"] });
-      queryClient.invalidateQueries({ queryKey: ["payments", "wallet"] });
-    },
-  });
-
-  return {
-    processAsync: mutation.mutateAsync,
-    isLoading: mutation.isPending,
-  };
-}
-
 export function useProcessCulqiPayment() {
   const queryClient = useQueryClient();
 
@@ -614,7 +589,7 @@ export function useCreateDispute() {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
-    mutationFn: (data: { escrowId: string; reason: string; description: string }) =>
+    mutationFn: (data: { milestoneId: string; reason: string; description: string }) =>
       disputeApi.createDispute(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["payments", "disputes"] });
@@ -656,14 +631,10 @@ export function useResolveDispute() {
 
 // ─── Audit Logs ───────────────────────────────────────────────────────────────
 
-export function useAuditLogs(params?: {
-  userId?: string;
-  action?: string;
-  entityType?: string;
-}) {
+export function useAuditLogs() {
   const query = useQuery({
-    queryKey: ["payments", "audit-logs", params],
-    queryFn: () => auditApi.getAuditLogs(params),
+    queryKey: ["payments", "audit-logs"],
+    queryFn: auditApi.getAuditLogs,
     staleTime: 1000 * 60 * 5,
     retry: 1,
   });
@@ -680,7 +651,7 @@ export function useCreateRefund() {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
-    mutationFn: (data: { escrowId: string; reason: string; amount?: number }) =>
+    mutationFn: (data: { milestoneId: string; reason: string; amount?: number }) =>
       refundApi.createRefund(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["payments", "escrow"] });
@@ -713,12 +684,12 @@ export function useEscrowProjects() {
   return {
     projects: escrows.map((e) => ({
       id: e.milestoneId,
-      title: e.projectName,
-      client: e.clientId,
+      title: e.projectTitle ?? "Proyecto",
+      client: "",
       status: e.status,
       currentMilestone: 1,
       totalMilestones: 1,
-      estimatedRelease: e.releasedAt ?? e.createdAt,
+      estimatedRelease: null,
       escrowAmount: e.amount,
     })),
     isLoading,

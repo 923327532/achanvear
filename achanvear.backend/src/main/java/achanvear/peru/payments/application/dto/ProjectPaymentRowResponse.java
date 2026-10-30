@@ -11,7 +11,7 @@ public record ProjectPaymentRowResponse(
         BigDecimal platformCommission,
         BigDecimal mpCommission,
         BigDecimal netAmount,
-        String status,
+        @io.swagger.v3.oas.annotations.media.Schema(implementation = achanvear.peru.payments.domain.model.EscrowStatus.class) String status,
         String date
 ) {
 }

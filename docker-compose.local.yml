@@ -1,0 +1,87 @@
+services:
+  postgres:
+    container_name: achanvear-local-postgres
+    ports: !override
+      - "127.0.0.1:${POSTGRES_PORT:-55439}:5432"
+  redis:
+    container_name: achanvear-local-redis
+    ports: !override
+      - "127.0.0.1:${REDIS_PORT:-6380}:6379"
+  ai-agent:
+    container_name: achanvear-local-ai-agent
+    depends_on:
+      practice-postgres:
+        condition: service_healthy
+      practice-mongo:
+        condition: service_healthy
+    environment:
+      PRACTICAL_POSTGRES_DSN: postgresql://${DB_USERNAME}:${DB_PASSWORD}@practice-postgres:5432/practice
+      PRACTICAL_MONGODB_URI: mongodb://practice-mongo:27017
+    ports: !override
+      - "127.0.0.1:${AI_AGENT_PORT:-8001}:8001"
+  practice-postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: practice
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - practice_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME} -d practice"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - achanvear-network
+    restart: unless-stopped
+  practice-mongo:
+    image: mongo:7
+    volumes:
+      - practice_mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - achanvear-network
+    restart: unless-stopped
+  backend:
+    container_name: achanvear-local-backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/achanvear
+      FLYWAY_URL: jdbc:postgresql://postgres:5432/achanvear
+    ports: !override
+      - "127.0.0.1:${BACKEND_PORT:-8081}:8081"
+  frontend:
+    build:
+      context: ./achanvear.frontend
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8081/api/v1}
+        NEXT_PUBLIC_SITE_URL: ${APP_FRONTEND_URL:-http://localhost:3001}
+        NEXT_PUBLIC_FIREBASE_API_KEY: ${NEXT_PUBLIC_FIREBASE_API_KEY:-}
+        NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ${NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN:-}
+        NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${NEXT_PUBLIC_FIREBASE_PROJECT_ID:-}
+        NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: ${NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET:-}
+        NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: ${NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID:-}
+        NEXT_PUBLIC_FIREBASE_APP_ID: ${NEXT_PUBLIC_FIREBASE_APP_ID:-}
+        NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID: ${NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID:-}
+        NEXT_PUBLIC_CULQI_PUBLIC_KEY: ${CULQI_PUBLIC_KEY:-}
+    image: achanvear-frontend:local
+    container_name: achanvear-local-frontend
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${FRONTEND_PORT:-3001}:3000"
+    networks:
+      - achanvear-network
+    restart: unless-stopped
+
+volumes:
+  practice_postgres_data:
+  practice_mongo_data:

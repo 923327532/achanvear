@@ -3,6 +3,7 @@
 "use client";
 
 import { useState } from "react";
+import api from "@/lib/axiosClient";
 import { Search, SlidersHorizontal } from "lucide-react";
 import { useExploreServices } from "../hooks/useExploreServices";
 import { useServiceFiltersStore } from "../store/useServiceFiltersStore";
@@ -144,7 +145,10 @@ export function ExploreServicesTab() {
             <ExploreServiceCard
               key={service.id}
               service={service}
-              onViewDetail={(s) => setDetailModal({ open: true, service: s })}
+              onViewDetail={(s) => {
+                setDetailModal({ open: true, service: s });
+                void api.post(`/services/${s.id}/views`).catch(() => undefined);
+              }}
               onHire={handleHire}
             />
           ))

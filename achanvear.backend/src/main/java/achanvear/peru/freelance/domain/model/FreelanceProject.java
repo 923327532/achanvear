@@ -276,12 +276,28 @@ public class FreelanceProject extends AggregateRoot<FreelanceProjectId> {
                 .orElseThrow(() -> new IllegalArgumentException("Proposal not found"));
 
         acceptedProposal.accept();
+        this.budget = acceptedProposal.getProposedBudget();
         this.selectedFreelancerUserId = acceptedProposal.getFreelancerUserId();
         this.status = ProjectStatus.IN_PROGRESS;
+        registerEvent(new achanvear.peru.freelance.domain.event.ProjectAcceptedEvent(id.value(),selectedFreelancerUserId,budget,Instant.now()));
 
         this.proposals.stream()
                 .filter(proposal -> !proposal.getId().equals(proposalId) && proposal.getStatus() == ProposalStatus.SUBMITTED)
                 .forEach(Proposal::reject);
+    }
+
+    public void offerDirectlyTo(UUID freelancerUserId) {
+        ensureOpen();
+        if (clientUserId.equals(freelancerUserId)) throw new IllegalArgumentException("Cannot hire yourself");
+        this.selectedFreelancerUserId = Objects.requireNonNull(freelancerUserId);
+        this.status = ProjectStatus.DRAFT;
+    }
+
+    public void acceptDirectOffer(UUID freelancerUserId) {
+        if (status != ProjectStatus.DRAFT || !Objects.equals(selectedFreelancerUserId, freelancerUserId))
+            throw new IllegalStateException("This offer is not pending for this professional");
+        this.status = ProjectStatus.IN_PROGRESS;
+        registerEvent(new achanvear.peru.freelance.domain.event.ProjectAcceptedEvent(id.value(),selectedFreelancerUserId,budget,Instant.now()));
     }
 
     public void addMilestone(String title, String description, BigDecimal amount) {
@@ -321,7 +337,7 @@ public class FreelanceProject extends AggregateRoot<FreelanceProjectId> {
         }
 
         // Restore to previous state: since we don't track history, restore to OPEN
-        this.status = ProjectStatus.OPEN;
+        this.status = selectedFreelancerUserId == null ? ProjectStatus.OPEN : ProjectStatus.IN_PROGRESS;
     }
 
     public void cancel() {
@@ -450,6 +466,7 @@ public class FreelanceProject extends AggregateRoot<FreelanceProjectId> {
     }
 
     private void ensureEditable() {
+        if (selectedFreelancerUserId != null) throw new IllegalStateException("An offered or accepted contract cannot be edited");
         if (this.status != ProjectStatus.OPEN && this.status != ProjectStatus.DRAFT) {
             throw new IllegalStateException("Project can only be updated in draft or open status");
         }

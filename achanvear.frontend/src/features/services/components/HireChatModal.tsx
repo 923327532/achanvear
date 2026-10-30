@@ -4,6 +4,7 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { X, MessageSquare, Loader2, AlertCircle } from "lucide-react";
+import { serviceContractsApi } from "../api/serviceContractsApi";
 import { chatApi } from "@/features/chat/api/chatApi";
 import { ApiError } from "@/lib/errors";
 import type { ExploreService } from "../types/service.types";
@@ -31,6 +32,8 @@ export function HireChatModal({ open, service, onClose }: Props) {
     setError(null);
     try {
       const conversation = await chatApi.startConversation(freelancer.id);
+
+      await serviceContractsApi.linkOrigin(conversation.id, service.id);
 
       let alreadyMentioned = false;
       try {

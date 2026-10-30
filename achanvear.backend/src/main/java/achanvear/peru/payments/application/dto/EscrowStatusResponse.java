@@ -10,11 +10,12 @@ public record EscrowStatusResponse(
         BigDecimal platformCommission,
         BigDecimal mpCommission,
         BigDecimal freelancerAmount,
-        String status,
+        @io.swagger.v3.oas.annotations.media.Schema(implementation = achanvear.peru.payments.domain.model.EscrowStatus.class) String status,
         String heldAt,
         String releasedAt,
         String refundedAt,
         String disputedAt,
-        String disputeReason
+        String disputeReason,
+        String projectTitle
 ) {
 }

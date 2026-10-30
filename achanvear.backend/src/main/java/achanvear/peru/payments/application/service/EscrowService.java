@@ -16,6 +16,7 @@ import java.util.UUID;
 @Service
 public class EscrowService {
 
+    private final achanvear.peru.payments.application.port.out.ProjectCommissionAgreements agreements;
     private final EscrowRepository escrowRepository;
     private final MilestoneRepository milestoneRepository;
     private final AuditService auditService;
@@ -25,12 +26,19 @@ public class EscrowService {
             EscrowRepository escrowRepository,
             MilestoneRepository milestoneRepository,
             AuditService auditService,
-            WalletService walletService
+            WalletService walletService,
+            achanvear.peru.payments.application.port.out.ProjectCommissionAgreements agreements
     ) {
+        this.agreements=agreements;
         this.escrowRepository = escrowRepository;
         this.milestoneRepository = milestoneRepository;
         this.auditService = auditService;
         this.walletService = walletService;
+    }
+
+    public void assertCanFund(Milestone milestone) {
+        if (milestone.getStatus()!=MilestoneStatus.PENDING) throw new IllegalStateException("Milestone has already been funded");
+        agreements.assertPaymentAllowed(milestone.getProjectId());
     }
 
     /**
@@ -46,6 +54,7 @@ public class EscrowService {
             String mpPaymentId,
             String mpPreferenceId
     ) {
+        agreements.assertPaymentAllowed(projectId);
         Escrow escrow = Escrow.create(
                 milestoneId,
                 projectId,
@@ -53,7 +62,8 @@ public class EscrowService {
                 freelancerUserId,
                 amount,
                 mpPaymentId,
-                mpPreferenceId
+                mpPreferenceId,
+                CommissionPolicy.calculateCommission(amount, agreements.platformPercentage(projectId))
         );
         escrowRepository.save(escrow);
         return escrow;
@@ -64,7 +74,7 @@ public class EscrowService {
      */
     @Transactional
     public Escrow releaseFunds(UUID milestoneId, UUID clientUserId) {
-        Escrow escrow = escrowRepository.findByMilestoneId(milestoneId)
+        Escrow escrow = escrowRepository.findByMilestoneIdForUpdate(milestoneId)
                 .orElseThrow(() -> new IllegalArgumentException("Escrow not found for milestone: " + milestoneId));
 
         if (!escrow.getClientUserId().equals(clientUserId)) {

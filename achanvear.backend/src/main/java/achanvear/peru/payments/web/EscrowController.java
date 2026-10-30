@@ -21,10 +21,12 @@ import java.util.stream.Collectors;
 @RequestMapping("/payments/escrow")
 public class EscrowController {
 
+    private final achanvear.peru.payments.application.service.EscrowResponseMapper mapper;
     private final EscrowService escrowService;
     private final EscrowRepository escrowRepository;
 
-    public EscrowController(EscrowService escrowService, EscrowRepository escrowRepository) {
+    public EscrowController(EscrowService escrowService, EscrowRepository escrowRepository, achanvear.peru.payments.application.service.EscrowResponseMapper mapper) {
+        this.mapper = mapper;
         this.escrowService = escrowService;
         this.escrowRepository = escrowRepository;
     }
@@ -40,26 +42,23 @@ public class EscrowController {
         escrows.addAll(escrowRepository.findByClientUserId(user.getUserId()));
         escrows.addAll(escrowRepository.findByFreelancerUserId(user.getUserId()));
 
-        List<EscrowStatusResponse> response = escrows.stream()
-                .collect(Collectors.toMap(
-                        escrow -> escrow.getId().value(),
-                        escrow -> escrow,
-                        (first, ignored) -> first
-                ))
-                .values()
-                .stream()
-                .map(this::toResponse)
-                .collect(Collectors.toList());
+        var unique = escrows.stream().collect(Collectors.toMap(
+                e -> e.getId().value(), e -> e, (first, ignored) -> first)).values();
+        List<EscrowStatusResponse> response = mapper.toResponses(List.copyOf(unique));
 
         return ResponseEntity.ok(ApiResponse.success(response, "Escrows retrieved"));
     }
 
     @GetMapping("/milestones/{milestoneId}")
     public ResponseEntity<ApiResponse<EscrowStatusResponse>> getEscrowByMilestone(
-            @PathVariable UUID milestoneId
+            @PathVariable UUID milestoneId,
+            @AuthenticationPrincipal AuthenticatedUser user
     ) {
         Escrow escrow = escrowService.getEscrowByMilestone(milestoneId);
-        return ResponseEntity.ok(ApiResponse.success(toResponse(escrow), "Escrow status retrieved"));
+        if (!escrow.getClientUserId().equals(user.getUserId()) && !escrow.getFreelancerUserId().equals(user.getUserId())) {
+            throw new SecurityException("You are not part of this transaction");
+        }
+        return ResponseEntity.ok(ApiResponse.success(mapper.toResponse(escrow), "Escrow status retrieved"));
     }
 
     /**
@@ -71,9 +70,7 @@ public class EscrowController {
             @AuthenticationPrincipal AuthenticatedUser user
     ) {
         List<Escrow> escrows = escrowRepository.findByClientUserId(user.getUserId());
-        List<EscrowStatusResponse> response = escrows.stream()
-                .map(this::toResponse)
-                .collect(Collectors.toList());
+        List<EscrowStatusResponse> response = mapper.toResponses(escrows);
         return ResponseEntity.ok(ApiResponse.success(response, "Client escrows retrieved"));
     }
 
@@ -86,9 +83,7 @@ public class EscrowController {
             @AuthenticationPrincipal AuthenticatedUser user
     ) {
         List<Escrow> escrows = escrowRepository.findByFreelancerUserId(user.getUserId());
-        List<EscrowStatusResponse> response = escrows.stream()
-                .map(this::toResponse)
-                .collect(Collectors.toList());
+        List<EscrowStatusResponse> response = mapper.toResponses(escrows);
         return ResponseEntity.ok(ApiResponse.success(response, "Freelancer escrows retrieved"));
     }
 
@@ -96,33 +91,14 @@ public class EscrowController {
      * Lista escrows por estado.
      */
     @GetMapping("/status/{status}")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<ApiResponse<List<EscrowStatusResponse>>> getEscrowsByStatus(
             @PathVariable String status
     ) {
         EscrowStatus escrowStatus = EscrowStatus.valueOf(status.toUpperCase());
         List<Escrow> escrows = escrowRepository.findByStatus(escrowStatus);
-        List<EscrowStatusResponse> response = escrows.stream()
-                .map(this::toResponse)
-                .collect(Collectors.toList());
+        List<EscrowStatusResponse> response = mapper.toResponses(escrows);
         return ResponseEntity.ok(ApiResponse.success(response, "Escrows by status retrieved"));
     }
 
-    private EscrowStatusResponse toResponse(Escrow escrow) {
-        var formatter = DateTimeFormatter.ISO_INSTANT;
-        return new EscrowStatusResponse(
-                escrow.getId() != null ? escrow.getId().value().toString() : null,
-                escrow.getMilestoneId() != null ? escrow.getMilestoneId().toString() : null,
-                escrow.getProjectId() != null ? escrow.getProjectId().toString() : null,
-                escrow.getAmount(),
-                escrow.getPlatformCommission(),
-                escrow.getMpCommission(),
-                escrow.getFreelancerAmount(),
-                escrow.getStatus().name(),
-                escrow.getHeldAt() != null ? formatter.format(escrow.getHeldAt()) : null,
-                escrow.getReleasedAt() != null ? formatter.format(escrow.getReleasedAt()) : null,
-                escrow.getRefundedAt() != null ? formatter.format(escrow.getRefundedAt()) : null,
-                escrow.getDisputedAt() != null ? formatter.format(escrow.getDisputedAt()) : null,
-                escrow.getDisputeReason()
-        );
-    }
 }

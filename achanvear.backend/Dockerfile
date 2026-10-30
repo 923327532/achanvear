@@ -11,13 +11,16 @@ RUN mvn dependency:go-offline -B || true
 
 # Copiar código fuente y compilar
 COPY src ./src
-RUN mvn clean package -DskipTests -B -o || mvn clean package -DskipTests -B
+RUN --mount=type=cache,target=/maven-cache \
+    cp -an /root/.m2/. /maven-cache/ && \
+    mvn clean package -Dmaven.repo.local=/maven-cache -DskipTests -B
 
 # ================================
 # Optional regression checks: docker build --target regression-tests .
 # ================================
 FROM builder AS regression-tests
-RUN mvn test -B -Dtest=BackendRegressionTest,BackendObservationsTest
+RUN --mount=type=cache,target=/maven-cache \
+    mvn test -Dmaven.repo.local=/maven-cache -B -Dtest=BackendRegressionTest,BackendObservationsTest,SecurityCorsTest,PaymentReviewTest,RoundTwoReviewTest
 
 # ================================
 # Stage 2: Runtime

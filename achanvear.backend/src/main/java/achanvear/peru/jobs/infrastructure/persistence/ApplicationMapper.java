@@ -14,7 +14,7 @@ public interface ApplicationMapper {
         if (entity == null) {
             return null;
         }
-        UUID jobPostId = entity.getJobPost() != null ? entity.getJobPost().getId() : null;
+        UUID jobPostId = entity.getJobPostId();
         return JobApplication.restore(
                 new JobApplicationId(entity.getId()),
                 jobPostId,

@@ -126,6 +126,13 @@ public class ServiceController {
     }
 
     // ─── GET /services/{id} ────────────────────────────────────────────────────
+    @PostMapping("/{id}/views")
+    public ResponseEntity<ApiResponse<Void>> recordView(@PathVariable UUID id,
+            @AuthenticationPrincipal AuthenticatedUser user) {
+        serviceRepository.recordView(id, user.getUserId());
+        return ResponseEntity.ok(ApiResponse.success(null, "View recorded"));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<ServiceDetailResponse>> getServiceDetail(
             @PathVariable String id
@@ -489,8 +496,8 @@ public class ServiceController {
                 entity.getDeliveryDays(),
                 entity.getViews(),
                 entity.getSales(),
-                profileRating(entity.getFreelancerUserId()),
-                profileReviewCount(entity.getFreelancerUserId()),
+                entity.getRating() == null ? BigDecimal.ZERO : entity.getRating(),
+                entity.getReviewCount() == null ? 0 : entity.getReviewCount(),
                 toDisplayImageUrls(entity.getImageUrls()),
                 splitCsv(entity.getVideoUrls()),
                 splitCsv(entity.getPdfUrls()),
@@ -532,8 +539,8 @@ public class ServiceController {
                 entity.getDeliveryDays(),
                 entity.getViews(),
                 entity.getSales(),
-                profileRating(entity.getFreelancerUserId()),
-                profileReviewCount(entity.getFreelancerUserId()),
+                entity.getRating() == null ? BigDecimal.ZERO : entity.getRating(),
+                entity.getReviewCount() == null ? 0 : entity.getReviewCount(),
                 toDisplayImageUrls(entity.getImageUrls()),
                 entity.getModality(),
                 entity.getCoverageType(),
@@ -576,8 +583,8 @@ public class ServiceController {
                 entity.getDeliveryDays(),
                 entity.getViews(),
                 entity.getSales(),
-                profileRating(entity.getFreelancerUserId()),
-                profileReviewCount(entity.getFreelancerUserId()),
+                entity.getRating() == null ? BigDecimal.ZERO : entity.getRating(),
+                entity.getReviewCount() == null ? 0 : entity.getReviewCount(),
                 toDisplayImageUrls(entity.getImageUrls()),
                 splitCsv(entity.getVideoUrls()),
                 splitCsv(entity.getPdfUrls()),
@@ -616,13 +623,6 @@ public class ServiceController {
                 rs.getString("specialty"), rs.getString("profile_photo_url"),
                 "ACTIVE".equals(rs.getString("status")), entity.getPhone(), entity.getWhatsapp()) : null,
                 entity.getFreelancerUserId());
-    }
-
-    private BigDecimal profileRating(UUID userId) {
-        return jdbc.queryForObject("SELECT COALESCE(AVG(r.stars),0) FROM profile_ratings r JOIN talent_profiles p ON p.id=r.profile_id WHERE p.user_id=?", BigDecimal.class, userId);
-    }
-    private int profileReviewCount(UUID userId) {
-        return jdbc.queryForObject("SELECT COUNT(*) FROM profile_ratings r JOIN talent_profiles p ON p.id=r.profile_id WHERE p.user_id=?", Integer.class, userId);
     }
 
     private List<String> splitCsv(String value) {

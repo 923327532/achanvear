@@ -1,4 +1,5 @@
 "use client";
+import { CommissionPolicyNotice } from "@/components/payments/CommissionPolicyNotice";
 
 interface StepWalletProps {
   onFinish: () => void;
@@ -23,16 +24,6 @@ export function StepWallet({ onFinish, userName }: StepWalletProps) {
           <p className="mt-1 text-3xl font-bold text-slate-900">S/. 0.00</p>
         </div>
 
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
-          <p className="text-sm font-semibold text-emerald-800">
-            Primer trabajo GRATIS
-          </p>
-          <p className="mt-1 text-xs text-emerald-700">
-            Tu primer trabajo es 100% tuyo. No cobramos comision en tu primer
-            proyecto o servicio. Empieza a ganar sin costos adicionales.
-          </p>
-        </div>
-
         <div className="rounded-xl border border-slate-200 bg-white p-4">
           <p className="text-sm font-semibold text-slate-900">
             Pagos protegidos con Escrow
@@ -47,15 +38,7 @@ export function StepWallet({ onFinish, userName }: StepWalletProps) {
           <p className="text-sm font-semibold text-slate-900">
             Comisiones justas y transparentes
           </p>
-          <p className="mt-1 text-xs text-slate-500">
-            A partir del segundo trabajo, cobramos entre 3% y 5% segun el
-            monto:
-          </p>
-          <ul className="mt-2 space-y-1 text-xs text-slate-500">
-            <li>Menos de S/. 5,000: 5%</li>
-            <li>S/. 5,000 - S/. 15,000: 4%</li>
-            <li>Mas de S/. 15,000: 3%</li>
-          </ul>
+          <CommissionPolicyNotice />
         </div>
 
         <div className="rounded-xl border border-slate-200 bg-white p-4">
@@ -72,8 +55,7 @@ export function StepWallet({ onFinish, userName }: StepWalletProps) {
               cuando la empresa apruebe
             </li>
             <li>
-              Retira cuando quieras: Transfiere a tu cuenta bancaria o Yape sin
-              minimos
+              Consulta los metodos disponibles y el minimo de retiro en Pagos
             </li>
           </ul>
         </div>

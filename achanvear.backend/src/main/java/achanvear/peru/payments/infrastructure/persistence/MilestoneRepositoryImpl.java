@@ -28,6 +28,11 @@ public class MilestoneRepositoryImpl implements MilestoneRepository {
     }
 
     @Override
+    public Optional<Milestone> findByIdForUpdate(MilestoneId id) {
+        return jpaRepository.findByIdForUpdate(id.value()).map(mapper::toDomain);
+    }
+
+    @Override
     public Optional<Milestone> findById(MilestoneId id) {
         return jpaRepository.findById(id.value()).map(mapper::toDomain);
     }

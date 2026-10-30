@@ -11,7 +11,6 @@ import {
   Scale,
   Calculator,
   MoreHorizontal,
-  Star,
 } from "lucide-react";
 import Link from "next/link";
 import { JsonLd } from "@/components/seo/JsonLd";
@@ -169,45 +168,6 @@ function SectoresSection() {
 // ─────────────────────────────────────────────
 // TESTIMONIOS
 // ─────────────────────────────────────────────
-const testimonios = [
-  { stars: 5, text: "Encontré mi primer empleo como desarrollador en menos de 2 semanas. El proceso fue transparente y rápido.", name: "Carlos Mendoza", role: "Desarrollador Full Stack" },
-  { stars: 5, text: "Como MYPE, la selección automatizada nos ahorró semanas. Contratamos al candidato perfecto en días.", name: "María Torres", role: "CEO, TechSolutions Peru" },
-  { stars: 5, text: "El sistema de Escrow me dio la confianza para trabajar con clientes internacionales. Cobro seguro y a tiempo.", name: "Luis Ramírez", role: "Diseñador UX/UI" },
-];
-
-function TestimoniosSection() {
-  return (
-    <section className="bg-gray-50 py-16 sm:py-20">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="mb-10 text-center sm:mb-12">
-          <h2 className="text-2xl font-bold text-gray-900 sm:text-3xl lg:text-4xl">Lo que dicen nuestros usuarios</h2>
-          <p className="mt-3 text-sm text-gray-500 sm:text-base">Miles de profesionales y empresas ya confían en Achanvear</p>
-        </div>
-        <div className="grid gap-4 sm:gap-6 md:grid-cols-3">
-          {testimonios.map((t) => (
-            <div key={t.name} className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm sm:p-6">
-              <div className="mb-4 flex gap-1">
-                {Array.from({ length: t.stars }).map((_, i) => (
-                  <Star key={i} className="h-4 w-4 fill-amber-400 text-amber-400 sm:h-5 sm:w-5" />
-                ))}
-              </div>
-              <p className="mb-4 text-sm leading-relaxed text-gray-600">"{t.text}"</p>
-              <p className="text-sm font-semibold text-gray-900">{t.name}</p>
-              <p className="text-xs text-gray-400">{t.role}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-// ─────────────────────────────────────────────
-// MISIÓN
-// ─────────────────────────────────────────────
-
-
-
 function CtaSection() {
   return (
     <section className="bg-white py-16 sm:py-20">
@@ -286,7 +246,6 @@ export default function LandingPage() {
       <HeroSection />
       <StatsBar />
       <SectoresSection />
-      <TestimoniosSection />
       <AboutAchanvear />
       <TrustSection />
       <section className="bg-white py-16 sm:py-20" aria-labelledby="career-guides-title">

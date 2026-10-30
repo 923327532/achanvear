@@ -47,7 +47,6 @@ public class ReleaseMilestonePaymentUseCaseImpl implements ReleaseMilestonePayme
         Escrow escrow = escrowService.releaseFunds(command.milestoneId(), command.clientUserId());
 
         // Calcular comisiones
-        var commissionResult = CommissionPolicy.calculateCommission(milestone.getAmount());
 
         // Registrar auditoría
         auditService.logPaymentReleased(
@@ -59,12 +58,12 @@ public class ReleaseMilestonePaymentUseCaseImpl implements ReleaseMilestonePayme
 
         return new MilestoneReleasedResponse(
                 milestone.getId().value().toString(),
-                milestone.getStatus().name(),
+                escrow.getStatus().name(),
                 milestone.getAmount(),
-                commissionResult.platformCommission(),
-                commissionResult.mpCommission(),
-                commissionResult.freelancerAmount(),
-                milestone.getReleasedAt().toString()
+                escrow.getPlatformCommission(),
+                escrow.getMpCommission(),
+                escrow.getFreelancerAmount(),
+                escrow.getReleasedAt().toString()
         );
     }
 }

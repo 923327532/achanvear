@@ -9,6 +9,9 @@ import achanvear.peru.payments.domain.model.DisputeStatus;
 import achanvear.peru.payments.domain.repository.DisputeRepository;
 import achanvear.peru.shared.security.AuthenticatedUser;
 import achanvear.peru.shared.web.ApiResponse;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import org.springframework.http.ResponseEntity;
@@ -45,7 +48,7 @@ public class DisputeController {
     @PostMapping("/open")
     public ResponseEntity<ApiResponse<DisputeResponse>> openDispute(
             @AuthenticationPrincipal AuthenticatedUser user,
-            @RequestBody OpenDisputeRequest request
+            @Valid @RequestBody OpenDisputeRequest request
     ) {
         // Obtener el escrow para determinar contra quién se disputa
         var escrow = escrowService.getEscrowByMilestone(request.milestoneId());
@@ -125,7 +128,7 @@ public class DisputeController {
     public ResponseEntity<ApiResponse<DisputeResponse>> resolveDispute(
             @AuthenticationPrincipal AuthenticatedUser user,
             @PathVariable UUID disputeId,
-            @RequestBody ResolveDisputeRequest request
+            @Valid @RequestBody ResolveDisputeRequest request
     ) {
         Dispute dispute = disputeRepository.findById(new DisputeId(disputeId))
                 .orElseThrow(() -> new IllegalArgumentException("Dispute not found"));
@@ -155,7 +158,7 @@ public class DisputeController {
     public ResponseEntity<ApiResponse<DisputeResponse>> dismissDispute(
             @AuthenticationPrincipal AuthenticatedUser user,
             @PathVariable UUID disputeId,
-            @RequestBody DismissDisputeRequest request
+            @Valid @RequestBody DismissDisputeRequest request
     ) {
         Dispute dispute = disputeRepository.findById(new DisputeId(disputeId))
                 .orElseThrow(() -> new IllegalArgumentException("Dispute not found"));
@@ -186,7 +189,7 @@ public class DisputeController {
     }
 
     public record OpenDisputeRequest(
-            @NotBlank UUID milestoneId,
+            @NotNull UUID milestoneId,
             @NotBlank @Size(max = 2000) String reason,
             @Size(max = 5000) String description
     ) {}

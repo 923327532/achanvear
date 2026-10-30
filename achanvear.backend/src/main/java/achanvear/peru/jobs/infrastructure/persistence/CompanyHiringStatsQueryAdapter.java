@@ -31,13 +31,15 @@ public class CompanyHiringStatsQueryAdapter implements CompanyHiringStatsQueryPo
 
     @Override
     public CompanyHiringStatsResponse getForCompany(UUID companyId) {
+        long theory = hiringProcessJpaRepository.countByCompanyAndStage(companyId, "THEORY_INTERVIEW");
+        long technical = hiringProcessJpaRepository.countByCompanyAndStage(companyId, "TECHNICAL_INTERVIEW");
         return new CompanyHiringStatsResponse(
                 jobPostJpaRepository.countByCompanyIdAndStatus(companyId, PUBLISHED),
                 applicationJpaRepository.countByCompanyId(companyId),
-                interviewJpaRepository.countActiveForCompany(companyId),
+                theory + technical,
                 hiringProcessJpaRepository.countFinalistsByCompanyId(companyId),
-                hiringProcessJpaRepository.countByCompanyAndStage(companyId, "THEORY_INTERVIEW"),
-                hiringProcessJpaRepository.countByCompanyAndStage(companyId, "TECHNICAL_INTERVIEW")
+                theory,
+                technical
         );
     }
 }

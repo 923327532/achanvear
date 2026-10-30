@@ -10,6 +10,7 @@ import java.util.UUID;
 
 public interface MilestoneRepository {
     void save(Milestone milestone);
+    Optional<Milestone> findByIdForUpdate(MilestoneId id);
     Optional<Milestone> findById(MilestoneId id);
     List<Milestone> findByProjectId(UUID projectId);
     List<Milestone> findByFreelancerUserId(UUID freelancerUserId);
