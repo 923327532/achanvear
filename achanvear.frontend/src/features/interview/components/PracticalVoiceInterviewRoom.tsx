@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import { PracticalTerminalPanel } from "./PracticalTerminalPanel";
 import { createSpanishUtterance } from "@/lib/browserSpeech";
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
-import { AlertTriangle, CheckCircle2, ChevronRight, Code2, Download, EyeOff, FileCode2, FilePlus2, FileText, Folder, FolderPlus, History, Layers3, Loader2, Mic, MicOff, PhoneOff, Play, Send, Stethoscope, UserRound, Video, X } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ChevronRight, Code2, Download, EyeOff, FileCode2, FilePlus2, FileText, Folder, FolderOpen, FolderPlus, Coffee, Database, FileJson, History, Layers3, Loader2, Mic, MicOff, PhoneOff, Play, Send, Stethoscope, UserRound, Video, X } from "lucide-react";
 import {
   authorizePracticalSession,
   practicalCapabilities,
@@ -123,6 +123,9 @@ export function PracticalVoiceInterviewRoom({
   const [createDialog, setCreateDialog] = useState<"file" | "folder" | null>(null);
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
   const [explorerWidth, setExplorerWidth] = useState(286);
+  const [renameTarget, setRenameTarget] = useState<{path: string; type: "file" | "folder"} | null>(null);
+  const [renameName, setRenameName] = useState("");
+  const [renameError, setRenameError] = useState("");
   const [folderContextMenu, setFolderContextMenu] = useState<{ x: number; y: number; path: string } | null>(null);
   const [meetPanelPosition, setMeetPanelPosition] = useState({ x: 16, y: 16 });
   const [securityEvents, setSecurityEvents] = useState<Array<{ type: string; detail: string; at: string }>>([]);
@@ -800,6 +803,61 @@ export function PracticalVoiceInterviewRoom({
     setCreateDialog(null);
   }
 
+  function startRename(path: string, type: "file" | "folder") {
+    setRenameTarget({ path, type });
+    setRenameName(path.split("/").at(-1) ?? path);
+    setRenameError("");
+    setFolderContextMenu(null);
+  }
+
+  function renameItem() {
+    if (!renameTarget) return;
+    const name = renameName.trim();
+    if (!name || name === "." || name === ".." || /[\\/:*?"<>|\x00-\x1f]/.test(name)) {
+      setRenameError("Escribe un nombre valido, sin separadores ni caracteres especiales.");
+      return;
+    }
+    if (renameTarget.type === "file" && !/\.[a-z0-9]+$/i.test(name)) {
+      setRenameError("Conserva una extension de archivo, por ejemplo .ts o .java.");
+      return;
+    }
+    const oldPath = renameTarget.path;
+    const parent = oldPath.split("/").slice(0, -1).join("/");
+    const newPath = parent ? `${parent}/${name}` : name;
+    if (newPath === oldPath) { setRenameTarget(null); return; }
+    const belongs = (path: string) => path === oldPath || (renameTarget.type === "folder" && path.startsWith(`${oldPath}/`));
+    const remap = (path: string) => belongs(path) ? newPath + path.slice(oldPath.length) : path;
+    const paths = [...codeFiles.map(file => file.path), ...projectFolders, ...deriveFolders(codeFiles.map(file => file.path))];
+    const occupied = new Set(paths.filter(path => !belongs(path)));
+    if (occupied.has(newPath) || paths.some(path => belongs(path) && occupied.has(remap(path)))) {
+      setRenameError("Ya existe un archivo o carpeta con ese nombre. No se sobrescribio contenido.");
+      return;
+    }
+    setCodeFiles(current => current.map(file => ({ ...file, path: remap(file.path),
+      language: belongs(file.path) && renameTarget.type === "file" ? inferLanguageFromPath(newPath) : file.language })));
+    setProjectFolders(current => Array.from(new Set([...current.map(remap), ...deriveFolders(codeFiles.map(file => remap(file.path)))])));
+    setCollapsedFolders(current => current.map(remap));
+    setSelectedFolderPath(current => remap(current));
+    if (belongs(activeFilePath)) {
+      const active = remap(activeFilePath);
+      setActiveFilePath(active);
+      setCodeLanguage(inferLanguageFromPath(active));
+    }
+    setRenameTarget(null);
+  }
+
+  function folderColor(path: string) {
+    const name = path.split("/").at(-1)?.toLowerCase() ?? "";
+    if (["src", "source"].includes(name)) return "text-emerald-400";
+    if (["main", "services", "service"].includes(name)) return "text-amber-300";
+    if (["java", "repository", "repositories"].includes(name)) return "text-orange-400";
+    if (["application", "tests", "test", "__tests__"].includes(name)) return "text-rose-400";
+    if (["domain", "impl", "infrastructure"].includes(name)) return "text-violet-400";
+    if (["config", "db", "database", "models", "dto"].includes(name)) return "text-cyan-400";
+    if (["docs", "public", "assets"].includes(name)) return "text-blue-400";
+    return "text-slate-400";
+  }
+
   function fileExtension(path: string) {
     const match = path.match(/\.([a-z0-9]+)$/i);
     return match ? match[1].toUpperCase() : "FILE";
@@ -1187,6 +1245,23 @@ export function PracticalVoiceInterviewRoom({
           </p>
         </div>
       )}
+      {renameTarget && (
+        <div className="absolute inset-0 z-[60] grid place-items-center bg-black/40 px-4" role="dialog" aria-modal="true" aria-label="Renombrar">
+          <form onSubmit={event => { event.preventDefault(); renameItem(); }} className="w-full max-w-md rounded-lg border border-[#454545] bg-[#252526] p-4 shadow-2xl">
+            <p className="mb-1 text-sm font-semibold">Renombrar {renameTarget.type === "folder" ? "carpeta" : "archivo"}</p>
+            <p className="mb-3 truncate font-mono text-xs text-slate-400">{renameTarget.path}</p>
+            <input autoFocus aria-label="Nuevo nombre" value={renameName} onFocus={event => event.target.select()}
+              onChange={event => { setRenameName(event.target.value); setRenameError(""); }}
+              onKeyDown={event => { if (event.key === "Escape") setRenameTarget(null); }}
+              className="w-full rounded border border-[#007acc] bg-[#181818] px-3 py-2 text-sm outline-none" />
+            {renameError && <p role="alert" className="mt-2 text-xs text-red-300">{renameError}</p>}
+            <div className="mt-4 flex justify-end gap-2">
+              <button type="button" onClick={() => setRenameTarget(null)} className="rounded px-3 py-1.5 text-xs hover:bg-white/10">Cancelar</button>
+              <button type="submit" className="rounded bg-[#007acc] px-3 py-1.5 text-xs text-white hover:bg-[#008ee6]">Guardar nombre</button>
+            </div>
+          </form>
+        </div>
+      )}
       {createDialog && (
         <div className="absolute inset-0 z-40 grid place-items-center bg-slate-950/20 px-4 backdrop-blur-[2px]">
           <div className="w-full max-w-md overflow-hidden rounded-xl border border-white/10 bg-[#111827]/95 shadow-2xl">
@@ -1336,6 +1411,8 @@ export function PracticalVoiceInterviewRoom({
           >
             <FolderPlus className="h-3.5 w-3.5 text-sky-300" /> Nueva carpeta
           </button>
+          <button className="flex w-full items-center gap-2 border-t border-white/10 px-3 py-2 text-left hover:bg-white/10"
+            onClick={() => startRename(folderContextMenu.path, "folder")}>Renombrar carpeta <span className="ml-auto text-slate-500">F2</span></button>
           <button
             className="flex w-full items-center gap-2 px-3 py-2 text-left text-red-100 hover:bg-red-400/15"
             onClick={() => {
@@ -1588,13 +1665,15 @@ export function PracticalVoiceInterviewRoom({
                                 setCollapsedFolders(current => current.includes(item.path) ? current.filter(path => path !== item.path) : [...current, item.path]);
                               }
                             }}
+                            onDoubleClick={() => startRename(item.path, item.type)}
+                            onKeyDown={event => { if (event.key === "F2") { event.preventDefault(); startRename(item.path, item.type); } }}
                             aria-expanded={item.type === "folder" ? !collapsedFolders.includes(item.path) : undefined}
                             onContextMenu={(event) => {
                               if (item.type !== "folder") return;
                               event.preventDefault();
                               event.stopPropagation();
                               setSelectedFolderPath(item.path);
-                              setFolderContextMenu({ x: event.clientX, y: event.clientY, path: item.path });
+                              setFolderContextMenu({ x: Math.min(event.clientX, window.innerWidth - 205), y: Math.min(event.clientY, window.innerHeight - 190), path: item.path });
                             }}
                             className={`group relative flex w-full items-center justify-between gap-2 rounded-sm py-0.5 pr-1.5 text-left text-[11px] ${
                               isActive
@@ -1618,10 +1697,14 @@ export function PracticalVoiceInterviewRoom({
                               {item.type === "folder" ? (
                                 <>
                                   <ChevronRight className={`h-3 w-3 text-slate-500 ${collapsedFolders.includes(item.path) ? "" : "rotate-90"}`} />
-                                  <Folder className="h-3 w-3 text-sky-400" />
+                                  {collapsedFolders.includes(item.path) ? <Folder className={`h-4 w-4 ${folderColor(item.path)}`} /> : <FolderOpen className={`h-4 w-4 ${folderColor(item.path)}`} /> }
                                 </>
                               ) : (
-                                <FileCode2 className={`h-3 w-3 shrink-0 ${extStyle?.icon}`} />
+                                fileExtension(item.path) === "JAVA" ? <Coffee className="h-4 w-4 shrink-0 text-red-400" /> :
+                                fileExtension(item.path) === "SQL" ? <Database className="h-4 w-4 shrink-0 text-pink-400" /> :
+                                fileExtension(item.path) === "JSON" ? <FileJson className="h-4 w-4 shrink-0 text-amber-300" /> :
+                                fileExtension(item.path) === "MD" ? <FileText className="h-4 w-4 shrink-0 text-slate-400" /> :
+                                <FileCode2 className={`h-4 w-4 shrink-0 ${extStyle?.icon}`} />
                               )}
                               <span className={`truncate ${item.type === "folder" ? "font-semibold" : ""}`}>{item.name}</span>
                               {item.type === "file" && extStyle && (
