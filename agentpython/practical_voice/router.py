@@ -39,15 +39,6 @@ async def start_practical_interview(req: PracticalSessionStartRequest, request: 
     challenge = build_workspace_challenge(workspace_type, req.career, req.job_title)
     presentation = getattr(request.state, "grant", {}).get("presentation", {}) if request else {}
     challenge["workspace_type"] = workspace_type.value
-    if presentation.get("case_code") == "java_calculator":
-        workspace_type = type(workspace_type).CODING
-        challenge = {
-            "title": "Calculadora básica en Java · sesión de exposición",
-            "workspace_tool": "code_project", "workspace_type": "coding", "language": "java", "entry_file": "Main.java",
-            "prompt": "Implementa una calculadora de consola en Java que sume, reste, multiplique y divida dos números. Controla división entre cero. Puedes leer dos números y el operador desde la entrada estándar, o demostrar las operaciones con ejemplos en main. Ejecuta al menos una prueba y explica la solución.",
-            "files": [{"path": "Main.java", "language": "java", "content": "public class Main { public static void main(String[] args) {\n    // Implementa y demuestra tu calculadora.\n} }"}],
-            "expected_output": ["Operaciones correctas", "División entre cero controlada", "Prueba ejecutada", "Explicación clara"],
-        }
     challenge["job_description"] = req.job_description
     challenge["job_requirements"] = req.job_requirements
     if req.job_description or req.job_requirements:

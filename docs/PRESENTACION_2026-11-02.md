@@ -9,9 +9,9 @@ Desde https://www.achanvear.site/freelancer/interviews, el perfil de Roberto Car
 | Grupo | Entrevista | Horario de Lima | Ajuste exclusivo |
 | --- | --- | --- | --- |
 | Sustentacion A - Java basico | Teórica | 02/11, 09:00 a. m. | 3 preguntas |
-| Sustentacion A - Java basico | Práctica | 02/11, 09:00 a. m. | Calculadora Java, máximo 5 minutos |
+| Sustentacion A - Java basico | Práctica | 02/11, 09:00 a. m. | Caso correspondiente al puesto, hasta 5 minutos |
 | Sustentacion B - Java basico | Teórica | 02/11, 09:00 a. m. | 3 preguntas |
-| Sustentacion B - Java basico | Práctica | 02/11, 09:00 a. m. | Calculadora Java, máximo 5 minutos |
+| Sustentacion B - Java basico | Práctica | 02/11, 09:00 a. m. | Caso correspondiente al puesto, hasta 5 minutos |
 
 A es el recorrido principal y B queda como alternativa. Las cuatro se conservan programadas: las comprobaciones utilizaron entrevistas adicionales identificadas como verificación. El acceso comienza a las 09:00; la tolerancia habitual de inasistencia sigue siendo de 30 minutos.
 
@@ -21,8 +21,8 @@ Los ajustes se guardan por ID en `interview_presentation_settings` y vencen al t
 
 1. Antes de las 09:00, abrir una ventana de candidato y otra de empresa. Probar personalmente micrófono, permisos de audio y conexión. El servidor pasó una prueba de voz sintética y reconocimiento; esto no sustituye probar el micrófono físico.
 2. A las 09:00, iniciar la teoría A, aceptar el consentimiento y contestar las tres preguntas. Explicar los fundamentos de Java, lectura de datos, operaciones y validaciones que corresponda a cada pregunta.
-3. Iniciar la práctica A. Implementar la calculadora con `Scanner`, dos números y un operador; demostrar suma, resta, multiplicación y división. Controlar divisor cero. El archivo de apoyo [sustentacion/Main.java](sustentacion/Main.java) contiene el ejemplo ejecutado durante la validación.
-4. En «Entrada estándar», probar `8 + 2`, `8 - 2`, `8 * 2`, `8 / 2` y `8 / 0`. El programa lee la entrada del campo, sin requerir una terminal interactiva. Explicar la solución y entregar antes del límite.
+3. Iniciar la practica A y resolver el caso correspondiente al puesto y sus requisitos. La calculadora fue solo una prueba del ejecutor; no es el reto asignado a los profesionales.
+4. Usar las herramientas del area, explicar la solucion y entregar antes del limite. El ejemplo [sustentacion/Main.java](sustentacion/Main.java) se conserva solo como prueba tecnica de consola.
 5. Cambiar a la cuenta de empresa, abrir el candidato en el proceso A y mostrar «Informes de entrevistas». Descargar el PDF teórico, práctico o conjunto. Las notificaciones aparecen al completar cada entrevista; los puntajes corresponden a la evaluación real, sin resultados preasignados.
 
 Proceso A: https://www.achanvear.site/company/pipeline/0bb355c2-1f70-4ce9-b510-44c0e559517b

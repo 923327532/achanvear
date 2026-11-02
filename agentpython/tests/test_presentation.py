@@ -9,6 +9,26 @@ from fastapi import HTTPException
 from shared.agent_access import session_grant
 from practical_voice.workspace import infer_workspace_type, build_workspace_challenge
 from practical_voice.autonomous_agent import _workspace_evidence, _apply_evidence_caps, _evaluation_rules
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
+from practical_voice import router as practical
+from practical_voice.schemas import PracticalSessionStartRequest
+
+
+class RoleChallengeTest(unittest.IsolatedAsyncioTestCase):
+    async def test_presentation_never_replaces_role_challenge_with_calculator(self):
+        request = SimpleNamespace(state=SimpleNamespace(grant={"presentation": {
+            "case_code": "java_calculator", "time_limit_minutes": 5}}))
+        for title in ("Especialista de marketing digital", "Asesor legal", "Analista contable", "Desarrollador Java"):
+            with self.subTest(title=title), patch.object(practical, "get_session", AsyncMock(return_value=None)), patch.object(practical, "update_session", AsyncMock()):
+                expected_type = infer_workspace_type("", title)
+                expected = build_workspace_challenge(expected_type, "", title)
+                result = await practical.start_practical_interview(PracticalSessionStartRequest(
+                    session_id="role-check-"+title, career="", job_title=title), request)
+                self.assertEqual(result.workspace_type, expected_type)
+                self.assertEqual(result.challenge["title"], expected["title"])
+                self.assertNotIn("Calculadora", result.challenge["title"])
+                self.assertEqual(result.time_limit_minutes, 5)
 
 
 class PresentationPolicyTest(unittest.TestCase):
