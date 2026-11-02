@@ -1,8 +1,11 @@
 """Build release images on the VPS without changing running services."""
 from pathlib import Path
 import subprocess
+import zipfile
 
 ROOT = Path('/opt/apps/achanvear/releases/20261102-presentation')
+with zipfile.ZipFile(ROOT/'app.jar') as jar:
+    assert jar.testzip() is None, 'JAR transfer failed integrity validation'
 backend = ROOT / 'backend'
 agent = ROOT / 'agent'
 backend.mkdir(exist_ok=True)

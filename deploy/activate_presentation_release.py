@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 import secrets
 import subprocess
+from urllib.parse import urlparse
 
 ROOT = Path('/opt/apps/achanvear')
 RELEASE = ROOT/'releases/20261102-presentation'
@@ -15,8 +16,10 @@ def environment(path, additions):
     path.write_text('\n'.join(lines + [k+'='+v for k,v in additions.items()])+'\n')
     path.chmod(0o600)
 
-secret = secrets.token_urlsafe(48)
-password = secrets.token_hex(24)
+existing = dict(line.split('=',1) for line in (ROOT/'.env.backend').read_text().splitlines() if '=' in line and not line.startswith('#'))
+secret = existing.get('AGENT_SHARED_SECRET') or secrets.token_urlsafe(48)
+runner = dict(line.split('=',1) for line in (ROOT/'.env.runner').read_text().splitlines() if '=' in line) if (ROOT/'.env.runner').exists() else {}
+password = urlparse(runner['PRACTICAL_POSTGRES_DSN']).password if runner else secrets.token_hex(24)
 environment(ROOT/'.env.backend', {'AGENT_SHARED_SECRET':secret})
 environment(ROOT/'.env.agent', {'AGENT_SHARED_SECRET':secret, 'AGENT_AUTH_REQUIRED':'true'})
 environment(ROOT/'.env.runner', {'PRACTICAL_POSTGRES_DSN':'postgresql://practice:'+password+'@practice-postgres:5432/practice', 'PRACTICAL_MONGODB_URI':'mongodb://practice:'+password+'@practice-mongo:27017/?authSource=admin'})
@@ -34,7 +37,8 @@ services={
  'practice-postgres':dict(image='postgres:17-alpine',restart='unless-stopped',env_file=['.env.practice'],networks=['runner-network'],volumes=['practice_postgres_data:/var/lib/postgresql/data'],healthcheck=dict(test=['CMD','pg_isready','-U','practice','-d','practice'],interval='10s',timeout='5s',retries=10)),
  'practice-mongo':dict(image='mongo:7',restart='unless-stopped',env_file=['.env.practice'],networks=['runner-network'],volumes=['practice_mongo_data:/data/db'],healthcheck=dict(test=['CMD','mongosh','--quiet','--eval','db.adminCommand("ping").ok'],interval='10s',timeout='5s',retries=10))
 }
-compose={'services':services,'volumes':{'redis_data':{},'practice_postgres_data':{},'practice_mongo_data':{}},'networks':{'achanvear-network':{'driver':'bridge'},'runner-network':{'internal':True}}}
+services['ai-agent']['volumes']=['speech_model_cache:/root/.cache/huggingface']
+compose={'services':services,'volumes':{'redis_data':{},'practice_postgres_data':{},'practice_mongo_data':{},'speech_model_cache':{}},'networks':{'achanvear-network':{'driver':'bridge'},'runner-network':{'internal':True}}}
 # JSON is valid YAML. Keep the established compose path/project and existing Redis volume.
 (ROOT/'docker-compose.yml').write_text(json.dumps(compose,indent=2)+'\n')
 with (RELEASE/'activation.log').open('w') as log:

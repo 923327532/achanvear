@@ -4,6 +4,7 @@ COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
 ARG NEXT_PUBLIC_API_URL=http://localhost:8081/api/v1
+ARG NEXT_PUBLIC_AGENT_API_URL=http://localhost:8001
 ARG NEXT_PUBLIC_SITE_URL=http://localhost:3000
 ARG NEXT_PUBLIC_FIREBASE_API_KEY
 ARG NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
