@@ -99,6 +99,7 @@ export function PracticalVoiceInterviewRoom({
   const [newFolderPath, setNewFolderPath] = useState("");
   const [projectFolders, setProjectFolders] = useState<string[]>([]);
   const [selectedFolderPath, setSelectedFolderPath] = useState("");
+  const [collapsedFolders, setCollapsedFolders] = useState<string[]>([]);
   const [languageDialogOpen, setLanguageDialogOpen] = useState(false);
   const [languageSearch, setLanguageSearch] = useState("");
   const [notes, setNotes] = useState("");
@@ -862,11 +863,18 @@ export function PracticalVoiceInterviewRoom({
       });
     });
 
-    return Array.from(nodes.values()).sort((a, b) => {
-      const aKey = a.type === "folder" ? `${a.path}/` : a.path;
-      const bKey = b.type === "folder" ? `${b.path}/` : b.path;
-      return aKey.localeCompare(bKey);
-    });
+    const all = Array.from(nodes.values());
+    const ordered: typeof all = [];
+    function visit(parent: string) {
+      all.filter(item => item.path.split("/").slice(0, -1).join("/") === parent)
+        .sort((a, b) => (a.type === b.type ? a.name.localeCompare(b.name) : a.type === "folder" ? -1 : 1))
+        .forEach(item => {
+          ordered.push(item);
+          if (item.type === "folder" && !collapsedFolders.includes(item.path)) visit(item.path);
+        });
+    }
+    visit("");
+    return ordered;
   }
 
   const languageOptions = [
@@ -953,6 +961,7 @@ export function PracticalVoiceInterviewRoom({
     if (!file) return;
     setActiveFilePath(path);
     setCode(file.content);
+    setCodeLanguage(inferLanguageFromPath(path));
   }
 
   function updateActiveFile(value: string) {
@@ -978,6 +987,7 @@ export function PracticalVoiceInterviewRoom({
     setCodeFiles((current) => [...current, nextFile]);
     setProjectFolders((current) => Array.from(new Set([...current, ...deriveFolders([cleanPath])])).sort((a, b) => a.localeCompare(b)));
     setActiveFilePath(cleanPath);
+    setCollapsedFolders(current => current.filter(folder => !cleanPath.startsWith(`${folder}/`)));
     setCode("");
     setCodeLanguage(language);
     setNewFilePath("");
@@ -1571,7 +1581,14 @@ export function PracticalVoiceInterviewRoom({
                         return (
                           <button
                             key={`${item.type}:${item.path}`}
-                            onClick={() => item.type === "file" ? selectFile(item.path) : setSelectedFolderPath(item.path)}
+                            onClick={() => {
+                              if (item.type === "file") selectFile(item.path);
+                              else {
+                                setSelectedFolderPath(item.path);
+                                setCollapsedFolders(current => current.includes(item.path) ? current.filter(path => path !== item.path) : [...current, item.path]);
+                              }
+                            }}
+                            aria-expanded={item.type === "folder" ? !collapsedFolders.includes(item.path) : undefined}
                             onContextMenu={(event) => {
                               if (item.type !== "folder") return;
                               event.preventDefault();
@@ -1600,7 +1617,7 @@ export function PracticalVoiceInterviewRoom({
                             <span className="flex min-w-0 items-center gap-1.5">
                               {item.type === "folder" ? (
                                 <>
-                                  <ChevronRight className="h-3 w-3 rotate-90 text-slate-500" />
+                                  <ChevronRight className={`h-3 w-3 text-slate-500 ${collapsedFolders.includes(item.path) ? "" : "rotate-90"}`} />
                                   <Folder className="h-3 w-3 text-sky-400" />
                                 </>
                               ) : (

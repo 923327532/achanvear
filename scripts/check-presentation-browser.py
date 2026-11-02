@@ -23,6 +23,7 @@ def main():
         ("JavaScript", "Desarrollador JavaScript", "main.js", "console.log(2+3)", ""),
         ("Java", "Programador Java", "Main.java", "package checks; import java.util.Scanner; public class Main {public static void main(String[] a){Scanner s=new Scanner(System.in);System.out.println(s.nextInt()+s.nextInt());}}", "2 3"),
         ("Csharp", "Programador C#", "Program.cs", "namespace checks { class Program {static void Main(){System.Console.WriteLine(2+3);}} }", ""),
+        ("Fullstack", "Desarrollador fullstack TypeScript", "main.ts", (ROOT / "docs/sustentacion/fullstack/main.ts").read_text(encoding="utf-8"), ""),
         ("Marketing", "Especialista de marketing digital", "", "", ""),
         ("Legal", "Asesor legal", "", "", ""),
         ("Contable", "Analista contable", "", "", ""),
@@ -59,6 +60,11 @@ def main():
                         page.get_by_title("Crear archivo en checks", exact=True).first.click()
                         page.get_by_placeholder("CandidateService.ts", exact=True).fill(filename)
                         page.get_by_role("button", name="Crear", exact=True).click()
+                        if label == "Python":
+                            page.get_by_title("checks", exact=True).click()
+                            expect(page.get_by_title("checks/" + filename, exact=True)).to_have_count(0)
+                            page.get_by_title("checks", exact=True).click()
+                            expect(page.get_by_title("checks/" + filename, exact=True)).to_be_visible()
                         page.wait_for_function("path => window.monaco && window.monaco.editor.getModels().some(m => m.uri.path.endsWith(path))", arg="checks/" + filename, timeout=60000)
                         page.wait_for_timeout(600)
                         page.evaluate("path => window.monaco.editor.getEditors().find(e => e.getModel()?.uri.path.endsWith(path)).focus()", "checks/" + filename)
@@ -66,6 +72,22 @@ def main():
                         page.keyboard.insert_text(code)
                         page.wait_for_function("args => window.monaco.editor.getModels().some(m => m.uri.path.endsWith(args.path) && m.getValue() === args.code)", arg={"path": "checks/" + filename, "code": code})
                         page.wait_for_timeout(300)
+                        if label == "Fullstack":
+                            for source in (ROOT / "docs/sustentacion/fullstack").rglob("*"):
+                                if not source.is_file() or source.name == "main.ts":
+                                    continue
+                                relative = source.relative_to(ROOT / "docs/sustentacion/fullstack").as_posix()
+                                target = "checks/" + relative
+                                page.get_by_title("Crear archivo en checks", exact=True).first.click()
+                                page.get_by_placeholder("CandidateService.ts", exact=True).fill(target)
+                                page.get_by_role("button", name="Crear", exact=True).click()
+                                page.wait_for_function("path => window.monaco && window.monaco.editor.getModels().some(m => m.uri.path.endsWith(path))", arg=target)
+                                page.wait_for_timeout(600)
+                                page.evaluate("path => window.monaco.editor.getEditors().find(e => e.getModel()?.uri.path.endsWith(path)).focus()", target)
+                                page.keyboard.press("Control+A")
+                                page.keyboard.insert_text(source.read_text(encoding="utf-8"))
+                                page.wait_for_timeout(300)
+                            page.get_by_title("checks/main.ts", exact=True).click()
                         page.get_by_label("Entrada del programa", exact=True).click()
                         page.get_by_label("Entrada de terminal", exact=True).fill(stdin)
                         with page.expect_response("**/code-runner/run", timeout=45000) as response:
@@ -74,6 +96,13 @@ def main():
                         if not result["stdout"]:
                             print("Payload de archivo:", response.value.request.post_data_json.get("files"), flush=True)
                         assert result["success"] and "5" in result["stdout"], result
+                        if label == "Fullstack":
+                            assert "12 pruebas TypeScript correctas" in result["stdout"]
+                            page.get_by_title("checks/db/schema.sql", exact=True).click()
+                            with page.expect_response("**/code-runner/run", timeout=45000) as sql_response:
+                                page.get_by_role("button", name="Ejecutar", exact=True).click()
+                            sql_result = sql_response.value.json()
+                            assert sql_result["success"] and "89.50" in sql_result["stdout"], sql_result
                         if label == "Python":
                             separator = page.get_by_role("separator", name="Ajustar altura de la terminal")
                             before = separator.locator("..").bounding_box()["height"]

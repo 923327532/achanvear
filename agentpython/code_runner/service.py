@@ -210,10 +210,12 @@ def _run_project(
     if language == "ruby":
         return _run_process(["ruby", entry], workdir, timeout, "ruby")
     if language == "postgresql":
-        combined_sql = "\n\n".join(("-- " + Path(path).name + "\n" + (workdir / path).read_text(encoding="utf-8")) for path in written)
+        sources = [path for path in written if path.lower().endswith(".sql")]
+        combined_sql = "\n\n".join(("-- " + Path(path).name + "\n" + (workdir / path).read_text(encoding="utf-8")) for path in sources or [entry])
         return _run_postgresql(combined_sql, timeout)
     if language == "mongodb":
-        combined_js = "\n\n".join(("// " + Path(path).name + "\n" + (workdir / path).read_text(encoding="utf-8")) for path in written)
+        sources = [path for path in written if path.lower().endswith((".mongo", ".mongodb")) or path == entry]
+        combined_js = "\n\n".join(("// " + Path(path).name + "\n" + (workdir / path).read_text(encoding="utf-8")) for path in sources)
         return _run_mongodb(combined_js, timeout)
     return _unsupported(language)
 
