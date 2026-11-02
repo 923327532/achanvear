@@ -162,7 +162,7 @@ function PayoutCard({
 
 export function FinancesSection({ profile }: Props) {
   const [currency, setCurrency] = useState<PreferredCurrency>(
-    (profile?.preferredCurrency as PreferredCurrency) ?? "PEN"
+    "PEN"
   );
   const [saved, setSaved] = useState(false);
   const [methodModalOpen, setMethodModalOpen] = useState(false);
@@ -255,9 +255,9 @@ export function FinancesSection({ profile }: Props) {
 
       {/* Moneda preferida */}
       <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
-        <label className="block text-sm font-semibold text-gray-700 mb-3">Moneda Preferida</label>
+        <label className="block text-sm font-semibold text-gray-700 mb-3">Moneda de cobro</label>
         <div className="flex flex-wrap items-center gap-3">
-          {(["PEN", "USD"] as PreferredCurrency[]).map((c) => (
+          {(["PEN"] as PreferredCurrency[]).map((c) => (
             <button
               key={c}
               onClick={() => setCurrency(c)}
@@ -271,6 +271,7 @@ export function FinancesSection({ profile }: Props) {
             </button>
           ))}
         </div>
+        <p className="mt-2 text-xs text-slate-500">Los cobros y retiros se realizan en soles (PEN). No se convierten importes a dólares.</p>
       </div>
 
       {/* Método de retiro */}

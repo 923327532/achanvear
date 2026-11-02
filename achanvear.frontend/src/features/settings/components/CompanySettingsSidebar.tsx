@@ -3,6 +3,7 @@
 
 import { Users, Bot, CreditCard, Eye, Settings, Shield } from "lucide-react";
 import type { CompanySettingsSection } from "../types/company-settings.types";
+import { useCurrentPlan } from "../hooks/useCompanySettings";
 
 interface Props {
   active: CompanySettingsSection;
@@ -19,6 +20,8 @@ const ITEMS: { id: CompanySettingsSection; label: string; description: string; i
 ];
 
 export function CompanySettingsSidebar({ active, onChange }: Props) {
+  const { currentPlan } = useCurrentPlan();
+  const hasAi = !!currentPlan && currentPlan.planType !== "FREE";
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-2 shadow-sm">
       <div className="flex items-center gap-3 overflow-x-auto">
@@ -29,7 +32,7 @@ export function CompanySettingsSidebar({ active, onChange }: Props) {
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Secciones</p>
         </div>
         <div className="flex min-w-max flex-1 gap-1">
-          {ITEMS.map(({ id, label, description, icon: Icon }) => {
+          {ITEMS.filter(({ id }) => hasAi || id !== "agent").map(({ id, label, description, icon: Icon }) => {
             const selected = active === id;
             return (
               <button

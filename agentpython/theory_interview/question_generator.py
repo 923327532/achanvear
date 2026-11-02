@@ -29,11 +29,8 @@ async def generate_questions(
     - Cargo: {job_title}
     - Contexto: {country}
 
-    DISTRIBUCION OBLIGATORIA:
-    - Preguntas 1 a 8: tecnicas y especificas del empleo {job_title}.
-    - Preguntas 9 a 11: psicologicas/laborales.
-    - Preguntas 12 a 13: trabajo en equipo, comunicacion y conflictos.
-    - Preguntas 14 a 15: abiertas para explicar experiencia, logros o propuesta de mejora.
+    DISTRIBUCION:
+    {distribution}
 
     REGLAS:
     - Cada pregunta debe ser clara, directa y responderse en 60-90 segundos.
@@ -62,6 +59,7 @@ async def generate_questions(
             "job_title": job_title or "el puesto",
             "country": country,
             "num_questions": num_questions,
+            "distribution": 'DISTRIBUCION OBLIGATORIA:\n    - Preguntas 1 a 8: tecnicas y especificas del empleo {job_title}.\n    - Preguntas 9 a 11: psicologicas/laborales.\n    - Preguntas 12 a 13: trabajo en equipo, comunicacion y conflictos.\n    - Preguntas 14 a 15: abiertas para explicar experiencia, logros o propuesta de mejora.' if num_questions == 15 else "Esta sesion temporal tiene solo 3 preguntas: fundamentos del puesto, resolucion de un caso sencillo y explicacion de una decision. Devuelve exactamente 3.",
             "format_instructions": parser.get_format_instructions()
         })
 

@@ -65,9 +65,9 @@ def main():
     company, professional = accounts["company"], accounts["professional"]
     seed += f"INSERT INTO companies(id,owner_user_id,business_name,legal_name,industry,specialty,company_size,biography,address,payment_method_type,company_plan,representative_dni,status,created_at,updated_at) VALUES({quote(company['companyId'])},{quote(company['id'])},'Empresa Docker Local','Empresa Docker Local','Software','Java','SMALL_BUSINESS','Empresa ficticia para validacion local','Lima, Peru','CREDIT_CARD','FREE','12345678','VALIDATED',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP) ON CONFLICT(id) DO UPDATE SET company_size=EXCLUDED.company_size,address=EXCLUDED.address;"
     sql(seed)
-    assert sql("SELECT count(*) FROM flyway_schema_history WHERE success") == "75"
+    assert int(sql("SELECT max(version::int) FROM flyway_schema_history WHERE success")) >= 77
     assert request("GET", "/actuator/health")["status"] == "UP"
-    print("PASS: backend health and 75 Flyway migrations")
+    print("PASS: backend health and Flyway migrations through V77")
     for origin in ("http://localhost:3001", "http://localhost:3000"):
         preflight = urllib.request.Request(API + "/auth/login", headers={"Origin": origin, "Access-Control-Request-Method": "POST"}, method="OPTIONS")
         with urllib.request.urlopen(preflight, timeout=10) as response:

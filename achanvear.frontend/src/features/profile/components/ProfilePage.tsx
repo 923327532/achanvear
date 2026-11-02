@@ -9,7 +9,6 @@ import { SkillsSection } from "./SkillsSection";
 import { AchievementsSection } from "./AchievementsSection";
 import { CertificationsSection } from "./CertificationsSection";
 import { PortfolioSection } from "./PortfolioSection";
-import { AIEvaluationsSection } from "./AIEvaluationsSection";
 import { CvManagerSection } from "./CvManagerSection";
 import { toProfileImageUrl } from "@/lib/mediaUrls";
 import { profileApi } from "../api/profileApi";
@@ -433,7 +432,6 @@ export function ProfilePage() {
           <SkillsSection profile={effectiveProfile} />
           <AchievementsSection profile={effectiveProfile} />
           <CertificationsSection profile={effectiveProfile} />
-          <AIEvaluationsSection />
           <CvManagerSection />
 
           <PortfolioSection profile={effectiveProfile} />

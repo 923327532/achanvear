@@ -25,7 +25,8 @@ class InterviewAttemptLockTest {
                     mock(achanvear.peru.interview.infrastructure.external.TextToSpeechClient.class),mock(achanvear.peru.interview.infrastructure.external.S3RecordingClient.class),
                     new achanvear.peru.interview.domain.service.ScoreCalculator(),mock(achanvear.peru.shared.infrastructure.EventPublisher.class),
                     mock(achanvear.peru.jobs.domain.repository.JobPostRepository.class),mock(InterviewScheduleRepository.class),consent,
-                    mock(achanvear.peru.interview.infrastructure.persistence.InterviewEvaluationStore.class),mock(InterviewAttendanceService.class));
+                    mock(achanvear.peru.interview.infrastructure.persistence.InterviewEvaluationStore.class),mock(InterviewAttendanceService.class),
+                    mock(achanvear.peru.shared.application.port.CompanyLookupPort.class),mock(achanvear.peru.interview.application.CompanyInterviewer.class),mock(achanvear.peru.interview.application.port.InterviewSessionSettingsPort.class));
             assertThrows(IllegalStateException.class,()->service.execute(new StartInterviewSessionCommand(interview.getId().toString())));
             if (aborted) assertThrows(IllegalStateException.class,()->service.execute(new CompleteInterviewCommand(interview.getId().toString(),100,null,null)));
             verifyNoInteractions(agent,consent);

@@ -213,6 +213,8 @@ export function ParticipantInfoPanel({ conversation, onClose }: Props) {
               <FieldBlock label="Especialidad" value={company.specialty} />
               <FieldBlock label="Tamaño" value={formatCompanySize(company.companySize)} />
               <FieldBlock label="Descripción" value={company.biography} />
+              {company.email && <FieldBlock label="Correo de contacto" value={company.email} />}
+              {company.phone && <FieldBlock label="Teléfono de contacto" value={company.phone} />}
             </div>
           ) : (
             <div className="space-y-2">

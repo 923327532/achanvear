@@ -15,8 +15,17 @@ public record InterviewReportResponse(
         Totals totals,
         List<QuestionItem> questions,
         List<AnswerItem> answers,
-        List<ViolationItem> violations
+        List<ViolationItem> violations,
+        java.util.Map<String, Object> assessment
 ) {
+    public InterviewReportResponse withCandidateContext(String jobTitle, String candidateName) {
+        var data = new java.util.LinkedHashMap<String, Object>(assessment);
+        data.put("job_title", jobTitle);
+        data.put("candidate_name", candidateName);
+        return new InterviewReportResponse(interviewId, status, interviewType, finalScore, passed,
+                interviewerProfile, assignedSlot, recording, abortReason, totals, questions,
+                answers, violations, data);
+    }
 
     public record InterviewerProfile(
             String name,

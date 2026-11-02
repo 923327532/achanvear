@@ -3,6 +3,12 @@ import api, { parseResponse } from "@/lib/axiosClient";
 import type { ApiResponse } from "@/features/auth/types/auth.types";
 import type { CvInfo, CvGeneratedResponse, CvEditSectionRequest } from "../types/cv.types";
 
+function cleanCvFileName(url: string): string {
+  let name = url.split("?")[0].split("/").pop() || "curriculum.pdf";
+  try { name = decodeURIComponent(name); } catch { /* Preserve filenames containing a literal percent sign. */ }
+  return name.replace(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}[-_]/i, "");
+}
+
 export const cvApi = {
   /**
    * Genera un CV con IA usando los datos del perfil del freelancer.
@@ -47,10 +53,10 @@ export const cvApi = {
     return {
       status: profile.curriculumUrl ? "uploaded" : (hasCvData ? "generated" : "none"),
       source: hasCvData ? "ai" : (profile.curriculumSource ?? "manual"),
-      lastUpdated: profile.curriculumUpdatedAt ?? (hasCvData ? new Date().toISOString() : null),
+      lastUpdated: profile.curriculumUpdatedAt ?? null,
       url: profile.curriculumUrl ?? null,
       fileName: profile.curriculumUrl
-        ? profile.curriculumUrl.split("/").pop() ?? "curriculum.pdf"
+        ? cleanCvFileName(profile.curriculumUrl)
         : (hasCvData ? "CV_Generado.pdf" : null),
       cvData: hasCvData ? parsedCvData : null,
     };

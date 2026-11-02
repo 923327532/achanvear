@@ -7,6 +7,8 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class ProfileApplicationMapper {
+    private final achanvear.peru.profile.application.ProfileCvAccess cvAccess;
+    public ProfileApplicationMapper(achanvear.peru.profile.application.ProfileCvAccess cvAccess) { this.cvAccess = cvAccess; }
 
     public TalentProfileResponse toResponse(TalentProfile profile) {
         return new TalentProfileResponse(
@@ -17,7 +19,7 @@ public class ProfileApplicationMapper {
                 profile.getBiography(),
                 profile.getLocation(),
                 profile.getProfilePhotoUrl(),
-                profile.getCurriculumUrl(),
+                cvAccess.canView(profile.getUserId()) ? profile.getCurriculumUrl() : null,
                 profile.getStatus().name(),
                 new ReputationScoreResponse(
                         profile.getReputationScore().averageStars(),

@@ -1,4 +1,5 @@
 from practical_voice.schemas import PracticalWorkspaceType
+import unicodedata
 
 
 TECH_KEYWORDS = (
@@ -28,7 +29,7 @@ TECH_KEYWORDS = (
 )
 
 LEGAL_KEYWORDS = ("legal", "abogado", "derecho", "compliance", "contrato")
-ACCOUNTING_KEYWORDS = ("contabilidad", "contador", "finanzas", "tributario", "auditoria")
+ACCOUNTING_KEYWORDS = ("contabilidad", "contador", "contable", "contaduria", "finanzas", "tributario", "auditoria")
 HEALTH_KEYWORDS = ("salud", "medicina", "medico", "doctor", "odontologia", "odontologo", "dental", "dentista")
 MARKETING_KEYWORDS = ("marketing", "seo", "sem", "contenido", "redes", "social", "comunicacion", "marca", "growth", "digital")
 SALES_KEYWORDS = ("ventas", "comercial", "business", "negocio", "account", "cliente", "crm")
@@ -118,8 +119,11 @@ def _tech_profile(career: str, job_title: str) -> str:
 
 
 def infer_workspace_type(career: str, job_title: str) -> PracticalWorkspaceType:
-    text = f"{career} {job_title}".lower()
-    if any(word in text for word in TECH_KEYWORDS):
+    normalize = lambda value: "".join(c for c in unicodedata.normalize("NFKD", value.lower()) if not unicodedata.combining(c))
+    title = normalize(job_title)
+    text = normalize(f"{career} {job_title}")
+    explicit_programming = ("programador", "developer", "desarrollador", "software", "frontend", "backend", "devops", "python", "java", "typescript", "programacion")
+    if any(word in title for word in explicit_programming):
         return PracticalWorkspaceType.CODING
     if any(word in text for word in LEGAL_KEYWORDS):
         return PracticalWorkspaceType.DOCUMENT_REVIEW
@@ -131,6 +135,8 @@ def infer_workspace_type(career: str, job_title: str) -> PracticalWorkspaceType:
         return PracticalWorkspaceType.SIMULATION
     if any(word in text for word in SALES_KEYWORDS):
         return PracticalWorkspaceType.SIMULATION
+    if any(word in text for word in TECH_KEYWORDS):
+        return PracticalWorkspaceType.CODING
     return PracticalWorkspaceType.SIMULATION
 
 
@@ -141,6 +147,20 @@ def build_workspace_challenge(
 ) -> dict:
     if workspace_type == PracticalWorkspaceType.CODING:
         title = job_title.splitlines()[0].lower()
+        if "python" in title:
+            starter = "def filtrar_postulantes(postulantes, puntaje_minimo=75):\n    # Valida los datos y devuelve los postulantes que cumplen el puntaje.\n    pass\n\nif __name__ == '__main__':\n    # Agrega ejemplos y pruebas de casos borde.\n    pass\n"
+            return {
+                "title": "Python: validacion y filtrado de postulantes",
+                "workspace_tool": "code_project",
+                "interviewer_profile": interviewer_profile(workspace_type, career, job_title),
+                "language": "python", "entry_file": "main.py", "job_context": job_title,
+                "prompt": ("Implementa en Python una funcion que reciba una lista de postulantes con nombre y puntaje, "
+                           "valide los datos y devuelva quienes alcancen el puntaje minimo. Maneja una lista vacia, "
+                           "puntajes invalidos y el limite exacto. Agrega pruebas y explica tus decisiones. Puesto: " + job_title),
+                "files": [{"path": "main.py", "language": "python", "content": starter}],
+                "starter_code": starter,
+                "expected_output": ["Filtrado correcto", "Validacion de datos", "Casos borde probados", "Explicacion de la solucion"],
+            }
         if "java" in title and "javascript" not in title:
             return {
                 "title": "Java: servicio para una API de postulaciones",

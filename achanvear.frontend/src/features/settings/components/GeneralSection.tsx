@@ -2,11 +2,12 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Globe, Clock, Loader2, Check } from "lucide-react";
 import { useUpdateGeneralSettings } from "../hooks/useSettings";
 
 const LANGUAGES = [
-  { value: "es-PE", label: "Español (Perú) - Aplica leyes laborales peruanas" },
+  { value: "es-PE", label: "Español (Perú)" },
   { value: "en-US", label: "English (US)" },
 ];
 
@@ -31,6 +32,7 @@ export function GeneralSection({ profile }: Props) {
   const [language, setLanguage] = useState(profile?.language ?? "es-PE");
   const [timezone, setTimezone] = useState(profile?.timezone ?? "UTC-5");
   const [generalSaved, setGeneralSaved] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const { updateAsync: updateGeneral, isLoading: savingGeneral } = useUpdateGeneralSettings(profile);
 
@@ -38,13 +40,17 @@ export function GeneralSection({ profile }: Props) {
   const selectClass = "w-full min-w-0 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-[#0EA5A0]/30 focus:border-[#0EA5A0] transition-colors";
 
   const handleSaveGeneral = async () => {
-    await updateGeneral({ language, timezone });
-    setGeneralSaved(true);
-    setTimeout(() => setGeneralSaved(false), 2000);
+    setSaveError(null);
+    try {
+      await updateGeneral({ language, timezone });
+      setGeneralSaved(true);
+      setTimeout(() => setGeneralSaved(false), 2000);
+    } catch (error) { setSaveError(error instanceof Error ? error.message : "No se pudo guardar la configuración"); }
   };
 
   return (
     <div className="space-y-5">
+      {saveError && <p role="alert" className="text-sm text-red-600">{saveError}</p>}
 
       {/* Configuración General */}
       {/* RESPONSIVE: p-4 en celular, p-6 desde sm */}
@@ -55,13 +61,13 @@ export function GeneralSection({ profile }: Props) {
         <div>
           <div className="flex items-center gap-2 mb-1.5">
             <Globe className="w-4 h-4 flex-shrink-0 text-gray-400" />
-            <label className="text-sm font-semibold text-gray-700">Idioma y Región</label>
+            <label className="text-sm font-semibold text-gray-700">Formato regional de fechas</label>
           </div>
           <select value={language} onChange={(e) => setLanguage(e.target.value)} className={selectClass}>
             {LANGUAGES.map((l) => <option key={l.value} value={l.value}>{l.label}</option>)}
           </select>
           {language === "es-PE" && (
-            <p className="text-xs text-gray-400 mt-1">El sistema aplicará normativas laborales peruanas (Sunat, beneficios de ley)</p>
+            <p className="text-xs text-gray-400 mt-1">Las fechas de tus entrevistas usan el formato regional seleccionado. La interfaz está disponible en español.</p>
           )}
         </div>
 
@@ -74,7 +80,7 @@ export function GeneralSection({ profile }: Props) {
           <select value={timezone} onChange={(e) => setTimezone(e.target.value)} className={selectClass}>
             {TIMEZONES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
           </select>
-          <p className="text-xs text-gray-400 mt-1">Sincronización con el Scheduler para que las llamadas de Vapi no ocurran de madrugada</p>
+          <p className="text-xs text-gray-400 mt-1">Los horarios de tus entrevistas se muestran en la zona horaria seleccionada.</p>
         </div>
       </div>
 
@@ -86,15 +92,16 @@ export function GeneralSection({ profile }: Props) {
           <p className="text-xs text-[#0EA5A0] mb-3">Según la ley peruana de protección de datos, tienes derecho a:</p>
           <div className="space-y-2">
             {ARCO_RIGHTS.map((right) => (
-              <button
+              <div
                 key={right}
-                className="flex items-center gap-3 w-full text-left py-2 text-sm text-gray-600 hover:text-[#1B3A6B] transition-colors group"
+                className="flex items-center gap-3 w-full text-left py-2 text-sm text-gray-600"
               >
                 <div className="w-4 h-4 rounded-full border-2 border-gray-300 group-hover:border-[#0EA5A0] flex-shrink-0 transition-colors" />
                 <span className="min-w-0 break-words">{right}</span>
-              </button>
+              </div>
             ))}
           </div>
+          <Link href="/privacy" className="mt-3 inline-block text-sm text-[#1B3A6B] underline">Consulta cómo ejercer tus derechos en la política de privacidad</Link>
         </div>
       </div>
 

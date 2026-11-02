@@ -189,7 +189,8 @@ public class CompanyController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "createdAt") String sortBy,
-            @RequestParam(defaultValue = "DESC") String sortDirection
+            @RequestParam(defaultValue = "DESC") String sortDirection,
+            Authentication authentication
     ) {
         CompanyListQuery query = new CompanyListQuery(
                 search,
@@ -200,7 +201,8 @@ public class CompanyController {
                 page,
                 size,
                 sortBy,
-                sortDirection
+                sortDirection,
+                authenticatedUserResolver.resolve(authentication).superAdmin()
         );
 
         CompanyPageResponse response = listCompaniesUseCase.execute(query);
@@ -291,20 +293,22 @@ public class CompanyController {
 
     // Pendiente #1 — Agente IA de empresa
     @GetMapping("/agent-settings")
-    @PreAuthorize("hasAnyAuthority('COMPANY', 'COMPANY_COLLABORATOR', 'SUPERADMIN')")
+    @PreAuthorize("hasAnyAuthority('COMPANY', 'COMPANY_COLLABORATOR', 'SUPERADMIN') and @companyAiAccess.allowed(authentication)")
     public ResponseEntity<ApiResponse<AgentSettingsResponse>> getAgentSettings(Authentication authentication) {
         CompanyJpaEntity company = resolveCompanyFor(authentication);
         return ResponseEntity.ok(ApiResponse.success(toAgentSettingsResponse(company), "Agent settings retrieved successfully"));
     }
 
     @PatchMapping("/agent-settings")
-    @PreAuthorize("hasAnyAuthority('COMPANY', 'COMPANY_COLLABORATOR', 'SUPERADMIN')")
+    @PreAuthorize("hasAnyAuthority('COMPANY', 'COMPANY_COLLABORATOR', 'SUPERADMIN') and @companyAiAccess.allowed(authentication)")
     public ResponseEntity<ApiResponse<AgentSettingsResponse>> updateAgentSettings(
             @RequestBody AgentSettingsRequest request,
             Authentication authentication
     ) {
         CompanyJpaEntity company = resolveCompanyFor(authentication);
         if (request.selectedAgentId() != null && !request.selectedAgentId().isBlank()) {
+            if (!java.util.Set.of("carlos", "ana", "diego", "sofia").contains(request.selectedAgentId().trim()))
+                throw new IllegalArgumentException("Selecciona un agente del catálogo disponible");
             company.setAiAgentId(request.selectedAgentId().trim());
         }
         if (request.matchScoreThreshold() != null) {

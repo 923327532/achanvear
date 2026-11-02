@@ -60,7 +60,7 @@ export function CompanyGeneralSection() {
         <div>
           <h2 className="text-lg font-bold text-[#1B3A6B]">Configuración General</h2>
           <p className="text-sm text-gray-500 mt-1">
-            Preferencias de idioma y zona horaria
+            Formato regional de fechas y zona horaria. La interfaz está disponible en español.
           </p>
         </div>
 
@@ -77,7 +77,7 @@ export function CompanyGeneralSection() {
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-1.5">
               <Globe className="w-4 h-4 inline mr-1.5 text-gray-400" />
-              Idioma
+              Formato regional de fechas
             </label>
             <select
               value={language}

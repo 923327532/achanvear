@@ -22,12 +22,18 @@ public class TechnicalInterviewDoneHandler {
     private final BrevoEmailClient brevoEmailClient;
     private final IdentityCandidateLookupPort candidateLookupPort;
 
+    private final achanvear.peru.jobs.domain.repository.JobPostRepository jobs;
+    private final achanvear.peru.shared.application.port.CompanyLookupPort companies;
+
     public TechnicalInterviewDoneHandler(
             BrevoEmailClient brevoEmailClient,
-            IdentityCandidateLookupPort candidateLookupPort
+            IdentityCandidateLookupPort candidateLookupPort,
+            achanvear.peru.jobs.domain.repository.JobPostRepository jobs,
+            achanvear.peru.shared.application.port.CompanyLookupPort companies
     ) {
         this.brevoEmailClient = brevoEmailClient;
         this.candidateLookupPort = candidateLookupPort;
+        this.jobs = jobs; this.companies = companies;
     }
 
     @EventListener
@@ -43,10 +49,16 @@ public class TechnicalInterviewDoneHandler {
 
             String candidateName = candidate.fullName() != null ? candidate.fullName() : "Candidato";
 
+            var owner = jobs.findById(achanvear.peru.jobs.domain.model.JobPostId.from(event.jobId()))
+                    .flatMap(job -> companies.findById(job.getCompanyId()))
+                    .map(company -> candidateLookupPort.findById(company.ownerUserId()));
+            if (owner.isEmpty() || owner.get().email() == null || owner.get().email().isBlank()) return;
+            String companyEmail = owner.get().email();
+            candidateName = org.springframework.web.util.HtmlUtils.htmlEscape(candidateName);
             if (event.approved()) {
-                sendApprovedToCompany(candidate.email(), candidateName, event);
+                sendApprovedToCompany(candidate.email(), candidateName, event, companyEmail);
             } else {
-                sendRejectedToCompany(candidate.email(), candidateName, event);
+                sendRejectedToCompany(candidate.email(), candidateName, event, companyEmail);
             }
 
         } catch (Exception e) {
@@ -55,7 +67,7 @@ public class TechnicalInterviewDoneHandler {
         }
     }
 
-    private void sendApprovedToCompany(String candidateEmail, String candidateName, TechnicalInterviewDoneEvent event) {
+    private void sendApprovedToCompany(String candidateEmail, String candidateName, TechnicalInterviewDoneEvent event, String companyEmail) {
         String subject = "Candidato aprobado - " + candidateName + " para " + event.jobId() + " - Achanvear";
 
         String htmlContent = """
@@ -78,10 +90,8 @@ public class TechnicalInterviewDoneHandler {
                 </html>
                 """.formatted(candidateName, event.jobId(), event.score(), candidateEmail);
 
-        // Por ahora enviamos al email del candidato como referencia.
-        // En el futuro se debe obtener el email de la empresa desde el JobPost.
         try {
-            brevoEmailClient.sendEmail(candidateEmail, subject, htmlContent);
+            brevoEmailClient.sendEmail(companyEmail, subject, htmlContent);
             log.info("Notificacion de candidato aprobado enviada para {} en proceso {}", 
                      candidateEmail, event.hiringProcessId());
         } catch (Exception e) {
@@ -89,7 +99,7 @@ public class TechnicalInterviewDoneHandler {
         }
     }
 
-    private void sendRejectedToCompany(String candidateEmail, String candidateName, TechnicalInterviewDoneEvent event) {
+    private void sendRejectedToCompany(String candidateEmail, String candidateName, TechnicalInterviewDoneEvent event, String companyEmail) {
         String subject = "Candidato no aprobado - " + candidateName + " para " + event.jobId() + " - Achanvear";
 
         String htmlContent = """
@@ -112,7 +122,7 @@ public class TechnicalInterviewDoneHandler {
                 """.formatted(candidateName, event.jobId(), event.score());
 
         try {
-            brevoEmailClient.sendEmail(candidateEmail, subject, htmlContent);
+            brevoEmailClient.sendEmail(companyEmail, subject, htmlContent);
             log.info("Notificacion de candidato no aprobado enviada para {} en proceso {}", 
                      candidateEmail, event.hiringProcessId());
         } catch (Exception e) {

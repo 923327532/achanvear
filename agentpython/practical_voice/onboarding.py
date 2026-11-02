@@ -7,6 +7,9 @@ def normalized(text: str) -> str:
 
 
 def confirmed(text: str) -> bool:
+    # A question containing "si", "listo" or "puedo" is not consent to start.
+    if '?' in text or re.match(r'^(como|que|cual|cuando|donde|puedo|podria|debo)\b', normalized(text)):
+        return False
     value = re.sub(r'[^\w\s]', ' ', normalized(text))
     value = re.sub(r'\s+', ' ', value).strip()
     if re.search(r'\bno (soy|confirmo|acepto|estoy listo|estoy lista|es correcto|quiero|he entendido)\b|\b(incorrecto|equivocado)\b', value):

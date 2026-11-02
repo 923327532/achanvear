@@ -12,6 +12,7 @@ import {
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { useProtectedRoute } from "@/shared/hooks/useProtectedRoute";
 import { useCompanyDashboard } from "@/features/jobs/hooks/useCompanyDashboard";
+import { useConversations } from "@/features/chat/hooks/useChat";
 import { useNotifications } from "@/features/notifications/hooks/useNotifications";
 import { ConfirmModal } from "@/shared/components/ui/ConfirmModal";
 import { homeRouteForRole } from "@/lib/constants";
@@ -59,6 +60,8 @@ export default function CompanyLayout({ children }: { children: React.ReactNode 
 
   const { hasCompany, isLoading, data: dashboard } = useCompanyDashboard();
   const { unreadCount } = useNotifications();
+  const { conversations } = useConversations();
+  const unreadMessages = conversations.reduce((total, conversation) => total + conversation.unreadCount, 0);
 
   const companyName = dashboard?.companyName ?? "Mi Empresa";
   const companyTradeName = dashboard?.companyTradeName ?? "";
@@ -90,7 +93,7 @@ export default function CompanyLayout({ children }: { children: React.ReactNode 
         : pathname.startsWith(item.href);
 
     const Icon = item.icon;
-    const badgeCount = item.href === "/company/notifications" ? unreadCount : 0;
+    const badgeCount = item.href === "/company/notifications" ? unreadCount : item.href === "/company/chat" ? unreadMessages : 0;
 
     return (
       <Link
@@ -251,7 +254,7 @@ export default function CompanyLayout({ children }: { children: React.ReactNode 
                 ? pathname === "/company"
                 : pathname.startsWith(item.href);
             const Icon = item.icon;
-            const badgeCount = item.href === "/company/notifications" ? unreadCount : 0;
+            const badgeCount = item.href === "/company/notifications" ? unreadCount : item.href === "/company/chat" ? unreadMessages : 0;
 
             return (
               <Link

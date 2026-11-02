@@ -31,7 +31,8 @@ async def start_theory_interview(req: StartRequest):
     if state.questions and state.stage != InterviewStage.THEORY:
         raise HTTPException(409, "Esta sesion ya avanzo a otra etapa")
     if not state.questions:
-        questions = await generate_questions(req.career, req.job_title)
+        count = state.presentation.get("question_count", 15)
+        questions = await generate_questions(req.career, req.job_title, num_questions=count) if count != 15 else await generate_questions(req.career, req.job_title)
         if not questions:
             raise HTTPException(503, "No se pudieron generar preguntas. Reintenta.")
         state.questions = questions
@@ -111,15 +112,21 @@ async def get_theory_result(session_id: str):
         raise HTTPException(404, f"Session {session_id} not found")
     if not state.questions or state.current_q < len(state.questions):
         raise HTTPException(409, "Debes responder todas las preguntas antes de finalizar")
+    if len(state.answers) != len(state.questions) or len(state.scores) != len(state.questions):
+        raise HTTPException(409, "La evidencia de respuestas está incompleta; requiere revisión")
 
     avg_score = sum(state.scores) / len(state.scores) if state.scores else 0
     state.theory_score = avg_score
+    if not state.theory_evaluation:
+        from theory_interview.final_report import build_theory_report
+        state.theory_evaluation = await build_theory_report(state)
     await update_session(state)
 
     return {
         "session_id": session_id,
         "theory_score": round(avg_score, 2),
         "scores_detail": state.scores,
+        "evaluation": state.theory_evaluation,
     }
 
 

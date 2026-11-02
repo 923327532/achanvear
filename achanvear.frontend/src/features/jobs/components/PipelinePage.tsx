@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { jobApi } from "../api/jobApi";
 import { CandidateDrawer } from "./CandidateDrawer";
+import { useCurrentPlan } from "@/features/settings/hooks/useCompanySettings";
 import {
   ArrowLeft,
   Users,
@@ -297,6 +298,8 @@ function CandidateListCard({
 // ─── Página Principal ─────────────────────────────────────────────────────────
 
 export function PipelinePage() {
+  const { currentPlan } = useCurrentPlan();
+  const hasAi = !!currentPlan && currentPlan.planType !== "FREE";
   const params = useParams();
   const jobId = params?.jobId as string;
 
@@ -393,6 +396,23 @@ export function PipelinePage() {
       </div>
     );
   }
+
+  if (!hasAi) return (
+    <div className="space-y-5 p-4 sm:p-6 lg:p-8">
+      <Link href="/company/pipeline" className="text-sm text-blue-800">Volver a publicaciones</Link>
+      <h1 className="text-2xl font-bold text-[#1e3a8a]">Selección manual</h1>
+      <p className="text-sm text-slate-600">{job?.title} · Revisa los perfiles y aprueba o descarta cada postulación.</p>
+      {allCandidates.length === 0 && <p className="text-slate-500">Todavía no hay postulaciones.</p>}
+      <div className="grid gap-4 sm:grid-cols-2">
+        {allCandidates.map(candidate => <div key={candidate.id} className="rounded-xl border border-slate-200 bg-white p-5">
+          <h2 className="font-semibold text-slate-900">{candidate.name}</h2>
+          <p className="mt-1 text-sm text-slate-500">{getStatusLabel(candidate.status)}</p>
+          <button onClick={() => setSelectedCandidate(candidate)} className="mt-4 rounded-lg bg-blue-900 px-4 py-2 text-sm font-semibold text-white">Revisar candidato</button>
+        </div>)}
+      </div>
+      {selectedCandidate && <CandidateDrawer jobId={jobId} applicationId={selectedCandidate.id} onClose={() => setSelectedCandidate(null)} />}
+    </div>
+  );
 
   return (
     <div className="space-y-6 p-4 sm:p-6 lg:p-8">

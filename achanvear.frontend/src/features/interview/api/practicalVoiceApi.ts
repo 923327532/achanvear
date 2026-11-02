@@ -34,6 +34,9 @@ export interface PracticalChallenge {
 }
 
 export interface StartPracticalRequest {
+  interviewer_code?: string;
+  interviewer_name?: string;
+  interviewer_style?: string;
   session_id: string;
   career: string;
   job_title: string;
@@ -69,6 +72,23 @@ export interface FinishPracticalResponse {
 
 const AGENT_BASE_URL = process.env.NEXT_PUBLIC_AGENT_API_URL ?? "http://localhost:8001";
 
+const sessionTokens = new Map<string, string>();
+
+export function authorizePracticalSession(sessionId: string, token: string) {
+  sessionTokens.set(sessionId, token);
+}
+
+export async function practicalCapabilities(sessionId: string): Promise<string[]> {
+  const response = await fetch(`${AGENT_BASE_URL}/code-runner/capabilities?session_id=${encodeURIComponent(sessionId)}`, { headers: agentHeaders(sessionId) });
+  if (!response.ok) throw new Error("No se pudieron consultar los lenguajes instalados");
+  const result = await response.json() as { languages: Array<{ language: string; available: boolean }> };
+  return result.languages.filter(item => item.available).map(item => item.language);
+}
+
+function agentHeaders(sessionId: string) {
+  return { "Content-Type": "application/json", Authorization: `Bearer ${sessionTokens.get(sessionId) ?? ""}` };
+}
+
 function validateAgentConnection() {
   if (typeof window === "undefined") return;
   const agent = new URL(AGENT_BASE_URL);
@@ -84,7 +104,8 @@ function validateAgentConnection() {
 export function practicalWsUrl(path: string) {
   validateAgentConnection();
   const base = AGENT_BASE_URL.replace(/^http/, "ws").replace(/\/$/, "");
-  return `${base}${path}`;
+  const id = path.split("/").pop() ?? "";
+  return `${base}${path}?access_token=${encodeURIComponent(sessionTokens.get(id) ?? "")}`;
 }
 
 export async function startPracticalInterview(
@@ -95,7 +116,7 @@ export async function startPracticalInterview(
   try {
     response = await fetch(`${AGENT_BASE_URL}/practical-interview/start`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: agentHeaders(request.session_id),
     body: JSON.stringify(request),
       signal: AbortSignal.timeout(15000),
     });
@@ -114,7 +135,7 @@ export async function reportPracticalViolation(data: {
 }) {
   await fetch(`${AGENT_BASE_URL}/practical-interview/violation`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: agentHeaders(data.session_id),
     body: JSON.stringify(data),
   });
 }
@@ -128,7 +149,7 @@ export async function finishPracticalInterview(data: {
 }): Promise<FinishPracticalResponse> {
   const response = await fetch(`${AGENT_BASE_URL}/practical-interview/finish`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: agentHeaders(data.session_id),
     body: JSON.stringify(data),
   });
   if (!response.ok) throw new Error("No se pudo finalizar la entrevista practica");
@@ -136,6 +157,8 @@ export async function finishPracticalInterview(data: {
 }
 
 export async function runPracticalCode(data: {
+  session_id: string;
+  stdin?: string;
   language: string;
   code: string;
   files?: PracticalCodeFile[];
@@ -145,7 +168,7 @@ export async function runPracticalCode(data: {
 }) {
   const response = await fetch(`${AGENT_BASE_URL}/code-runner/run`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: agentHeaders(data.session_id),
     body: JSON.stringify(data),
   });
   if (!response.ok) throw new Error("No se pudo ejecutar el codigo");

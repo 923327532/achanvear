@@ -1,4 +1,4 @@
-package achanvear.peru.interview.infrastructure.external;
+package achanvear.peru.interview.application.port;
 
 import achanvear.peru.interview.domain.model.Interview;
 import achanvear.peru.interview.domain.model.Question;
@@ -8,6 +8,15 @@ import achanvear.peru.interview.domain.model.Question;
  * Spring Boot orquesta, Python hace la IA.
  */
 public interface AiInterviewerClient {
+    java.util.Map<String, Object> createPythonSession(
+            String candidateId, String jobId, String career, String jobTitle, String phone, String email);
+
+    java.util.Map<?, ?> getPracticalEvaluation(String interviewId);
+
+    default java.util.Map<String, Object> createPythonSession(String candidateId, String jobId,
+            String career, String jobTitle, String phone, String email, java.util.Map<String, Object> presentation) {
+        return createPythonSession(candidateId, jobId, career, jobTitle, phone, email);
+    }
 
     // ── Theory Interview ────────────────────────────────────────────────
 
@@ -44,8 +53,13 @@ public interface AiInterviewerClient {
             double theory_score,
             boolean passed,
             Object scores_detail,
-            String next_stage
-    ) {}
+            String next_stage,
+            java.util.Map<String, Object> evaluation
+    ) {
+        public TheoryResultResponse(String sessionId, double score, boolean passed, Object scores, String next) {
+            this(sessionId, score, passed, scores, next, java.util.Map.of());
+        }
+    }
 
     TheoryResultResponse completeTheoryInterview(String sessionId);
 

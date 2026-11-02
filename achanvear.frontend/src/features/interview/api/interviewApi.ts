@@ -20,8 +20,8 @@ export const interviewApi = {
   registerAttendance: async (interviewId: string): Promise<void> => {
     await api.post(`/interviews/${interviewId}/attendance`);
   },
-  getJobContext: async (interviewId: string): Promise<{ title: string; description: string; requirements: string; candidateName?: string }> =>
-    parseResponse(await api.get<ApiResponse<{ title: string; description: string; requirements: string; candidateName?: string }>>(`/interviews/${interviewId}/job-context`)),
+  getJobContext: async (interviewId: string): Promise<{ title: string; description: string; requirements: string; agentAccessToken?: string; candidateName?: string; interviewerCode?: string; interviewerName?: string; interviewerStyle?: string }> =>
+    parseResponse(await api.get<ApiResponse<{ title: string; description: string; requirements: string; agentAccessToken?: string; candidateName?: string; interviewerCode?: string; interviewerName?: string; interviewerStyle?: string }>>(`/interviews/${interviewId}/job-context`)),
   // POST /interviews/schedule — agendar una entrevista
   schedule: async (payload: ScheduleInterviewPayload): Promise<InterviewSessionResponse> => {
     const response = await api.post<ApiResponse<InterviewSessionResponse>>("/interviews/schedule", payload);

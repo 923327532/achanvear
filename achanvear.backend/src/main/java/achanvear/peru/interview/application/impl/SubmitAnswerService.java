@@ -10,7 +10,7 @@ import achanvear.peru.interview.domain.model.InterviewId;
 import achanvear.peru.interview.domain.model.Question;
 import achanvear.peru.interview.domain.repository.InterviewRepository;
 import achanvear.peru.interview.domain.service.InterviewSlotManager;
-import achanvear.peru.interview.infrastructure.external.AiInterviewerClient;
+import achanvear.peru.interview.application.port.AiInterviewerClient;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 

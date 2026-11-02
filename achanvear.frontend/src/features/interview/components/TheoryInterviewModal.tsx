@@ -1,5 +1,6 @@
 // features/interview/components/TheoryInterviewModal.tsx
 "use client";
+import { downloadInterviewReportPdf } from "../lib/interviewReportPdf";
 
 import { useState, useCallback } from "react";
 import { useStartInterview, useSubmitAnswer, useCompleteInterview } from "../hooks/useFreelancerInterviews";
@@ -95,14 +96,7 @@ export function TheoryInterviewModal({ interviewId, onClose, onComplete }: Props
   const handleDownloadReport = (reportToDownload = report) => {
     if (!reportToDownload) return;
 
-    const payload = JSON.stringify(reportToDownload, null, 2);
-    const blob = new Blob([payload], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `reporte-entrevista-teorica-${interviewId}.json`;
-    link.click();
-    URL.revokeObjectURL(url);
+    void downloadInterviewReportPdf({ candidateName: "Candidato", reports: [reportToDownload] });
   };
 
   return (

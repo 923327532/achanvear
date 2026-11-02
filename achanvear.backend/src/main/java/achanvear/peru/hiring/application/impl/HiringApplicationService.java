@@ -29,21 +29,25 @@ public class HiringApplicationService implements
     private final HiringProcessFactory hiringProcessFactory;
     private final AiScreeningClient aiScreeningClient;
     private final EventPublisher eventPublisher;
+    private final achanvear.peru.payments.application.CompanyAiAccess aiAccess;
 
     public HiringApplicationService(
             HiringProcessRepository hiringProcessRepository,
             HiringProcessFactory hiringProcessFactory,
             AiScreeningClient aiScreeningClient,
-            EventPublisher eventPublisher
+            EventPublisher eventPublisher,
+            achanvear.peru.payments.application.CompanyAiAccess aiAccess
     ) {
         this.hiringProcessRepository = hiringProcessRepository;
         this.hiringProcessFactory = hiringProcessFactory;
         this.aiScreeningClient = aiScreeningClient;
         this.eventPublisher = eventPublisher;
+        this.aiAccess = aiAccess;
     }
 
     @Override
     public ScreeningResultResponse execute(StartScreeningCommand command) {
+        aiAccess.requireJob(command.jobId());
         HiringProcess hiringProcess = hiringProcessFactory.create(
                 command.jobId(),
                 command.candidateId()

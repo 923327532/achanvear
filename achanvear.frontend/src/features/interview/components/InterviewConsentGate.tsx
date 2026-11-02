@@ -36,8 +36,8 @@ export function InterviewConsentGate({
   };
 
   return (
-    <div className="flex-1 flex items-center justify-center p-8 overflow-y-auto">
-      <div className="max-w-xl w-full bg-[#2D3A50] rounded-2xl p-8 shadow-xl border border-slate-600/50">
+    <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6">
+      <div className="max-w-xl w-full mx-auto bg-[#2D3A50] rounded-2xl p-4 sm:p-6 shadow-xl border border-slate-600/50">
         <div className="text-center mb-6">
           <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[#3B82F6] to-[#1D4ED8] flex items-center justify-center mx-auto mb-4">
             <Mic className="w-10 h-10 text-white" />

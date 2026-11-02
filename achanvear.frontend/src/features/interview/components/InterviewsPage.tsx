@@ -4,6 +4,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { interviewEntryState, parseInterviewTime, sameInterviewAppointment } from "../lib/entryWindow";
 import { useQuery } from "@tanstack/react-query";
+import { useDisplayPreferences } from "@/shared/hooks/useDisplayPreferences";
+import { displayLocale, displayTimeZone } from "@/lib/displayPreferences";
 import { Calendar, Clock, User, Play, Video, Briefcase, Loader2, Eye, ChevronRight, CheckCircle2, BookOpen, Code2, ClipboardCheck, X } from "lucide-react";
 import { InterviewRoom } from "./InterviewRoom";
 import { PracticalVoiceInterviewRoom } from "./PracticalVoiceInterviewRoom";
@@ -61,8 +63,8 @@ const formatScheduleDateTime = (dateTime?: string) => {
   if (!dateTime) return "Fecha por confirmar";
   const parsed = parseScheduleDateTime(dateTime);
   if (!parsed) return dateTime;
-  return parsed.toLocaleString("es-PE", {
-    timeZone: "America/Lima",
+  return parsed.toLocaleString(displayLocale(), {
+    timeZone: displayTimeZone(),
     weekday: "short",
     day: "2-digit",
     month: "short",
@@ -85,8 +87,8 @@ const formatLongScheduleDateTime = (dateTime?: string) => {
   if (!dateTime) return "Fecha por confirmar";
   const parsed = parseScheduleDateTime(dateTime);
   if (!parsed) return dateTime;
-  return parsed.toLocaleString("es-PE", {
-    timeZone: "America/Lima",
+  return parsed.toLocaleString(displayLocale(), {
+    timeZone: displayTimeZone(),
     weekday: "long",
     day: "numeric",
     month: "long",
@@ -485,6 +487,7 @@ function ApplicationFeedbackCard({
 }
 
 export function InterviewsPage() {
+  useDisplayPreferences();
   const [showEvaluationHistory, setShowEvaluationHistory] = useState(false);
   const historyDialog = useRef<HTMLDialogElement>(null);
   useEffect(() => {
@@ -743,12 +746,12 @@ export function InterviewsPage() {
                         </td>
                         <td className="px-5 py-4">
                           <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${ev.passed ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
-                            {ev.passed ? "Aprobado" : "Desaprobado"}
+                            {ev.status === "ABORTED" ? "Cancelada" : ev.passed ? "Aprobado" : "Desaprobado"}
                           </span>
                         </td>
                         <td className="px-5 py-4">
                           <span className="text-xs text-slate-500 italic">
-                            {ev.abortReason || (ev.passed ? "Completada" : "No especificado")}
+                            {ev.abortReason || (ev.status === "ABORTED" ? "Cancelada; motivo no registrado" : ev.passed ? "Completada" : "No especificado")}
                           </span>
                         </td>
                       </tr>

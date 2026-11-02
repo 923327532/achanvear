@@ -1,6 +1,7 @@
 // features/jobs/api/candidateDrawerApi.ts
 import api, { parseResponse } from "@/lib/axiosClient";
 import type { ApiResponse } from "@/features/auth/types/auth.types";
+import type { InterviewReportResponse } from "@/features/interview/types/interview.types";
 import type {
   CandidateDrawerDetail,
   AdvanceCandidatePayload,
@@ -129,6 +130,13 @@ function mapBackendToFrontend(
 }
 
 export const candidateDrawerApi = {
+  getInterviewReports: async (jobId: string, applicationId: string) => {
+    const response = await api.get<ApiResponse<InterviewReportResponse[]>>(
+      `/jobs/${jobId}/applicants/${applicationId}/interview-reports`
+    );
+    return parseResponse(response);
+  },
+
   getDetail: async (
     jobId: string,
     applicationId: string

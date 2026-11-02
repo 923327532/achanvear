@@ -177,7 +177,7 @@ class BackendRegressionTest {
         when(project.getSelectedFreelancerUserId()).thenReturn(user);
         when(project.getProposals()).thenReturn(List.of());
         when(project.getMilestones()).thenReturn(List.of());
-        var response = new FreelanceApplicationMapper(lookup, profiles)
+        var response = new FreelanceApplicationMapper(lookup, profiles, mock(achanvear.peru.profile.application.ProfileCvAccess.class))
                 .toProjectPageResponse(new PageImpl<>(List.of(project, project)));
         assertEquals("Ana Torres", response.items().get(0).selectedFreelancerName());
         assertEquals("https://example.test/photo", response.items().get(1).selectedFreelancerPhotoUrl());

@@ -36,7 +36,8 @@ class ScoreProtectionTest {
             return new InterviewController(mock(ScheduleInterviewUseCase.class),mock(StartInterviewSessionUseCase.class),
                     mock(SubmitAnswerUseCase.class),complete,mock(ReportViolationUseCase.class),mock(AbortInterviewUseCase.class),
                     mock(AbortInterviewSessionUseCase.class),mock(SaveRecordingKeyUseCase.class),mock(GetInterviewReportUseCase.class),
-                    mock(GetMyInterviewsUseCase.class),mock(achanvear.peru.compliance.application.RecordInterviewConsentUseCase.class));
+                    mock(GetMyInterviewsUseCase.class),mock(achanvear.peru.compliance.application.RecordInterviewConsentUseCase.class),
+                    mock(achanvear.peru.interview.application.InterviewReportAccess.class));
         }
         @Bean HiringController hiring(EvaluateTheoryResultUseCase evaluate) {
             return new HiringController(mock(StartScreeningUseCase.class),evaluate,mock(GenerateFinalReportUseCase.class));

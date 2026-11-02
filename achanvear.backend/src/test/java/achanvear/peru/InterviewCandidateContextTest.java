@@ -18,8 +18,13 @@ class InterviewCandidateContextTest {
         when(post.getDescription()).thenReturn("Desarrollar APIs");when(post.getRequirements()).thenReturn("Java 17 y Spring Framework");
         when(jobs.findById(job)).thenReturn(Optional.of(post));
         when(candidates.findById(candidate)).thenReturn(new IdentityCandidateLookupPort.CandidateSummary(candidate,"test@example.invalid","FREELANCER","ACTIVE","Ana Torres"));
-        var context=new InterviewContextController(interviews,jobs,candidates).context(id.toString()).getData();
+        var interviewer=mock(achanvear.peru.interview.application.CompanyInterviewer.class);
+        when(interviewer.forJob(job.toString())).thenReturn(new InterviewerProfile("PROFILE_2","Ana Quispe","Amigable",InterviewerVoice.FEMALE1));
+        var settings=mock(achanvear.peru.interview.application.port.InterviewSessionSettingsPort.class);
+        when(settings.issueAccessToken(anyString(),anyMap())).thenReturn("");
+        var context=new InterviewContextController(interviews,jobs,candidates,interviewer,settings).context(id.toString()).getData();
         assertEquals("Ana Torres",context.get("candidateName"));assertEquals("Java con Spring",context.get("title"));
         assertEquals("Java 17 y Spring Framework",context.get("requirements"));
+        assertEquals("PROFILE_2",context.get("interviewerCode"));
     }
 }

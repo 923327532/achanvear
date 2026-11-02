@@ -78,7 +78,7 @@ export function ProposalModal({ project, onClose, onSuccess }: ProposalModalProp
 
   const handleSubmit = () => {
     submit(
-      { coverLetter: coverLetter.trim(), proposedBudget, estimatedDays },
+      { coverLetter: coverLetter.trim(), proposedBudget, estimatedDays, portfolioUrl: portfolioUrl.trim() || undefined },
       {
         onSuccess: () => {
           setSubmitted(true);

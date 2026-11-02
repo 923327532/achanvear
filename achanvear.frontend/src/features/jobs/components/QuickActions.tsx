@@ -3,6 +3,7 @@
 
 import Link from "next/link";
 import { PlusCircle, Users2, Bot } from "lucide-react";
+import { useCurrentPlan } from "@/features/settings/hooks/useCompanySettings";
 
 const ACTIONS = [
   {
@@ -32,13 +33,15 @@ const ACTIONS = [
 ];
 
 export function QuickActions() {
+  const { currentPlan } = useCurrentPlan();
+  const hasAi = !!currentPlan && currentPlan.planType !== "FREE";
   // RESPONSIVE: antes pasaba a 3 columnas desde sm (640px). A 640px cada
   // tarjeta quedaba con ~80px para el texto. Ahora 1 columna hasta md (768px).
   // También: <a href> interno → <Link> (evita recarga completa y el error de
   // build no-html-link-for-pages).
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-      {ACTIONS.map((action) => {
+      {ACTIONS.filter((action) => hasAi || action.title !== "Configurar IA").map((action) => {
         const Icon = action.icon;
         return (
           <Link

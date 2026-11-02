@@ -83,6 +83,9 @@ public class CompanyRepositoryImpl implements CompanyRepository {
                 .and(CompanySpecifications.hasIndustry(query.industry()))
                 .and(CompanySpecifications.hasCompanySize(query.companySize()))
                 .and(CompanySpecifications.hasCompanyPlan(query.companyPlan()));
+        if (!query.includePrivate()) specification = specification.and((root, q, cb) -> cb.and(
+                cb.or(cb.isNull(root.get("incognitoMode")), cb.isFalse(root.get("incognitoMode"))),
+                cb.or(cb.isNull(root.get("showInDirectory")), cb.isTrue(root.get("showInDirectory")))));
 
         return companyJpaRepository.findAll(specification, pageable).map(companyMapper::toDomain);
     }

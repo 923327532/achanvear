@@ -2,7 +2,7 @@ package achanvear.peru.interview.infrastructure.external.impl;
 
 import achanvear.peru.interview.domain.model.Interview;
 import achanvear.peru.interview.domain.model.Question;
-import achanvear.peru.interview.infrastructure.external.AiInterviewerClient;
+import achanvear.peru.interview.application.port.AiInterviewerClient;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
@@ -35,11 +35,17 @@ public class RealAiInterviewerClient implements AiInterviewerClient {
     private final RestClient restClient;
     private final ObjectMapper objectMapper;
 
+    public RealAiInterviewerClient(RestClient.Builder builder, String url) {
+        this(builder, url, "");
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
     public RealAiInterviewerClient(
             RestClient.Builder restClientBuilder,
-            @Value("${ai.api.url}") String aiApiUrl
+            @Value("${ai.api.url}") String aiApiUrl,
+            @Value("${AGENT_SHARED_SECRET:}") String agentSecret
     ) {
-        this.restClient = restClientBuilder.baseUrl(aiApiUrl)
+        this.restClient = restClientBuilder.baseUrl(aiApiUrl).defaultHeader("X-Agent-Service-Key", agentSecret)
                 .defaultStatusHandler(status -> status.isError(), (request, response) -> {
                     throw new AiServiceUnavailableException();
                 }).build();
@@ -54,10 +60,7 @@ public class RealAiInterviewerClient implements AiInterviewerClient {
      * Python genera su propio session_id internamente (uuid.uuid4()).
      * Retorna un Map con "session_id" (el UUID que Python asignó).
      */
-    public int getPracticalScore(String interviewId) {
-        return achanvear.peru.interview.infrastructure.persistence.InterviewEvaluationStore.score(getPracticalEvaluation(interviewId).get("score"));
-    }
-
+    @Override
     public Map<?, ?> getPracticalEvaluation(String interviewId) {
         Map<?,?> result = restClient.get().uri("/practical-interview/result/" + interviewId)
                 .retrieve().body(Map.class);
@@ -68,11 +71,19 @@ public class RealAiInterviewerClient implements AiInterviewerClient {
         return result;
     }
 
+    @Override
     public Map<String, Object> createPythonSession(
             String candidateId, String jobId, String career, String jobTitle,
             String phone, String email
     ) {
+        return createPythonSession(candidateId, jobId, career, jobTitle, phone, email, Map.of());
+    }
+
+    @Override
+    public Map<String, Object> createPythonSession(String candidateId, String jobId, String career,
+            String jobTitle, String phone, String email, Map<String, Object> presentation) {
         Map<String, Object> body = new java.util.HashMap<>();
+        body.put("presentation", presentation);
         body.put("candidate_id", candidateId);
         body.put("job_id", jobId);
         body.put("career", career);
@@ -175,7 +186,8 @@ public class RealAiInterviewerClient implements AiInterviewerClient {
                     theoryScore,
                     passed,
                     resp.get("scores_detail"),
-                    theoryScore >= 75.0 ? "technical" : "failed"
+                    theoryScore >= 75.0 ? "technical" : "failed",
+                    resp.get("evaluation") instanceof Map<?, ?> assessment ? (Map<String, Object>) assessment : Map.of()
             );
         } catch (Exception e) {
             // Fallback: si falla la conexion con Python

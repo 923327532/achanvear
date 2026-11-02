@@ -1,10 +1,13 @@
 "use client";
+import { downloadInterviewReportPdf } from "../lib/interviewReportPdf";
 
 import dynamic from "next/dynamic";
 import { createSpanishUtterance } from "@/lib/browserSpeech";
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
 import { AlertTriangle, CheckCircle2, ChevronRight, Code2, Download, EyeOff, FileCode2, FilePlus2, FileText, Folder, FolderPlus, History, Layers3, Loader2, Mic, MicOff, PhoneOff, Play, Send, Stethoscope, UserRound, Video, X } from "lucide-react";
 import {
+  authorizePracticalSession,
+  practicalCapabilities,
   finishPracticalInterview,
   practicalWsUrl,
   reportPracticalViolation,
@@ -86,6 +89,8 @@ export function PracticalVoiceInterviewRoom({
   const [codeFiles, setCodeFiles] = useState<PracticalCodeFile[]>([]);
   const [activeFilePath, setActiveFilePath] = useState("");
   const [codeOutput, setCodeOutput] = useState("");
+  const [standardInput, setStandardInput] = useState("");
+  const [availableRuntimes, setAvailableRuntimes] = useState<string[] | null>(null);
   const [lastRun, setLastRun] = useState<LastRunResult | null>(null);
   const [previewHtml, setPreviewHtml] = useState("");
   const [codeLanguage, setCodeLanguage] = useState("typescript");
@@ -105,7 +110,9 @@ export function PracticalVoiceInterviewRoom({
   const [voiceStatus, setVoiceStatus] = useState<VoiceStatus>("idle");
   const [audioNeedsActivation, setAudioNeedsActivation] = useState(false);
   const [timeLeft, setTimeLeft] = useState(20 * 60);
+  const [timeLimitSeconds, setTimeLimitSeconds] = useState(20 * 60);
   const [timerActive, setTimerActive] = useState(false);
+  const deadlineRef = useRef<number | null>(null);
   const monitoringEnabled = agentConnected && timerActive && status !== "finished";
   const [exitCountdown, setExitCountdown] = useState<number | null>(null);
   const [showHistory, setShowHistory] = useState(false);
@@ -148,20 +155,21 @@ export function PracticalVoiceInterviewRoom({
 
   useEffect(() => {
     if (!timerActive || status === "booting" || status === "finished") return;
+    if (deadlineRef.current === null) deadlineRef.current = Date.now() + timeLeft * 1000;
     const timer = window.setInterval(() => {
-      setTimeLeft((current) => Math.max(0, current - 1));
+      setTimeLeft(Math.max(0, Math.ceil((deadlineRef.current! - Date.now()) / 1000)));
     }, 1000);
     return () => window.clearInterval(timer);
   }, [status, timerActive]);
 
   useEffect(() => {
     if (!timerActive || status === "finished") return;
-    if (timeLeft <= 10 * 60 && !timerWarningsRef.current.ten) {
+    if (timeLimitSeconds > 10 * 60 && timeLeft <= 10 * 60 && !timerWarningsRef.current.ten) {
       timerWarningsRef.current.ten = true;
       speakInBrowser("Aviso de tiempo: te quedan 10 minutos. Puedes ejecutar las veces que necesites y entregar cuando estes listo.");
       appendTranscript("agent", "Aviso de tiempo: te quedan 10 minutos. Puedes ejecutar las veces que necesites y entregar cuando estes listo.");
     }
-    if (timeLeft <= 5 * 60 && !timerWarningsRef.current.five) {
+    if (timeLimitSeconds > 5 * 60 && timeLeft <= 5 * 60 && !timerWarningsRef.current.five) {
       timerWarningsRef.current.five = true;
       speakInBrowser("Aviso final: te quedan 5 minutos. Revisa tu solucion, ejecuta si necesitas validar y presiona entregar al terminar.");
       appendTranscript("agent", "Aviso final: te quedan 5 minutos. Revisa tu solucion, ejecuta si necesitas validar y presiona entregar al terminar.");
@@ -169,7 +177,7 @@ export function PracticalVoiceInterviewRoom({
     if (timeLeft === 0) {
       finish(false);
     }
-  }, [status, timeLeft, timerActive]);
+  }, [status, timeLeft, timerActive, timeLimitSeconds]);
 
   useEffect(() => {
     workspaceRef.current = workspaceState;
@@ -184,6 +192,8 @@ export function PracticalVoiceInterviewRoom({
       try {
         const jobContext = await interviewApi.getJobContext(sessionId);
         if (!mounted) return;
+        authorizePracticalSession(sessionId, jobContext.agentAccessToken ?? "");
+        practicalCapabilities(sessionId).then(setAvailableRuntimes).catch(() => setAvailableRuntimes(null));
         await interviewApi.registerAttendance(sessionId);
         if (!mounted) return;
         const started = await startPracticalInterview({
@@ -193,14 +203,19 @@ export function PracticalVoiceInterviewRoom({
           job_description: jobContext.description,
           job_requirements: jobContext.requirements,
           candidate_name: jobContext.candidateName || candidateName,
+          interviewer_code: jobContext.interviewerCode,
+          interviewer_name: jobContext.interviewerName,
+          interviewer_style: jobContext.interviewerStyle,
           workspace_type: workspaceType,
           country: "Peru",
         });
         if (!mounted) return;
+        setTimeLeft((started.time_limit_minutes ?? 20) * 60);
+        setTimeLimitSeconds((started.time_limit_minutes ?? 20) * 60);
         setChallenge(started.challenge);
         setResolvedWorkspaceType(started.workspace_type);
         const starterLanguage = started.challenge.language ?? "typescript";
-        const initialFiles = started.challenge.files?.length
+        const initialFiles = started.workspace_type !== "coding" ? [] : started.challenge.files?.length
           ? started.challenge.files
           : languageStarters[starterLanguage]
             ? [languageStarters[starterLanguage]]
@@ -370,6 +385,8 @@ export function PracticalVoiceInterviewRoom({
       lastAgentTextRef.current = data.text;
     }
     if (data.type === "conversation_phase" && data.phase === "working") {
+      // Confirmation starts the deadline even if browser audio is blocked.
+      setTimerActive(true);
       startAnnouncementPendingRef.current = true;
       startAnnouncementTextRef.current = lastAgentTextRef.current;
     }
@@ -517,6 +534,10 @@ export function PracticalVoiceInterviewRoom({
   }
 
   async function startRecording() {
+    await beginRecording(false);
+  }
+
+  async function beginRecording(forceServer: boolean) {
     if (micActiveRef.current || pendingTurnRef.current) return;
     cancelMicrophoneCapture();
     micActiveRef.current = true;
@@ -529,7 +550,7 @@ export function PracticalVoiceInterviewRoom({
     stopVoicePlayback();
     sendWsJson({ type: "barge_in" });
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (SpeechRecognition) {
+    if (SpeechRecognition && !forceServer) {
       const recognition = new SpeechRecognition();
       recognition.lang = "es-PE";
       recognition.continuous = false;
@@ -546,9 +567,13 @@ export function PracticalVoiceInterviewRoom({
         cancelMicrophoneCapture();
         submitCandidateText(text, messageId);
       };
-      recognition.onerror = () => {
+      recognition.onerror = (event: any) => {
         if (capture !== captureGenerationRef.current) return;
         cancelMicrophoneCapture();
+        if (event.error === "network" || event.error === "service-not-allowed" || event.error === "language-not-supported") {
+          void beginRecording(true);
+          return;
+        }
         setStatus("ready");
         setVoice("idle");
         setError("No pude entender tu voz. Habla cerca del microfono o escribe tu respuesta abajo.");
@@ -624,6 +649,11 @@ export function PracticalVoiceInterviewRoom({
   async function finish(fromAgent = false) {
     if (finishingRef.current) return;
     finishingRef.current = true;
+    cancelMicrophoneCapture();
+    stopVoicePlayback();
+    wsRef.current?.close();
+    wsRef.current = null;
+    setAgentConnected(false);
     setStatus("finished");
     setError(null);
     if (!fromAgent) {
@@ -638,6 +668,7 @@ export function PracticalVoiceInterviewRoom({
         workspace_state: workspaceRef.current,
         violations,
       });
+      await interviewApi.complete(sessionId);
       setResult(response);
       setShowHistory(true);
       const closing = response.passed
@@ -645,11 +676,10 @@ export function PracticalVoiceInterviewRoom({
         : "Ya termine la evaluacion. Podras descargar tu reporte de entrevista con el resultado y recomendaciones. En esta etapa no alcanzaste el puntaje requerido, pero el informe quedara disponible.";
       appendTranscript("agent", closing);
       speakInBrowser(closing);
-      await interviewApi.complete(sessionId);
       onComplete?.(response);
     } catch (err: any) {
       finishingRef.current = false;
-      setStatus("ready");
+      setStatus("finished");
       setError(err?.message || "No se pudo guardar la evaluacion practica");
     }
   }
@@ -666,90 +696,13 @@ export function PracticalVoiceInterviewRoom({
     }
   }
 
-  function escapeHtml(value: string) {
-    return value
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;")
-      .replaceAll('"', "&quot;")
-      .replaceAll("'", "&#039;");
-  }
-
-  function estimatedRanking(score: number) {
-    if (score >= 92) return "Puesto 1 entre candidatos aprobados";
-    if (score >= 86) return "Puesto 2 entre candidatos aprobados";
-    if (score >= 80) return "Puesto 3 entre candidatos aprobados";
-    if (score >= 75) return "Aprobado, ranking sujeto al total de candidatos";
-    return "No ingresa al ranking de aprobados";
-  }
-
-  function buildDownloadableReport(response: FinishPracticalResponse) {
-    const finalScore = Number(response.final_score ?? response.score ?? 0);
-    const passedLabel = response.passed ? "APROBADO" : "NO APROBADO";
-    const turns = transcriptRef.current
-      .slice(-12)
-      .map((line) => `<p><strong>${line.role === "agent" ? "IA" : "Profesional"}:</strong> ${escapeHtml(line.content)}</p>`)
-      .join("");
-    const security = securityEvents
-      .map((event) => `<li>${escapeHtml(event.type)}: ${escapeHtml(event.detail)} (${new Date(event.at).toLocaleTimeString("es-PE")})</li>`)
-      .join("");
-    return `<!doctype html>
-<html lang="es">
-<head>
-  <meta charset="utf-8" />
-  <title>Reporte entrevista practica - Achanvear</title>
-  <style>
-    body{font-family:Inter,Arial,sans-serif;margin:0;background:#f4f7fb;color:#0f172a}
-    .page{max-width:980px;margin:32px auto;background:white;border:1px solid #e2e8f0;border-radius:22px;overflow:hidden;box-shadow:0 20px 60px rgba(15,23,42,.08)}
-    .hero{background:#102a43;color:white;padding:28px 34px;display:flex;justify-content:space-between;gap:24px}
-    .brand{display:flex;align-items:center;gap:14px}.logo{width:48px;height:48px;border-radius:14px;background:#14b8a6;display:grid;place-items:center;font-weight:900}
-    .badge{display:inline-block;border-radius:999px;padding:7px 12px;background:${response.passed ? "#dcfce7" : "#fee2e2"};color:${response.passed ? "#166534" : "#991b1b"};font-weight:800;font-size:12px}
-    .content{padding:30px 34px}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.card{border:1px solid #e2e8f0;border-radius:16px;padding:16px;background:#fff}
-    .score{font-size:34px;font-weight:900;color:#102a43}.label{font-size:12px;color:#64748b;text-transform:uppercase;font-weight:800}
-    h2{margin:28px 0 12px;font-size:17px}.section{border-top:1px solid #e2e8f0;margin-top:24px;padding-top:20px}
-    ul{margin:8px 0 0 18px}.muted{color:#64748b}.turns p{background:#f8fafc;border-radius:12px;padding:10px 12px}
-  </style>
-</head>
-<body>
-  <main class="page">
-    <section class="hero">
-      <div class="brand"><div class="logo">A</div><div><h1>Achanvear</h1><p>Informe ejecutivo de entrevista practica</p></div></div>
-      <div><span class="badge">${passedLabel}</span><p>${new Date().toLocaleString("es-PE")}</p></div>
-    </section>
-    <section class="content">
-      <p class="label">Profesional</p>
-      <h1>${escapeHtml(candidateName || "Profesional evaluado")}</h1>
-      <p class="muted">Puesto: ${escapeHtml(jobTitle)} · Area: ${escapeHtml(career)}</p>
-      <p class="muted">Entrevistador IA: ${escapeHtml(interviewer?.name || "Agente IA")} · ${escapeHtml(interviewer?.role || "Evaluacion practica")}</p>
-      <div class="grid">
-        <div class="card"><p class="label">Final</p><p class="score">${finalScore}/100</p></div>
-        <div class="card"><p class="label">Tecnico</p><p class="score">${response.score}/100</p></div>
-        <div class="card"><p class="label">Experiencia</p><p class="score">${response.theory_score}/100</p></div>
-        <div class="card"><p class="label">Psicologico/comunicacion</p><p class="score">${response.communication_score}/100</p></div>
-      </div>
-      <div class="section"><h2>Ranking</h2><p>${estimatedRanking(finalScore)}. El puesto final se recalcula con todos los candidatos aprobados de la vacante.</p></div>
-      <div class="section"><h2>Resumen ejecutivo</h2><p>${escapeHtml(response.summary)}</p><p>${escapeHtml(response.communication_summary || "")}</p></div>
-      <div class="section"><h2>Fortalezas</h2><ul>${response.strengths.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul></div>
-      <div class="section"><h2>Riesgos</h2><ul>${response.risks.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul></div>
-      <div class="section"><h2>Recomendacion</h2><p>${escapeHtml(response.recommendation)}</p></div>
-      <div class="section"><h2>Monitoreo antifraude</h2><p>Alertas registradas: ${violations}</p><ul>${security || "<li>Sin alertas relevantes.</li>"}</ul></div>
-      <div class="section turns"><h2>Evidencia de conversacion</h2>${turns || "<p>Sin turnos registrados.</p>"}</div>
-    </section>
-  </main>
-</body>
-</html>`;
-  }
-
-  function downloadReport() {
-    if (!result) return;
-    const html = buildDownloadableReport(result);
-    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = `reporte-entrevista-${sessionId.slice(0, 8)}.html`;
-    anchor.click();
-    URL.revokeObjectURL(url);
+  async function downloadReport() {
+    try {
+      const report = await interviewApi.getReport(sessionId);
+      await downloadInterviewReportPdf({ candidateName: candidateName || "Candidato", jobTitle, reports: [report] });
+    } catch {
+      setError("No se pudo descargar el informe guardado. Vuelve a intentarlo.");
+    }
   }
 
   function playBase64Audio(audioBase64: string, format: string) {
@@ -1148,6 +1101,8 @@ export function PracticalVoiceInterviewRoom({
       setCodeOutput("Ejecutando en runner multi-lenguaje...");
       const entryFile = activeFilePath || challenge?.entry_file || codeFiles[0]?.path;
       const response = await runPracticalCode({
+        session_id: sessionId,
+        stdin: standardInput,
         language: codeLanguage,
         code,
         files: codeFiles.length > 0 ? codeFiles : undefined,
@@ -1192,7 +1147,7 @@ export function PracticalVoiceInterviewRoom({
   const minutes = Math.floor(timeLeft / 60).toString().padStart(2, "0");
   const seconds = (timeLeft % 60).toString().padStart(2, "0");
   const timerTone = timeLeft <= 2 * 60 ? "danger" : timeLeft <= 5 * 60 ? "warning" : "ok";
-  const timerPercent = Math.max(0, Math.min(100, (timeLeft / (20 * 60)) * 100));
+  const timerPercent = Math.max(0, Math.min(100, (timeLeft / timeLimitSeconds) * 100));
   const explorerItems = buildExplorerTree();
   const micLabel = status === "recording" ? "Enviar voz" : status === "thinking" ? "Pensando" : "Hablar";
   const headerButtonClass = "inline-flex h-9 min-w-[104px] items-center justify-center gap-1.5 rounded-lg border border-white/12 bg-white/[0.06] px-3 text-xs font-semibold text-slate-100 transition hover:border-white/20 hover:bg-white/[0.1] disabled:opacity-50";
@@ -1296,6 +1251,7 @@ export function PracticalVoiceInterviewRoom({
                 {filteredLanguageOptions.map((option) => (
                   <button
                     key={option.value}
+                    disabled={availableRuntimes !== null && !availableRuntimes.includes(option.value)}
                     onClick={() => fixLanguage(option.value)}
                     className={`flex items-center justify-between rounded-lg border px-3 py-2 text-left hover:bg-white/10 ${
                       option.value === codeLanguage ? "border-emerald-300/45 bg-emerald-300/10" : "border-white/10 bg-white/[0.04]"
@@ -1303,7 +1259,7 @@ export function PracticalVoiceInterviewRoom({
                   >
                     <span>
                       <span className="block text-sm font-bold text-white">{option.label}</span>
-                      <span className="text-xs text-slate-400">Fijar y crear hello world ejecutable</span>
+                      <span className="text-xs text-slate-400">{availableRuntimes !== null && !availableRuntimes.includes(option.value) ? "No disponible en este entorno" : "Fijar y crear hello world ejecutable"}</span>
                     </span>
                     <span className={`rounded border px-2 py-1 text-[10px] font-black ${option.accent}`}>{option.short}</span>
                   </button>
@@ -1756,6 +1712,8 @@ export function PracticalVoiceInterviewRoom({
                     )}
                     <div className="min-h-0 flex-1">
                     <MonacoEditor
+                      key={activeFilePath}
+                      path={activeFilePath}
                       height="100%"
                       language={inferEditorLanguage(codeFiles.find((file) => file.path === activeFilePath))}
                       theme="vs-dark"
@@ -1771,6 +1729,11 @@ export function PracticalVoiceInterviewRoom({
                       }}
                     />
                     </div>
+                    <label className="block bg-black/20 p-3 text-xs text-slate-300">
+                      Entrada estándar (stdin): números, operador u otros datos, separados por espacios o líneas.
+                      <textarea aria-label="Entrada estándar" value={standardInput} onChange={event => setStandardInput(event.target.value)}
+                        placeholder="Ejemplo: 8 + 2" rows={2} className="mt-2 w-full rounded bg-slate-950 p-2 font-mono text-white" />
+                    </label>
                     {codeOutput && (
                   <div className="grid max-h-56 grid-cols-1 overflow-hidden border-t border-white/10 lg:grid-cols-2">
                     <pre className="overflow-auto bg-black/30 p-3 text-xs text-emerald-100">
@@ -1779,6 +1742,7 @@ export function PracticalVoiceInterviewRoom({
                     {previewHtml && (
                       <iframe
                         title="Vista previa"
+                        sandbox="allow-scripts"
                         srcDoc={`<!doctype html><html><body style="font-family:Inter,Arial,sans-serif;padding:16px;background:#f8fafc">${previewHtml}</body></html>`}
                         className="h-56 w-full bg-white"
                       />
@@ -1845,10 +1809,10 @@ export function PracticalVoiceInterviewRoom({
             {result && (
               <div className="mx-5 mb-3 rounded-xl border border-emerald-400/30 bg-emerald-400/10 p-4">
                 <p className="text-sm font-semibold">
-                  Resultado final: {result.final_score}/100 - {result.passed ? "Aprobado" : "Revision requerida"}
+                  Resultado de la práctica: {result.score}/100 - {result.passed ? "Aprobado" : "Revisión requerida"}
                 </p>
                 <p className="mt-1 text-xs text-emerald-100">
-                  Teoria {result.theory_score}/100 · Practica {result.score}/100 · Comunicacion {result.communication_score}/100
+                  Comunicación observada: {result.communication_score}/100
                 </p>
                 <p className="mt-1 text-xs text-emerald-50">{result.summary}</p>
                 {result.communication_summary && (

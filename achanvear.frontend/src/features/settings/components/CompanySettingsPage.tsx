@@ -10,8 +10,10 @@ import { CompanyPrivacySection } from "./CompanyPrivacySection";
 import { SecuritySection } from "./SecuritySection";
 import { CompanyGeneralSection } from "./CompanyGeneralSection";
 import type { CompanySettingsSection } from "../types/company-settings.types";
+import { useCurrentPlan } from "../hooks/useCompanySettings";
 
 export function CompanySettingsPage() {
+  const { currentPlan } = useCurrentPlan();
   const [activeSection, setActiveSection] = useState<CompanySettingsSection>("billing");
 
   return (
@@ -31,7 +33,7 @@ export function CompanySettingsPage() {
 
         <div className="min-w-0">
           {activeSection === "team" && <CompanyTeamSection />}
-          {activeSection === "agent" && <CompanyAgentSection />}
+          {activeSection === "agent" && currentPlan && currentPlan.planType !== "FREE" && <CompanyAgentSection />}
           {activeSection === "billing" && <CompanyBillingSection />}
           {activeSection === "privacy" && <CompanyPrivacySection />}
           {activeSection === "security" && <SecuritySection />}

@@ -15,6 +15,14 @@ public final class TalentProfileSpecifications {
             String skill
     ) {
         return Specification.where(bySearch(search))
+                .and((root, query, cb) -> {
+                    var unavailable = query.subquery(java.util.UUID.class);
+                    var freelancer = unavailable.from(achanvear.peru.freelance.infrastructure.persistence.FreelancerProfileJpaEntity.class);
+                    unavailable.select(freelancer.get("userId")).where(cb.and(
+                            cb.equal(freelancer.get("userId"), root.get("userId")),
+                            cb.equal(freelancer.get("availabilityStatus"), achanvear.peru.freelance.domain.model.AvailabilityStatus.NOT_AVAILABLE)));
+                    return cb.not(cb.exists(unavailable));
+                })
                 .and(byProfileType(profileType))
                 .and(bySkill(skill));
     }

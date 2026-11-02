@@ -567,7 +567,7 @@ public class FreelanceApplicationService implements
                 talentProfile != null ? talentProfile.getLocation() : null,
                 null,
                 user.dni(),
-                talentProfile != null ? talentProfile.getCurriculumUrl() : null,
+                talentProfile != null ? freelanceApplicationMapper.visibleCurriculum(id, talentProfile.getCurriculumUrl()) : null,
                 null,
                 user.status(),
                 java.util.List.of(),

@@ -6,7 +6,7 @@ import org.springframework.stereotype.Repository;
 import java.util.Map;
 
 @Repository
-public class InterviewEvaluationStore {
+public class InterviewEvaluationStore implements achanvear.peru.interview.application.port.InterviewEvaluationPort {
     private final JdbcTemplate jdbc;
     private final ObjectMapper mapper;
 
@@ -15,8 +15,9 @@ public class InterviewEvaluationStore {
         this.mapper = mapper;
     }
 
+    @Override
     public void save(String interviewId, Map<?, ?> evaluation) {
-        Integer communication = score(evaluation.get("communication_score"));
+        Integer communication = achanvear.peru.interview.domain.model.InterviewScore.validatedValue(evaluation.get("communication_score"));
         try {
             jdbc.update("""
                 INSERT INTO interview_evaluation_details(interview_id, communication_score, evaluation_json)
@@ -27,12 +28,15 @@ public class InterviewEvaluationStore {
         }
     }
 
-    public static Integer score(Object value) {
-        if (value == null) return null;
-        if (!(value instanceof Number number) || !Double.isFinite(number.doubleValue())
-                || number.doubleValue() < 0 || number.doubleValue() > 100) {
-            throw new IllegalStateException("Invalid interview score");
+    @Override
+    public Map<String, Object> find(String interviewId) {
+        var rows = jdbc.query("SELECT evaluation_json FROM interview_evaluation_details WHERE interview_id=?",
+                (rs, n) -> rs.getString(1), interviewId);
+        if (rows.isEmpty()) return Map.of();
+        try {
+            return mapper.readValue(rows.get(0), new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {});
+        } catch (com.fasterxml.jackson.core.JsonProcessingException exception) {
+            throw new IllegalStateException("Could not read interview evaluation", exception);
         }
-        return (int) Math.round(number.doubleValue());
     }
 }

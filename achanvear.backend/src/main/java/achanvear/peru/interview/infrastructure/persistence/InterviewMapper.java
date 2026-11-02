@@ -31,6 +31,7 @@ public class InterviewMapper {
         entity.setCandidateId(interview.getCandidateId());
         entity.setInterviewType(interview.getType().name());
         entity.setStatus(interview.getStatus().name());
+        entity.setAbortReason(interview.getAbortReason());
         if (interview.getScore() != null) {
             entity.setScore(interview.getScore().getValue());
         }
@@ -152,7 +153,7 @@ public class InterviewMapper {
                 InterviewStatus.valueOf(entity.getStatus()),
                 null, // assignedSlot - not in entity
                 assignedSlotDateTime,
-                null, // abortReason - not in entity
+                entity.getAbortReason(),
                 interviewerProfile,
                 entity.getScore() != null ? new InterviewScore(entity.getScore()) : null,
                 recordingSession,

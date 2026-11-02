@@ -47,6 +47,7 @@ public class InterviewController {
     private final GetInterviewReportUseCase getInterviewReportUseCase;
     private final GetMyInterviewsUseCase getMyInterviewsUseCase;
     private final RecordInterviewConsentUseCase recordInterviewConsentUseCase;
+    private final achanvear.peru.interview.application.InterviewReportAccess reportAccess;
 
     public InterviewController(
             ScheduleInterviewUseCase scheduleInterviewUseCase,
@@ -59,7 +60,8 @@ public class InterviewController {
             SaveRecordingKeyUseCase saveRecordingKeyUseCase,
             GetInterviewReportUseCase getInterviewReportUseCase,
             GetMyInterviewsUseCase getMyInterviewsUseCase,
-            RecordInterviewConsentUseCase recordInterviewConsentUseCase
+            RecordInterviewConsentUseCase recordInterviewConsentUseCase,
+            achanvear.peru.interview.application.InterviewReportAccess reportAccess
     ) {
         this.scheduleInterviewUseCase = scheduleInterviewUseCase;
         this.startInterviewSessionUseCase = startInterviewSessionUseCase;
@@ -72,6 +74,7 @@ public class InterviewController {
         this.getInterviewReportUseCase = getInterviewReportUseCase;
         this.getMyInterviewsUseCase = getMyInterviewsUseCase;
         this.recordInterviewConsentUseCase = recordInterviewConsentUseCase;
+        this.reportAccess = reportAccess;
     }
 
     /**
@@ -211,6 +214,7 @@ public class InterviewController {
     public ResponseEntity<ApiResponse<InterviewReportResponse>> getInterviewReport(
             @PathVariable String interviewId
     ) {
+        reportAccess.require(interviewId);
         InterviewReportResponse response = getInterviewReportUseCase.execute(interviewId);
 
         return ResponseEntity.ok(

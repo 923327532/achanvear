@@ -29,7 +29,8 @@ public class ServiceContractService {
             return c;
         }
         var offer=store.quote(serviceId,planId);
-        if(!"PEN".equals(offer.currency())) throw new IllegalArgumentException("Only PEN contracts are supported");
+        if(offer.currency() != null && !offer.currency().isBlank() && !"PEN".equalsIgnoreCase(offer.currency().trim()))
+            throw new IllegalArgumentException("El servicio está publicado en " + offer.currency() + ". Para contratarlo, el profesional debe publicar su precio en soles (PEN). No se convierten monedas automáticamente.");
         if(!store.canFormalize(conversationId,serviceId,clientId,offer.freelancerId()))
             throw new ForbiddenOperationException("Only the client of this service conversation may formalize it");
         var project=FreelanceProject.create(clientId,offer.title(),offer.description(),offer.category(),null,

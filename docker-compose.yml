@@ -45,6 +45,8 @@ services:
       redis:
         condition: service_healthy
     environment:
+      AGENT_SHARED_SECRET: ${AGENT_SHARED_SECRET:-}
+      CODE_RUNNER_URL: http://code-runner:8002
       ENV: ${ENV:-docker}
       REDIS_URL: redis://redis:6379
       LLM_PROVIDER: ${LLM_PROVIDER:-deepseek}
@@ -82,6 +84,7 @@ services:
       - "${AI_AGENT_PORT:-8001}:8001"
     networks:
       - achanvear-network
+      - runner-network
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
@@ -89,6 +92,33 @@ services:
       timeout: 10s
       retries: 5
       start_period: 20s
+
+  code-runner:
+    image: ${AI_AGENT_IMAGE:-achanvear-ai-agent:local}
+    command: ["python", "-m", "uvicorn", "runner_app:app", "--host", "0.0.0.0", "--port", "8002"]
+    user: "65534:65534"
+    read_only: true
+    tmpfs:
+      - /tmp:size=536870912,mode=1777,exec
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 1g
+    cpus: 1.0
+    pids_limit: 128
+    environment:
+      HOME: /tmp
+      TMPDIR: /tmp
+      PYTHONDONTWRITEBYTECODE: "1"
+      PRACTICAL_POSTGRES_DSN: ${PRACTICAL_POSTGRES_DSN:-}
+      PRACTICAL_MONGODB_URI: ${PRACTICAL_MONGODB_URI:-}
+    networks:
+      - runner-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
 
   backend:
     build:
@@ -102,6 +132,7 @@ services:
       ai-agent:
         condition: service_started
     environment:
+      AGENT_SHARED_SECRET: ${AGENT_SHARED_SECRET:-}
       PORT: 8081
       SPRING_PROFILES_ACTIVE: docker
       DB_URL: ${DB_URL:?DB_URL is required. Set the PostgreSQL JDBC URL in the root .env file}
@@ -155,5 +186,7 @@ volumes:
   postgres_data:
 
 networks:
+  runner-network:
+    internal: true
   achanvear-network:
     driver: bridge

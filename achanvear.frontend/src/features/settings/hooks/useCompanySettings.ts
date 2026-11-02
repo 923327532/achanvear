@@ -410,6 +410,7 @@ export function usePreferences() {
     mutationFn: (data: import("../types/company-settings.types").CompanyPreferencesPayload) =>
       companySettingsApi.updatePreferences(data),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["display-preferences"] });
       queryClient.invalidateQueries({ queryKey: ["company-settings", "preferences"] });
     },
   });

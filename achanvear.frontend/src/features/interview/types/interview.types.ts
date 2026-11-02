@@ -32,6 +32,7 @@ export interface SubmitAnswerResponse {
 }
 
 export interface InterviewReportResponse {
+  assessment?: Record<string, unknown>;
   interviewId: string;
   status: string;
   interviewType: string;

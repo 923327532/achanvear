@@ -11,12 +11,18 @@ import java.util.Map;
 @RequestMapping("/interviews")
 public class InterviewContextController {
     private final InterviewRepository interviews;
+    private final achanvear.peru.interview.application.port.InterviewSessionSettingsPort settings;
     private final JobPostRepository jobs;
+    private final achanvear.peru.interview.application.CompanyInterviewer companyInterviewer;
     private final achanvear.peru.shared.application.port.IdentityCandidateLookupPort candidates;
     public InterviewContextController(InterviewRepository interviews, JobPostRepository jobs,
-            achanvear.peru.shared.application.port.IdentityCandidateLookupPort candidates) {
+            achanvear.peru.shared.application.port.IdentityCandidateLookupPort candidates,
+            achanvear.peru.interview.application.CompanyInterviewer companyInterviewer,
+            achanvear.peru.interview.application.port.InterviewSessionSettingsPort settings) {
         this.interviews = interviews; this.jobs = jobs;
         this.candidates = candidates;
+        this.companyInterviewer = companyInterviewer;
+        this.settings = settings;
     }
     @GetMapping("/{interviewId}/job-context")
     @org.springframework.transaction.annotation.Transactional(readOnly = true)
@@ -29,7 +35,9 @@ public class InterviewContextController {
         }
         var job = jobs.findById(JobPostId.from(interview.getJobId())).orElseThrow();
         var candidate = candidates.findById(java.util.UUID.fromString(interview.getCandidateId()));
-        return ApiResponse.success(Map.of("jobId", job.getId().toString(), "title", job.getTitle(),
+        var profile = companyInterviewer.forJob(job.getId().toString());
+        return ApiResponse.success(Map.of("agentAccessToken", settings.issueAccessToken(interviewId, settings.presentationSettings(interviewId)), "jobId", job.getId().toString(), "title", job.getTitle(),
+                "interviewerCode", profile.getCode(), "interviewerName", profile.getName(), "interviewerStyle", profile.getStyle(),
                 "candidateName", candidate != null && candidate.fullName() != null ? candidate.fullName() : "postulante",
                 "description", job.getDescription(), "requirements", job.getRequirements() == null ? "" : job.getRequirements()), "Job context");
     }

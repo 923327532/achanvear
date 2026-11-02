@@ -179,7 +179,7 @@ export function ProjectCard({
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-1.5 text-xs text-slate-500">
           <MessageCircle className="h-3.5 w-3.5" strokeWidth={1.5} />
-          <span>{proposalCount} propuestas</span>
+          <span>{proposalCount} {proposalCount === 1 ? "propuesta" : "propuestas"}</span>
         </div>
       </div>
 

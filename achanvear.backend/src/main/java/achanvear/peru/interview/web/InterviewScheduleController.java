@@ -46,6 +46,7 @@ public class InterviewScheduleController {
     private final ApplicationRepository applicationRepository;
     private final JobPostRepository jobPostRepository;
     private final AdvanceCandidateToTheoryInterviewUseCase advanceCandidateToTheoryInterviewUseCase;
+    private final achanvear.peru.interview.application.CompanyInterviewer companyInterviewer;
 
     public InterviewScheduleController(
             GenerateScheduleUseCase generateScheduleUseCase,
@@ -55,7 +56,8 @@ public class InterviewScheduleController {
             InterviewRepository interviewRepository,
             ApplicationRepository applicationRepository,
             JobPostRepository jobPostRepository,
-            AdvanceCandidateToTheoryInterviewUseCase advanceCandidateToTheoryInterviewUseCase
+            AdvanceCandidateToTheoryInterviewUseCase advanceCandidateToTheoryInterviewUseCase,
+            achanvear.peru.interview.application.CompanyInterviewer companyInterviewer
     ) {
         this.generateScheduleUseCase = generateScheduleUseCase;
         this.chooseSlotUseCase = chooseSlotUseCase;
@@ -65,6 +67,7 @@ public class InterviewScheduleController {
         this.applicationRepository = applicationRepository;
         this.jobPostRepository = jobPostRepository;
         this.advanceCandidateToTheoryInterviewUseCase = advanceCandidateToTheoryInterviewUseCase;
+        this.companyInterviewer = companyInterviewer;
     }
 
     @PostMapping("/generate")
@@ -125,11 +128,11 @@ public class InterviewScheduleController {
             InterviewSchedule schedule = scheduleRepository.findById(scheduleId)
                     .orElseThrow(() -> new IllegalArgumentException("Schedule not found: " + scheduleId));
 
+            InterviewerProfile profile = companyInterviewer.forJob(schedule.getJobId());
             schedule.chooseNow();
             scheduleRepository.save(schedule);
 
             InterviewId interviewId = InterviewId.of(UUID.randomUUID().toString());
-            InterviewerProfile profile = new InterviewerProfile("PROFILE_1", "Carlos Mendoza", "Formal y directo", InterviewerVoice.MALE1);
 
             Interview interview = Interview.restore(
                     interviewId,

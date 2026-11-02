@@ -34,23 +34,27 @@ public class InterviewScheduleService implements
     private final BrevoEmailClient brevoEmailClient;
     private final IdentityCandidateLookupPort candidateLookupPort;
     private final String frontendBaseUrl;
+    private final achanvear.peru.interview.application.CompanyInterviewer companyInterviewer;
 
     public InterviewScheduleService(
             InterviewScheduleRepository scheduleRepository,
             InterviewRepository interviewRepository,
             BrevoEmailClient brevoEmailClient,
             IdentityCandidateLookupPort candidateLookupPort,
-            @Value("${app.frontend-url:http://localhost:3000}") String frontendBaseUrl
+            @Value("${app.frontend-url:http://localhost:3000}") String frontendBaseUrl,
+            achanvear.peru.interview.application.CompanyInterviewer companyInterviewer
     ) {
         this.scheduleRepository = scheduleRepository;
         this.interviewRepository = interviewRepository;
         this.brevoEmailClient = brevoEmailClient;
         this.candidateLookupPort = candidateLookupPort;
         this.frontendBaseUrl = frontendBaseUrl;
+        this.companyInterviewer = companyInterviewer;
     }
 
     @Override
     public InterviewScheduleResponse execute(GenerateScheduleCommand command) {
+        companyInterviewer.forJob(command.jobId());
         // Verificar que no exista ya un schedule para este proceso y tipo
         var existing = scheduleRepository.findByHiringProcessIdAndType(
                 command.hiringProcessId(), command.interviewType());
@@ -99,12 +103,12 @@ public class InterviewScheduleService implements
         InterviewSchedule schedule = scheduleRepository.findById(command.scheduleId())
                 .orElseThrow(() -> new IllegalArgumentException("Schedule not found: " + command.scheduleId()));
 
+        InterviewerProfile profile = companyInterviewer.forJob(schedule.getJobId());
         schedule.chooseSlot(command.slotIndex());
         scheduleRepository.save(schedule);
 
         // Crear la entidad Interview para que aparezca en la lista del candidato
         InterviewId interviewId = InterviewId.of(UUID.randomUUID().toString());
-        InterviewerProfile profile = new InterviewerProfile("PROFILE_1", "Carlos Mendoza", "Formal y directo", InterviewerVoice.MALE1);
         
         Interview interview = Interview.restore(
                 interviewId,
@@ -141,6 +145,7 @@ public class InterviewScheduleService implements
                 .orElseThrow(() -> new IllegalArgumentException("Token no valido: " + command.token()));
 
         try {
+            companyInterviewer.forJob(schedule.getJobId());
             schedule.validateEntry(LocalDateTime.now(java.time.ZoneOffset.UTC));
         } finally {
             scheduleRepository.save(schedule);

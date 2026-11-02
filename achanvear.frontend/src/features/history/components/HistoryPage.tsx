@@ -3,6 +3,8 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useDisplayPreferences } from "@/shared/hooks/useDisplayPreferences";
+import { displayLocale, displayTimeZone } from "@/lib/displayPreferences";
 import {
   Briefcase,
   UserCheck,
@@ -94,7 +96,8 @@ function HistoryCard({ item }: { item: HistoryItem }) {
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
-    return date.toLocaleDateString("es-PE", {
+    return date.toLocaleDateString(displayLocale(), {
+      timeZone: displayTimeZone(),
       year: "numeric",
       month: "long",
       day: "numeric",
@@ -163,6 +166,7 @@ function HistoryCard({ item }: { item: HistoryItem }) {
 }
 
 export function HistoryPage({ companyId }: Props) {
+  useDisplayPreferences();
   const [page, setPage] = useState(0);
 
   const { data, isLoading, error } = useQuery({

@@ -1,12 +1,14 @@
 from typing import Any, Dict, List
 import asyncio
 
-from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect, Request
+from shared.agent_access import session_grant
 from starlette.websockets import WebSocketDisconnected
 
 from practical_voice.audio_pipeline import SpeechToText, TextToSpeech
+from practical_voice.completion import complete_practical_session
 from practical_voice.autonomous_agent import evaluate_practical_interview, generate_interviewer_reply
-from practical_voice.onboarding import opening_message, advance_onboarding
+from practical_voice.onboarding import opening_message, advance_onboarding, confirmed
 from practical_voice.schemas import (
     PracticalFinishRequest,
     PracticalFinishResponse,
@@ -15,9 +17,7 @@ from practical_voice.schemas import (
     PracticalViolationRequest,
 )
 from practical_voice.workspace import build_workspace_challenge, infer_workspace_type, interviewer_profile
-from shared.n8n_client import notify_email
 from shared.session_orchestrator import InterviewStage, SessionState, get_session, update_session
-import os
 
 router = APIRouter(prefix="/practical-interview", tags=["Practical Voice Interview"])
 
@@ -29,7 +29,7 @@ _active_connections: Dict[str, WebSocket] = {}
 
 
 @router.post("/start", response_model=PracticalSessionStartResponse)
-async def start_practical_interview(req: PracticalSessionStartRequest):
+async def start_practical_interview(req: PracticalSessionStartRequest, request: Request = None):
     state = await get_session(req.session_id)
     if state is None:
         state = SessionState(req.session_id, "", "", req.career, req.job_title)
@@ -37,8 +37,32 @@ async def start_practical_interview(req: PracticalSessionStartRequest):
         raise HTTPException(status_code=409, detail="Interview already completed")
     workspace_type = req.workspace_type or infer_workspace_type(req.career, req.job_title)
     challenge = build_workspace_challenge(workspace_type, req.career, req.job_title)
+    presentation = getattr(request.state, "grant", {}).get("presentation", {}) if request else {}
+    challenge["workspace_type"] = workspace_type.value
+    if presentation.get("case_code") == "java_calculator":
+        workspace_type = type(workspace_type).CODING
+        challenge = {
+            "title": "Calculadora básica en Java · sesión de exposición",
+            "workspace_tool": "code_project", "workspace_type": "coding", "language": "java", "entry_file": "Main.java",
+            "prompt": "Implementa una calculadora de consola en Java que sume, reste, multiplique y divida dos números. Controla división entre cero. Puedes leer dos números y el operador desde la entrada estándar, o demostrar las operaciones con ejemplos en main. Ejecuta al menos una prueba y explica la solución.",
+            "files": [{"path": "Main.java", "language": "java", "content": "public class Main { public static void main(String[] args) {\n    // Implementa y demuestra tu calculadora.\n} }"}],
+            "expected_output": ["Operaciones correctas", "División entre cero controlada", "Prueba ejecutada", "Explicación clara"],
+        }
     challenge["job_description"] = req.job_description
     challenge["job_requirements"] = req.job_requirements
+    if req.job_description or req.job_requirements:
+        challenge["prompt"] = challenge.get("prompt", "") + (
+            f"\nContexto de la vacante: {req.job_description[:1000]}\nRequisitos publicados: {req.job_requirements[:1000]}")
+    if req.interviewer_code:
+        female = req.interviewer_code in ("PROFILE_2", "PROFILE_4")
+        challenge["interviewer_profile"] = {
+            "id": req.interviewer_code,
+            "name": req.interviewer_name or "Entrevistador",
+            "style": req.interviewer_style or "Profesional",
+            "role": f"Evaluacion practica para {req.job_title}",
+            "voice": "es-PE-CamilaNeural" if female else "es-PE-AlexNeural",
+            "gender": "female" if female else "male",
+        }
 
     if state:
         state.stage = InterviewStage.TECHNICAL
@@ -65,6 +89,7 @@ async def start_practical_interview(req: PracticalSessionStartRequest):
         workspace_type=workspace_type,
         challenge=challenge,
         websocket_url=f"/practical-interview/ws/{req.session_id}",
+        time_limit_minutes=presentation.get("time_limit_minutes", 20),
     )
 
 
@@ -99,150 +124,22 @@ async def practical_result(session_id: str):
 @router.post("/finish", response_model=PracticalFinishResponse)
 async def finish_practical_interview(req: PracticalFinishRequest):
     state = await get_session(req.session_id)
-    if state and state.completed_at is not None and state.practical_evaluation:
-        return _finish_response(req.session_id, state.practical_evaluation, float(state.theory_score))
-    runtime = _runtime_sessions.get(req.session_id, {})
-    transcript = req.transcript or runtime.get("transcript", [])
-    workspace_state = req.workspace_state or runtime.get("workspace_state", {})
-    challenge = runtime.get("challenge") or (state.challenge if state else {}) or {}
-    violations = max(req.violations, state.violations if state else 0, runtime.get("violations", 0))
-
-    evaluation = await evaluate_practical_interview(
-        transcript=transcript,
-        workspace_state=workspace_state,
-        challenge=challenge,
-        violations=violations,
+    return await complete_practical_session(
+        req,
+        state,
+        _runtime_sessions.get(req.session_id, {}),
+        evaluate=evaluate_practical_interview,
+        persist=update_session,
     )
-    theory_score = float(state.theory_score) if state else 0.0
-    final_score = round(theory_score * 0.35 + evaluation["score"] * 0.45 + evaluation.get("communication_score", 0) * 0.20, 2)
-    evaluation["theory_score"] = theory_score
-    evaluation["final_score"] = final_score
-
-    if state:
-        state.tech_score = evaluation["score"]
-        state.practical_evaluation = evaluation
-        from datetime import datetime
-        state.completed_at = datetime.utcnow()
-        state.violations = violations
-        state.stage = InterviewStage.COMPLETED if evaluation["passed"] else InterviewStage.FAILED
-        await update_session(state)
-
-    company_report_email = os.getenv("COMPANY_REPORT_EMAIL", "")
-    if company_report_email:
-        notify_email(
-            company_report_email,
-            f"Reporte entrevista practica - {req.session_id}",
-            build_company_report_html(
-                session_id=req.session_id,
-                evaluation=evaluation,
-                transcript=transcript,
-                violations=violations,
-                candidate_name=runtime.get("candidate_name", "Profesional evaluado"),
-                job_title=runtime.get("job_title", "Puesto evaluado"),
-                career=runtime.get("career", "Area profesional"),
-                interviewer=runtime.get("interviewer_profile", {}),
-            ),
-        )
-
-    return _finish_response(req.session_id, evaluation, theory_score)
-
-
-def _finish_response(session_id: str, evaluation: dict, theory_score: float):
-    return PracticalFinishResponse(
-        session_id=session_id,
-        score=evaluation["score"],
-        theory_score=theory_score,
-        final_score=evaluation["final_score"],
-        communication_score=evaluation.get("communication_score", 0),
-        passed=evaluation["passed"],
-        summary=evaluation.get("summary", ""),
-        communication_summary=evaluation.get("communication_summary", ""),
-        strengths=evaluation.get("strengths", []),
-        risks=evaluation.get("risks", []),
-        recommendation=evaluation.get("recommendation", ""),
-        next_action=evaluation.get("next_action", "manual_review"),
-        raw_evaluation=evaluation,
-    )
-
-
-def build_company_report_html(
-    session_id: str,
-    evaluation: Dict[str, Any],
-    transcript: List[Dict[str, str]],
-    violations: int,
-    candidate_name: str = "Profesional evaluado",
-    job_title: str = "Puesto evaluado",
-    career: str = "Area profesional",
-    interviewer: Dict[str, Any] | None = None,
-) -> str:
-    next_action = evaluation.get("next_action", "manual_review")
-    action_label = {
-        "schedule_human_meeting": "Agendar reunion con la empresa",
-        "manual_review": "Revision manual",
-        "reject": "No avanzar",
-    }.get(next_action, next_action)
-    final_score = float(evaluation.get("final_score", 0) or 0)
-    ranking = (
-        "Puesto 1 entre candidatos aprobados" if final_score >= 92 else
-        "Puesto 2 entre candidatos aprobados" if final_score >= 86 else
-        "Puesto 3 entre candidatos aprobados" if final_score >= 80 else
-        "Aprobado, ranking sujeto al total de candidatos" if final_score >= 75 else
-        "No ingresa al ranking de aprobados"
-    )
-    interviewer = interviewer or {}
-    strengths = "".join(f"<li>{item}</li>" for item in evaluation.get("strengths", []))
-    risks = "".join(f"<li>{item}</li>" for item in evaluation.get("risks", []))
-    recent_turns = "".join(
-        f"<p style='margin:8px 0;padding:10px 12px;background:#f8fafc;border-radius:10px;'><strong>{'IA' if turn.get('role') == 'agent' else 'Profesional'}:</strong> {turn.get('content', '')}</p>"
-        for turn in transcript[-10:]
-    )
-    return f"""
-    <div style="font-family:Inter,Arial,sans-serif;background:#f4f7fb;padding:28px;color:#0f172a;">
-      <div style="max-width:900px;margin:auto;background:#fff;border:1px solid #e2e8f0;border-radius:22px;overflow:hidden;">
-        <div style="background:#102a43;color:#fff;padding:26px 30px;display:flex;justify-content:space-between;gap:18px;">
-          <div>
-            <div style="font-size:13px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#67e8f9;">Achanvear</div>
-            <h1 style="margin:8px 0 4px;">Informe ejecutivo de entrevista practica</h1>
-            <p style="margin:0;color:#cbd5e1;">Sesion {session_id}</p>
-          </div>
-          <div style="text-align:right;">
-            <span style="display:inline-block;border-radius:999px;padding:8px 12px;background:{'#dcfce7' if evaluation.get('passed') else '#fee2e2'};color:{'#166534' if evaluation.get('passed') else '#991b1b'};font-weight:900;font-size:12px;">{"APROBADO" if evaluation.get("passed") else "NO APROBADO"}</span>
-            <p style="margin:10px 0 0;color:#cbd5e1;">{action_label}</p>
-          </div>
-        </div>
-        <div style="padding:28px 30px;">
-          <h2 style="margin:0 0 6px;">{candidate_name}</h2>
-          <p style="margin:0;color:#64748b;">Puesto: {job_title} · Area: {career}</p>
-          <p style="margin:6px 0 0;color:#64748b;">Entrevistador IA: {interviewer.get("name", "Agente IA")} · {interviewer.get("role", "Evaluacion practica")}</p>
-          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:22px;">
-            <div style="border:1px solid #e2e8f0;border-radius:16px;padding:16px;"><p style="margin:0;color:#64748b;font-size:12px;font-weight:800;">FINAL</p><p style="font-size:30px;font-weight:900;margin:8px 0 0;">{evaluation.get("final_score", 0)}/100</p></div>
-            <div style="border:1px solid #e2e8f0;border-radius:16px;padding:16px;"><p style="margin:0;color:#64748b;font-size:12px;font-weight:800;">TECNICO</p><p style="font-size:30px;font-weight:900;margin:8px 0 0;">{evaluation.get("score", 0)}/100</p></div>
-            <div style="border:1px solid #e2e8f0;border-radius:16px;padding:16px;"><p style="margin:0;color:#64748b;font-size:12px;font-weight:800;">EXPERIENCIA</p><p style="font-size:30px;font-weight:900;margin:8px 0 0;">{evaluation.get("theory_score", 0)}/100</p></div>
-            <div style="border:1px solid #e2e8f0;border-radius:16px;padding:16px;"><p style="margin:0;color:#64748b;font-size:12px;font-weight:800;">PSICOLOGICO</p><p style="font-size:30px;font-weight:900;margin:8px 0 0;">{evaluation.get("communication_score", 0)}/100</p></div>
-          </div>
-          <h3 style="margin-top:28px;">Ranking</h3>
-          <p>{ranking}. El puesto final se recalcula con todos los candidatos aprobados de la vacante.</p>
-          <h3>Resumen ejecutivo</h3>
-          <p>{evaluation.get("summary", "")}</p>
-          <p>{evaluation.get("communication_summary", "")}</p>
-          <h3>Fortalezas</h3>
-          <ul>{strengths or "<li>Sin fortalezas registradas.</li>"}</ul>
-          <h3>Riesgos</h3>
-          <ul>{risks or "<li>Sin riesgos registrados.</li>"}</ul>
-          <h3>Recomendacion</h3>
-          <p>{evaluation.get("recommendation", "")}</p>
-          <h3>Alertas antifraude</h3>
-          <p>{violations}</p>
-          <h3>Evidencia reciente</h3>
-          {recent_turns or "<p>Sin turnos registrados.</p>"}
-        </div>
-      </div>
-    </div>
-    """
 
 
 @router.websocket("/ws/{session_id}")
 async def practical_voice_ws(websocket: WebSocket, session_id: str):
+    try:
+        session_grant(websocket.query_params.get("access_token", ""), session_id)
+    except HTTPException:
+        await websocket.close(code=4401)
+        return
     await websocket.accept()
     previous = _active_connections.get(session_id)
     _active_connections[session_id] = websocket
@@ -316,7 +213,8 @@ async def practical_voice_ws(websocket: WebSocket, session_id: str):
                 audio_bytes = message["bytes"]
                 await websocket.send_json({"type": "stt_started"})
                 try:
-                    candidate_text = await stt.transcribe_webm(audio_bytes)
+                    candidate_text = await stt.transcribe_webm(audio_bytes,
+                        f"Puesto: {runtime.get('job_title', '')}. Requisitos: {runtime.get('job_requirements', '')}")
                 except Exception as exc:
                     await websocket.send_json({
                         "type": "stt_error",
@@ -345,7 +243,16 @@ async def handle_candidate_turn(websocket: WebSocket, runtime: Dict[str, Any], c
     transcript.append({"role": "candidate", "content": candidate_text})
     await websocket.send_json({"type": "transcript", "role": "candidate", "text": candidate_text})
 
-    opening_reply = advance_onboarding(runtime, candidate_text)
+    if runtime.get("conversation_phase") == "case_ready" and not confirmed(candidate_text):
+        try:
+            preparation = {**runtime.get("challenge", {}), "preparation_instruction":
+                "Responde solo aclaraciones del enunciado. No resuelvas el caso ni inicies el tiempo. El candidato aun no confirma el inicio."}
+            opening_reply = await generate_interviewer_reply(transcript, candidate_text, {}, preparation, runtime.get("violations", 0))
+            opening_reply += " El tiempo aun no ha empezado. Cuando estes listo, confirma que deseas iniciar."
+        except Exception:
+            opening_reply = advance_onboarding(runtime, candidate_text)
+    else:
+        opening_reply = advance_onboarding(runtime, candidate_text)
     if opening_reply is not None:
         transcript.append({"role": "agent", "content": opening_reply})
         await websocket.send_json({"type": "agent_text", "text": opening_reply})

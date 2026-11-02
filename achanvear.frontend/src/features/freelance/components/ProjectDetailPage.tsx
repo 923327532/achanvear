@@ -220,7 +220,7 @@ function ProposalCard({
           <div className="flex flex-wrap items-start justify-between gap-2">
             <div className="min-w-0">
               <h4 className="break-words text-sm font-bold text-slate-900">
-                Freelancer #{proposal.freelancerUserId.slice(0, 8)}
+                {proposal.freelancerName || "Profesional"}
               </h4>
               <div className="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
                 <span className="flex items-center gap-1">
@@ -430,6 +430,7 @@ export function ProjectDetailPage() {
   }
 
   const proposalsCount = project.proposals?.length ?? 0;
+  const agreedBudget = project.proposals?.find((p) => p.status === "ACCEPTED")?.proposedBudget ?? project.budget;
   const submittedProposals = project.proposals?.filter((p) => p.status === "SUBMITTED").length ?? 0;
   const milestonesTotal = project.milestones?.length ?? 0;
   const milestonesApproved = project.milestones?.filter((m) => m.status === "APPROVED").length ?? 0;
@@ -469,7 +470,7 @@ export function ProjectDetailPage() {
           </span>
           <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 text-xs font-medium text-slate-600">
             <DollarSign className="w-3.5 h-3.5" />
-            Presupuesto: {formatBudget(project.budget)}
+            Presupuesto: {formatBudget(agreedBudget)}
           </span>
           <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 text-xs font-medium text-slate-600">
             <Clock className="w-3.5 h-3.5" />
@@ -637,7 +638,7 @@ export function ProjectDetailPage() {
                 </div>
                 <div className="flex justify-between gap-3">
                   <span className="text-slate-500">Presupuesto total</span>
-                  <span className="font-semibold text-slate-700">{formatBudget(project.budget)}</span>
+                  <span className="font-semibold text-slate-700">{formatBudget(agreedBudget)}</span>
                 </div>
               </div>
             </div>
@@ -657,7 +658,7 @@ export function ProjectDetailPage() {
                 <DollarSign className="w-4 h-4 shrink-0 text-slate-400" />
                 <div>
                   <p className="text-slate-500 text-xs">Presupuesto</p>
-                  <p className="font-medium text-slate-700">{formatBudget(project.budget)}</p>
+                  <p className="font-medium text-slate-700">{formatBudget(agreedBudget)}</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">

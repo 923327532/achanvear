@@ -9,7 +9,7 @@ class PracticalConnectionTest(unittest.TestCase):
     def test_repeated_message_id_does_not_repeat_the_answer_or_advance_twice(self):
         app = FastAPI(); app.include_router(practical.router)
         session = "deduplicated-voice-test"
-        with patch.object(practical, "get_session", AsyncMock(return_value=None)), \
+        with patch.object(practical, "update_session", AsyncMock()), patch.object(practical, "get_session", AsyncMock(return_value=None)), \
              patch.object(practical.tts, "synthesize_base64", AsyncMock(return_value=None)):
             with TestClient(app) as client:
                 client.post("/practical-interview/start", json={"session_id": session, "career": "Software", "job_title": "Java", "candidate_name": "Ana"})
@@ -35,7 +35,7 @@ class PracticalConnectionTest(unittest.TestCase):
         app = FastAPI()
         app.include_router(practical.router)
         session = "practical-voice-regression"
-        with patch.object(practical, "get_session", AsyncMock(return_value=None)), \
+        with patch.object(practical, "update_session", AsyncMock()), patch.object(practical, "get_session", AsyncMock(return_value=None)), \
              patch.object(practical.tts, "synthesize_base64", AsyncMock(return_value=None)):
             with TestClient(app) as client:
                 response = client.post("/practical-interview/start", json={

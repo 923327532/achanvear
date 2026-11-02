@@ -20,8 +20,10 @@ public class FreelanceApplicationMapper {
     private final CompanyLookupPort companyLookupPort;
 
     private final FreelancerProfileRepository freelancerProfiles;
+    private final achanvear.peru.profile.application.ProfileCvAccess cvAccess;
 
-    public FreelanceApplicationMapper(CompanyLookupPort companyLookupPort, FreelancerProfileRepository freelancerProfiles) {
+    public FreelanceApplicationMapper(CompanyLookupPort companyLookupPort, FreelancerProfileRepository freelancerProfiles, achanvear.peru.profile.application.ProfileCvAccess cvAccess) {
+        this.cvAccess = cvAccess;
         this.freelancerProfiles = freelancerProfiles;
         this.companyLookupPort = companyLookupPort;
     }
@@ -29,6 +31,8 @@ public class FreelanceApplicationMapper {
     public FreelancerProfileResponse toFreelancerProfileResponse(FreelancerProfile profile) {
         return toFreelancerProfileResponse(profile, null);
     }
+
+    public String visibleCurriculum(UUID owner, String url) { return cvAccess.canView(owner) ? url : null; }
 
     public FreelancerProfileResponse toFreelancerProfileResponse(FreelancerProfile profile, TalentProfile talentProfile) {
         // Datos del módulo freelance
@@ -44,8 +48,9 @@ public class FreelanceApplicationMapper {
         String address = profile.getAddress();
         String paymentMethodType = profile.getPaymentMethodType().name();
         String dni = profile.getDni();
-        String curriculumUrl = profile.getCurriculumUrl();
-        String cvData = profile.getCvData();
+        boolean showCv = cvAccess.canView(profile.getUserId());
+        String curriculumUrl = showCv ? profile.getCurriculumUrl() : null;
+        String cvData = showCv ? profile.getCvData() : null;
         String status = profile.getStatus().name();
 
         List<FreelancerCertificationResponse> certifications = profile.getCertifications().stream()

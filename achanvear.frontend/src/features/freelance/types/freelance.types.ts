@@ -12,6 +12,8 @@ export type ProjectDuration = "LESS_THAN_1_WEEK" | "1_2_WEEKS" | "2_4_WEEKS" | "
 export interface Proposal {
   id: string;
   freelancerUserId: string;
+  freelancerName?: string | null;
+  portfolioUrl?: string | null;
   coverLetter: string;
   proposedBudget: number;
   estimatedDays: number;
@@ -108,6 +110,7 @@ export interface PaginatedProjects {
 // ─── Proposal Payload ─────────────────────────────────────────────────────────
 
 export interface SubmitProposalPayload {
+  portfolioUrl?: string;
   coverLetter: string;
   proposedBudget: number;
   estimatedDays: number;

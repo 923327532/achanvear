@@ -4,7 +4,10 @@ Achanvear AI Agent Service v1.0 - LLM dinamico desde .env
 from dotenv import load_dotenv
 load_dotenv()
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse
+from shared.agent_access import session_grant, service_authorized
+import os
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from contextlib import asynccontextmanager
@@ -36,6 +39,29 @@ app = FastAPI(
     title="Achanvear AI Agent v1.0",
     lifespan=lifespan,
 )
+
+
+@app.middleware("http")
+async def authorize_agent(request: Request, call_next):
+    protected = bool(os.getenv("AGENT_SHARED_SECRET")) or os.getenv("AGENT_AUTH_REQUIRED", "false").lower() == "true"
+    if not protected or request.url.path in ("/health", "/") or request.method == "OPTIONS":
+        return await call_next(request)
+    if service_authorized(request.headers.get("X-Agent-Service-Key", "")):
+        return await call_next(request)
+    if not request.url.path.startswith(("/practical-interview/", "/code-runner/")):
+        return JSONResponse({"detail": "Internal agent endpoint"}, status_code=401)
+    try:
+        if request.method == "GET":
+            session_id = request.url.path.rsplit("/", 1)[-1] if request.url.path.startswith("/practical-interview/result/") else request.query_params.get("session_id", "")
+        else:
+            session_id = (await request.json()).get("session_id", "")
+        token = request.headers.get("Authorization", "").removeprefix("Bearer ")
+        request.state.grant = session_grant(token, session_id)
+    except HTTPException as error:
+        return JSONResponse({"detail": error.detail}, status_code=error.status_code)
+    except Exception:
+        return JSONResponse({"detail": "Interview authorization required"}, status_code=401)
+    return await call_next(request)
 
 app.add_middleware(
     CORSMiddleware,
@@ -87,6 +113,7 @@ async def notify_whatsapp_endpoint(session_id: str, phone: str, stage: str):
 
 
 class CreateSessionRequest(BaseModel):
+    presentation: dict = {}
     candidate_id: str
     job_id: str
     career: str = ""
@@ -106,6 +133,9 @@ async def create_session_endpoint(req: CreateSessionRequest):
         phone=req.phone,
         email=req.email,
     )
+    session.presentation = req.presentation
+    from shared.session_orchestrator import update_session
+    await update_session(session)
     return {
         "session_id": session.session_id,
         "candidate_id": session.candidate_id,

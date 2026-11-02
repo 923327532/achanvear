@@ -61,12 +61,12 @@ public class TwoFactorController {
         SecureRandom random = new SecureRandom();
         byte[] secretBytes = new byte[20];
         random.nextBytes(secretBytes);
-        String secret = Base64.getEncoder().encodeToString(secretBytes);
+        String secret = achanvear.peru.identity.application.TotpSecretEncoding.encode(secretBytes);
 
         User2faJpaEntity entity = user2faJpaRepository.findByUserId(userId).orElse(new User2faJpaEntity());
         entity.setUserId(userId);
-        entity.setEnabled(true);
-        entity.setSecret(secret);
+        entity.setEnabled(false);
+        entity.setSecret("b32:" + secret);
         entity.setMethod("TOTP");
         entity.setSetupAt(Instant.now());
         user2faJpaRepository.save(entity);
@@ -80,7 +80,7 @@ public class TwoFactorController {
 
         return ResponseEntity.ok(ApiResponse.success(
                 new TwoFactorSetupResponse(secret, otpAuthUrl, issuer, label),
-                "2FA enabled successfully"
+                "Configuración 2FA generada; verifica el código para activarla"
         ));
     }
 
@@ -104,12 +104,16 @@ public class TwoFactorController {
     ) {
         UUID userId = authenticatedUser.getUserId();
         Optional<User2faJpaEntity> opt = user2faJpaRepository.findByUserId(userId);
-        if (opt.isEmpty() || !opt.get().getEnabled()) {
+        if (opt.isEmpty() || opt.get().getSecret() == null) {
             return ResponseEntity.badRequest()
                     .body(ApiResponse.failure("2FA is not enabled for this account"));
         }
 
         boolean verified = validateTotpCode(opt.get().getSecret(), request.code());
+        if (verified && !Boolean.TRUE.equals(opt.get().getEnabled())) {
+            opt.get().setEnabled(true);
+            user2faJpaRepository.save(opt.get());
+        }
 
         return ResponseEntity.ok(ApiResponse.success(
                 new TwoFactorVerifyResponse(verified, Instant.now()),
@@ -168,7 +172,7 @@ public class TwoFactorController {
     private boolean validateTotpCode(String secretB64, String code) {
         if (code == null || code.length() != 6 || secretB64 == null) return false;
         try {
-            byte[] secretBytes = Base64.getDecoder().decode(secretB64);
+            byte[] secretBytes = achanvear.peru.identity.application.TotpSecretEncoding.decodeStored(secretB64);
             long timeWindow = Instant.now().getEpochSecond() / 30;
             for (long offset = -1; offset <= 1; offset++) {
                 if (generateTOTP(secretBytes, timeWindow + offset).equals(code)) {

@@ -502,7 +502,7 @@ export function CompanyPaymentsPage() {
                 </div>
               </div>
               <div className="rounded-lg border border-slate-100 bg-slate-50 p-4">
-                <p className="text-sm font-medium text-slate-700">Comisiones del Agente IA</p>
+                <p className="text-sm font-medium text-slate-700">Comisiones de la plataforma</p>
                 <CommissionPolicyNotice />
               </div>
               <div className="mt-5 flex items-center gap-3 rounded-lg border border-dashed border-slate-200 p-4">

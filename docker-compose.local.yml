@@ -19,6 +19,11 @@ services:
       PRACTICAL_MONGODB_URI: mongodb://practice-mongo:27017
     ports: !override
       - "127.0.0.1:${AI_AGENT_PORT:-8001}:8001"
+  code-runner:
+    container_name: achanvear-local-code-runner
+    environment:
+      PRACTICAL_POSTGRES_DSN: postgresql://${DB_USERNAME}:${DB_PASSWORD}@practice-postgres:5432/practice
+      PRACTICAL_MONGODB_URI: mongodb://practice-mongo:27017
   practice-postgres:
     image: postgres:17-alpine
     environment:
@@ -33,7 +38,7 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - achanvear-network
+      - runner-network
     restart: unless-stopped
   practice-mongo:
     image: mongo:7
@@ -45,7 +50,7 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - achanvear-network
+      - runner-network
     restart: unless-stopped
   backend:
     container_name: achanvear-local-backend

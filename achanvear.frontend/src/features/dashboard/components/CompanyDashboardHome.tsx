@@ -10,8 +10,11 @@ import { HiringStatsCards } from "@/features/jobs/components/HiringStatsCards";
 import { JobsManagementTable } from "@/features/jobs/components/JobsManagementTable";
 import { HiringPipeline } from "@/features/jobs/components/HiringPipeline";
 import { QuickActions } from "@/features/jobs/components/QuickActions";
+import { useCurrentPlan } from "@/features/settings/hooks/useCompanySettings";
 
 export function CompanyDashboardHome() {
+  const { currentPlan } = useCurrentPlan();
+  const hasAi = !!currentPlan && currentPlan.planType !== "FREE";
   const { data: dashboard, refetch, statsError } = useCompanyDashboard();
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -106,7 +109,7 @@ export function CompanyDashboardHome() {
         </section>
 
         {/* Pipeline en progreso */}
-        <section>
+        {hasAi && <section>
           <h2 className="text-lg font-bold text-slate-900 mb-4">Pipeline en progreso</h2>
           <HiringPipeline
             data={{
@@ -116,7 +119,7 @@ export function CompanyDashboardHome() {
               finalists: dashboard?.finalists ?? 0,
             }}
           />
-        </section>
+        </section>}
 
         {/* Acciones rápidas */}
         <section>

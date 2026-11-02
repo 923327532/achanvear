@@ -72,6 +72,18 @@ async def generate_interviewer_reply(
     challenge: Dict[str, Any],
     violations: int,
 ) -> str:
+    if challenge.get("preparation_instruction"):
+        response = await llm.ainvoke([
+            SystemMessage(content=(
+                "Eres un entrevistador que aclara el enunciado antes de iniciar el caso. "
+                "El candidato NO ha confirmado el inicio. Responde solo su pregunta en menos de 70 palabras, "
+                "sin resolver el ejercicio. No des la orden de empezar, no anuncies que comienza el tiempo "
+                "ni digas empecemos o comienza ahora. " + _profile_context(challenge))),
+            HumanMessage(content=(f"Enunciado: {challenge.get('prompt', '')}\n"
+                                  f"Lenguaje: {challenge.get('language', '')}\n"
+                                  f"Pregunta: {candidate_text}")),
+        ])
+        return response.content.strip()
     if workspace_state.get("codeOutput"):
         return (
             "Ya veo el resultado de tu ejecucion. Ahora explicame que significa esa salida, "
@@ -80,10 +92,35 @@ async def generate_interviewer_reply(
 
     prompt = build_turn_prompt(transcript, candidate_text, workspace_state, challenge, violations)
     response = await llm.ainvoke([
-        SystemMessage(content=f"{SYSTEM_PROMPT}\n{_profile_context(challenge)}"),
+        SystemMessage(content=f"{SYSTEM_PROMPT}\n{_profile_context(challenge)}\n{challenge.get('preparation_instruction', '')}"),
         HumanMessage(content=prompt),
     ])
     return response.content.strip()
+
+
+def _professional_case(challenge: Dict[str, Any]) -> bool:
+    return challenge.get("workspace_type") in {"case_study", "document_review", "simulation"} or challenge.get("workspace_tool") in {"case_notes", "spreadsheet_notes", "campaign_brief", "sales_playbook", "document_review", "document_analysis", "document", "notes"}
+
+
+def _evaluation_rules(challenge: Dict[str, Any]) -> str:
+    if _professional_case(challenge):
+        return (
+            "- Este es un caso profesional NO informatico. No exijas codigo, terminal, compilacion, archivos de software ni arquitectura.\n"
+            "- Rubrica: comprension del caso 20, analisis y sustento 30, propuesta y viabilidad 25, validacion profesional 15, comunicacion 10.\n"
+            "- Usa notas, documento revisado, calculos explicados y conversacion como evidencia.\n"
+            "- Marketing: audiencia, objetivos, presupuesto, canales, KPIs y medicion. Legal: clausulas, riesgos, fundamentos y propuesta de correccion. Contabilidad: conciliacion, calculos, hallazgos y controles.\n"
+            "- No inventes normativa ni supongas que todo profesional debe programar.\n"
+        )
+    return (
+        "- Evalua sobre 100 con criterios: cumplimiento funcional 35, arquitectura/diseno 25, calidad y mantenibilidad 15, ejecucion/validacion 15, comunicacion 10.\n"
+        "- Para perfiles senior exige estructura profesional: varios archivos cuando el caso lo amerita, separacion de responsabilidades, nombres claros, patrones simples, manejo de errores y decisiones justificadas.\n"
+        "- No premies solo que compile: si el codigo corre pero ignora arquitectura, accesibilidad, seguridad o requisitos del puesto, baja el puntaje.\n"
+        "- Si creo carpetas/archivos con extensiones coherentes y explico el diseno, consideralo evidencia positiva aun si faltan detalles menores.\n"
+        "- Si no ejecuto el programa, puede aprobar solo si el codigo/notas muestran una solucion claramente completa y explicada.\n"
+        "- Si dejo TODOs principales, codigo casi vacio o solo hablo sin construir, debe reprobar.\n"
+        "- Si ejecuto con errores pero el diseno es razonable, puede quedar en revision manual, no aprobar automatico.\n"
+        "- Penaliza incumplimiento de requisitos esperados del reto.\n\n"
+    )
 
 
 async def evaluate_practical_interview(
@@ -115,14 +152,9 @@ async def evaluate_practical_interview(
         "recommendation string, next_action string ('reject'|'schedule_human_meeting'|'manual_review').\n\n"
         "Reglas obligatorias de evaluacion:\n"
         "- Usa evidencia del workspace: archivos, codigo, notas, salida de ejecucion y conversacion.\n"
-        "- Evalua sobre 100 con criterios: cumplimiento funcional 35, arquitectura/diseno 25, calidad y mantenibilidad 15, ejecucion/validacion 15, comunicacion 10.\n"
-        "- Para perfiles senior exige estructura profesional: varios archivos cuando el caso lo amerita, separacion de responsabilidades, nombres claros, patrones simples, manejo de errores y decisiones justificadas.\n"
-        "- No premies solo que compile: si el codigo corre pero ignora arquitectura, accesibilidad, seguridad o requisitos del puesto, baja el puntaje.\n"
-        "- Si creo carpetas/archivos con extensiones coherentes y explico el diseno, consideralo evidencia positiva aun si faltan detalles menores.\n"
-        "- Si no ejecuto el programa, puede aprobar solo si el codigo/notas muestran una solucion claramente completa y explicada.\n"
-        "- Si dejo TODOs principales, codigo casi vacio o solo hablo sin construir, debe reprobar.\n"
-        "- Si ejecuto con errores pero el diseno es razonable, puede quedar en revision manual, no aprobar automatico.\n"
-        "- Penaliza incumplimiento de requisitos esperados del reto.\n\n"
+        "- Cita evidencia concreta para cada fortaleza y brecha. No inventes TODOs, fallos ni funciones ausentes. Un pass dentro de una prueba de excepcion no es una tarea pendiente.\n"
+        "- Ajusta la exigencia al nivel del puesto y al alcance del caso; no exijas arquitectura senior a un puesto junior si el caso no la requiere.\n"
+        + _evaluation_rules(challenge) +
         f"Evidencia objetiva calculada: {json.dumps(evidence, ensure_ascii=False)}\n"
         f"Reto: {json.dumps(challenge, ensure_ascii=False)}\n"
         f"Workspace: {json.dumps(workspace_state, ensure_ascii=False)[:7000]}\n"
@@ -166,6 +198,16 @@ def _workspace_evidence(
     challenge: Dict[str, Any],
     transcript: List[Dict[str, str]],
 ) -> Dict[str, Any]:
+    if _professional_case(challenge):
+        notes = str(workspace_state.get("notes") or "").strip()
+        candidate_text = " ".join(str(t.get("content", "")) for t in transcript if t.get("role") == "candidate")
+        return {
+            "workspace_kind": "professional_case",
+            "has_notes": len(notes) >= 80,
+            "notes_characters": len(notes),
+            "candidate_explanation_characters": len(candidate_text),
+            "completion_level": "documented" if len(notes) >= 80 or len(candidate_text) >= 180 else "none",
+        }
     files = workspace_state.get("files") or []
     if not isinstance(files, list):
         files = []
@@ -175,7 +217,7 @@ def _workspace_evidence(
     code = str(workspace_state.get("code") or "")
     file_paths = [str(item.get("path") or "") for item in files if isinstance(item, dict)]
     file_texts = [str(item.get("content") or "") for item in files if isinstance(item, dict)]
-    combined_code = "\n".join([code, *file_texts])
+    combined_code = "\n".join(dict.fromkeys([code, *file_texts]))
     normalized_code = combined_code.strip()
     notes = str(workspace_state.get("notes") or "").strip()
     last_run = workspace_state.get("lastRun") if isinstance(workspace_state.get("lastRun"), dict) else None
@@ -188,7 +230,7 @@ def _workspace_evidence(
         line for line in normalized_code.splitlines()
         if line.strip() and not line.strip().startswith(("//", "#", "--"))
     ]
-    todo_count = len(re.findall(r"\bTODO\b|Escribe tu solucion aqui|return candidates;|pass\b", combined_code, flags=re.IGNORECASE))
+    todo_count = len(re.findall(r"\bTODO\b|Escribe tu solucion aqui|return candidates;|NotImplementedError", combined_code, flags=re.IGNORECASE))
     has_code = len(normalized_code) >= 80 or len(meaningful_lines) >= 4
     has_notes = len(notes) >= 80
     ran = bool(last_run) or "Ejecucion correcta" in code_output or "Ejecucion con errores" in code_output
@@ -253,6 +295,8 @@ def _workspace_evidence(
 
 def _apply_evidence_caps(score: int, evidence: Dict[str, Any]) -> int:
     completion_level = evidence.get("completion_level")
+    if evidence.get("workspace_kind") == "professional_case":
+        return min(score, 25) if completion_level == "none" else score
     if completion_level == "none":
         return min(score, 25)
     if completion_level == "attempted":

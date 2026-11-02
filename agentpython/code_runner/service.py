@@ -4,8 +4,11 @@ import re
 import shutil
 import subprocess
 import tempfile
+from contextvars import ContextVar
 from pathlib import Path
 from typing import Any
+
+_standard_input: ContextVar[str] = ContextVar("runner_standard_input", default="")
 
 
 LANGUAGE_ALIASES = {
@@ -78,6 +81,23 @@ def run_code(
     function_name: str | None = None,
     test_cases: list[Any] | None = None,
     timeout_seconds: int = 8,
+    stdin: str = "",
+) -> dict[str, Any]:
+    token = _standard_input.set(stdin[:16000])
+    try:
+        return _execute_code(language, code, files, entry_file, function_name, test_cases, timeout_seconds)
+    finally:
+        _standard_input.reset(token)
+
+
+def _execute_code(
+    language: str,
+    code: str,
+    files: list[dict[str, Any]] | None = None,
+    entry_file: str | None = None,
+    function_name: str | None = None,
+    test_cases: list[Any] | None = None,
+    timeout_seconds: int = 8,
 ) -> dict[str, Any]:
     normalized = LANGUAGE_ALIASES.get(language.lower().strip(), language.lower().strip())
     timeout = max(1, min(timeout_seconds, 15))
@@ -88,7 +108,9 @@ def run_code(
         try:
             if files:
                 return _run_project(workdir, normalized, files, entry_file, timeout)
-            if normalized in {"javascript", "typescript"}:
+            if normalized == "typescript":
+                return _run_project(workdir, normalized, [{"path": "main.ts", "content": code}], "main.ts", timeout)
+            if normalized == "javascript":
                 return _run_javascript(workdir, code, function_name, test_cases, timeout)
             if normalized == "python":
                 return _run_python(workdir, code, function_name, test_cases, timeout)
@@ -146,7 +168,15 @@ def _run_project(
             "runtime_available": True,
         }
 
-    if language in {"javascript", "typescript"}:
+    if language == "typescript":
+        if not shutil.which("tsc"):
+            return _missing_runtime("typescript", "tsc")
+        sources = [path for path in written if path.endswith(".ts")]
+        compiled = _run_process(["tsc", "--target", "ES2020", "--module", "commonjs", "--outDir", ".compiled", "--rootDir", ".", "--skipLibCheck", *sources], workdir, timeout, "typescript")
+        if compiled["exit_code"] != 0:
+            return compiled
+        return _run_process(["node", str(Path(".compiled") / Path(entry).with_suffix(".js"))], workdir, timeout, "typescript")
+    if language == "javascript":
         return _run_process(["node", entry], workdir, timeout, "javascript")
     if language == "python":
         python_cmd = shutil.which("python") or shutil.which("python3")
@@ -154,18 +184,27 @@ def _run_project(
             return _missing_runtime("python", "python")
         return _run_process([python_cmd, entry], workdir, timeout, "python")
     if language == "java":
-        compile_result = _run_process(["javac", *written], workdir, timeout, "java")
+        sources = [path for path in written if path.endswith(".java")]
+        compile_result = _run_process(["javac", "-encoding", "UTF-8", "-d", ".", *sources], workdir, timeout, "java")
         if compile_result["exit_code"] != 0:
             return compile_result
         main_class = Path(entry).stem
+        package = re.search(r"^\s*package\s+([\w.]+)\s*;", (workdir / entry).read_text(encoding="utf-8"), re.MULTILINE)
+        if package:
+            main_class = package.group(1) + "." + main_class
         return _run_process(["java", main_class], workdir, timeout, "java")
     if language == "csharp":
-        compile_result = _run_process(["mcs", "-out:Program.exe", *written], workdir, timeout, "csharp")
+        sources = [path for path in written if path.endswith(".cs")]
+        entry_source = (workdir / entry).read_text(encoding="utf-8")
+        class_name = re.search(r"\bclass\s+(\w+)", entry_source)
+        namespace = re.search(r"\bnamespace\s+([\w.]+)", entry_source)
+        main_option = ["-main:" + (namespace.group(1) + "." if namespace else "") + class_name.group(1)] if class_name else []
+        compile_result = _run_process(["mcs", "-out:Program.exe", *main_option, *sources], workdir, timeout, "csharp")
         if compile_result["exit_code"] != 0:
             return compile_result
         return _run_process(["mono", "Program.exe"], workdir, timeout, "csharp")
     if language == "go":
-        return _run_process(["go", "run", "."], workdir, timeout, "go")
+        return _run_process(["go", "run", "."], workdir / Path(entry).parent, timeout, "go")
     if language == "php":
         return _run_process(["php", entry], workdir, timeout, "php")
     if language == "ruby":
@@ -299,6 +338,12 @@ def _run_mongodb(code: str, timeout: int) -> dict[str, Any]:
 
     try:
         client.admin.command("ping")
+        if shutil.which("mongosh"):
+            result = subprocess.run(["mongosh", dsn, "--quiet", "--eval", f"db = db.getSiblingDB('{database_name}');\n" + code],
+                                    capture_output=True, text=True, timeout=timeout,
+                                    env={"PATH": os.environ.get("PATH", ""), "HOME": "/tmp", "NODE_OPTIONS": "--max-old-space-size=256"})
+            return {"success": result.returncode == 0, "language": "mongodb", "stdout": result.stdout[-12000:],
+                    "stderr": result.stderr[-12000:], "exit_code": result.returncode, "runtime_available": True}
         db = _SandboxMongoDatabase(client[database_name], print_value)
         globals_scope = {
             "db": db,
@@ -495,7 +540,7 @@ def _write_project_files(workdir: Path, files: list[dict[str, Any]]) -> list[str
 def _default_entry_file(language: str, files: list[str]) -> str | None:
     preferred = {
         "javascript": ("main.js", "index.js", "app.js", "server.js"),
-        "typescript": ("main.js", "index.js", "app.js", "server.js"),
+        "typescript": ("main.ts", "index.ts", "app.ts", "server.ts"),
         "python": ("main.py", "app.py"),
         "java": ("Main.java",),
         "csharp": ("Program.cs",),
@@ -518,7 +563,7 @@ def _run_javascript(
 ) -> dict[str, Any]:
     if not shutil.which("node"):
         return _missing_runtime("javascript", "node")
-    executable = _strip_typescript(code)
+    executable = code
     harness = ""
     if function_name and test_cases:
         harness = (
@@ -672,6 +717,8 @@ def _run_process(
     result = subprocess.run(
         command,
         cwd=workdir,
+        input=_standard_input.get(),
+        env={**{key: value for key, value in os.environ.items() if key in {"PATH", "HOME", "LANG", "LC_ALL", "TMPDIR"}}, "GO111MODULE": "off", "GOCACHE": "/tmp/go-cache", "GOMAXPROCS": "2"},
         capture_output=True,
         text=True,
         timeout=timeout,

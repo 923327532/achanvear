@@ -22,17 +22,23 @@ public class TheoryInterviewPassedHandler {
 
     private final IdentityCandidateLookupPort candidateLookupPort;
     private final GenerateScheduleUseCase generateScheduleUseCase;
+    private final achanvear.peru.payments.application.CompanyAiAccess aiAccess;
 
     public TheoryInterviewPassedHandler(
             IdentityCandidateLookupPort candidateLookupPort,
-            GenerateScheduleUseCase generateScheduleUseCase
+            GenerateScheduleUseCase generateScheduleUseCase,
+            achanvear.peru.payments.application.CompanyAiAccess aiAccess
     ) {
         this.candidateLookupPort = candidateLookupPort;
         this.generateScheduleUseCase = generateScheduleUseCase;
+        this.aiAccess = aiAccess;
     }
 
     @EventListener
     public void handleTheoryInterviewPassed(TheoryInterviewPassedEvent event) {
+        // A subscription may expire during the interview. Preserve its report and skip new scheduling.
+        try { aiAccess.requireJob(event.jobId()); }
+        catch (achanvear.peru.shared.exception.ForbiddenOperationException expired) { return; }
         try {
             UUID candidateUuid = UUID.fromString(event.candidateId());
             IdentityCandidateLookupPort.CandidateSummary candidate = candidateLookupPort.findById(candidateUuid);

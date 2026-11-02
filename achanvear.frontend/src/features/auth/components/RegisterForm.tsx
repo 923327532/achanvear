@@ -126,7 +126,7 @@ export function RegisterForm() {
   const passwordValue = form.watch("password") ?? "";
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-start bg-slate-50 px-3 py-6 sm:justify-center sm:px-4 sm:py-12">
+    <div className="flex min-h-screen flex-col items-center justify-start bg-gradient-to-br from-teal-700 to-teal-500 px-3 py-6 sm:justify-center sm:px-4 sm:py-12">
 
       {/* Logo */}
       <BrandLogo className="mb-6 sm:mb-8" />

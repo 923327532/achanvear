@@ -474,7 +474,7 @@ export function CvManagerSection() {
               </span>
             </div>
             {cvInfo?.fileName && <p className="text-sm font-medium text-gray-800 truncate mt-1">{cvInfo.fileName}</p>}
-            <p className="text-xs text-gray-400 mt-0.5 break-words">Última actualización: {formatDate(cvInfo?.lastUpdated ?? null)}</p>
+            <p className="text-xs text-gray-400 mt-0.5 break-words">{cvInfo?.lastUpdated ? `Última actualización: ${formatDate(cvInfo.lastUpdated)}` : "Fecha de actualización no registrada"}</p>
           </div>
         </div>
       </div>

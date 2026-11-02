@@ -2,6 +2,7 @@
 "use client";
 
 import { Briefcase, Users, FileText, Building2 } from "lucide-react";
+import { useCurrentPlan } from "@/features/settings/hooks/useCompanySettings";
 
 interface StatsData {
   activeJobs: number | null;
@@ -34,13 +35,15 @@ const STATS = [
 ];
 
 export function HiringStatsCards({ data, compact = false }: { data: StatsData; compact?: boolean }) {
+  const { currentPlan } = useCurrentPlan();
+  const hasAi = !!currentPlan && currentPlan.planType !== "FREE";
   // RESPONSIVE: antes era 1 columna en celular, así que las 4 tarjetas
   // ocupaban 4 filas completas y alargaban mucho la pantalla. Ahora 2x2 desde
   // el ancho más chico, con tarjetas más compactas (padding, ícono y número
   // más chicos) hasta sm; desde ahí vuelven al tamaño original.
   return (
     <div className={`grid grid-cols-2 gap-3 lg:grid-cols-4 ${compact ? "" : "sm:gap-5"}`}>
-      {STATS.map((stat) => {
+      {STATS.filter((stat) => hasAi || stat.key !== "interviewsInProgress").map((stat) => {
         const Icon = stat.icon;
         const value = data[stat.key];
         return (

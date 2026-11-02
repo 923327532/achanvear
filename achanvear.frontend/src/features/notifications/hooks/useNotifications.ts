@@ -12,6 +12,7 @@ export function useNotifications() {
     queryKey: ["notifications"],
     queryFn: notificationApi.getNotifications,
     staleTime: 1000 * 60 * 3,
+    refetchInterval: 10000,
     retry: 1,
     enabled: status === "AUTHENTICATED",
   });

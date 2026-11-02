@@ -16,6 +16,11 @@ export function useLogin() {
   const [twoFACode, setTwoFACode] = useState("");
   const [twoFALoading, setTwoFALoading] = useState(false);
 
+  const destinationAfterLogin = (role: string) =>
+    new URLSearchParams(window.location.search).get("next") === "/payments"
+      ? "/payments"
+      : homeRouteForRole(role);
+
   const form = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
     defaultValues: { email: "", password: "" },
@@ -25,7 +30,7 @@ export function useLogin() {
     try {
       setFormError(null);
       const user = await login(data);
-      router.push(homeRouteForRole(user.role));
+      router.push(destinationAfterLogin(user.role));
     } catch (err: any) {
       if (err?.message === "2FA_REQUIRED") {
         // 2FA step will be shown, no error needed
@@ -40,7 +45,7 @@ export function useLogin() {
     setTwoFALoading(true);
     try {
       const user = await complete2FALogin(tempToken, twoFACode);
-      router.push(homeRouteForRole(user.role));
+      router.push(destinationAfterLogin(user.role));
     } catch (err: any) {
       setFormError(getFriendlyErrorMessage(err));
     } finally {

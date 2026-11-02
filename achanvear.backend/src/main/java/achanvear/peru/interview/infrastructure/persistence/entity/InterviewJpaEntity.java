@@ -26,6 +26,12 @@ public class InterviewJpaEntity {
     @Column(name = "status", nullable = false)
     private String status;
 
+    @Column(name = "abort_reason", columnDefinition = "text")
+    private String abortReason;
+
+    public String getAbortReason() { return abortReason; }
+    public void setAbortReason(String abortReason) { this.abortReason = abortReason; }
+
     @Column(name = "interviewer_code")
     private String interviewerCode;
 

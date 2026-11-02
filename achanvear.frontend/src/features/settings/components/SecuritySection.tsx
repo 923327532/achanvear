@@ -5,6 +5,7 @@ import { Video, Mic, Check, Lock, Loader2, Eye, EyeOff, Shield, Smartphone } fro
 import { useChangePassword } from "../hooks/useSettings";
 import { settingsApi } from "../api/settingsApi";
 import { getAuthToken } from "@/lib/storage";
+import { toDataURL } from "qrcode";
 
 function Toggle({ enabled, onChange }: { enabled: boolean; onChange: (v: boolean) => void }) {
   return (
@@ -84,13 +85,17 @@ function PasswordStrength({ password }: { password: string }) {
 }
 
 function QRCodeDisplay({ otpAuthUrl }: { otpAuthUrl: string }) {
-  // Generate QR code URL using a public API (or you can use a library)
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(otpAuthUrl)}`;
+  const [qrUrl, setQrUrl] = useState<string | null>(null);
+  useEffect(() => {
+    let active = true;
+    toDataURL(otpAuthUrl, { width: 200, margin: 2 }).then(url => { if (active) setQrUrl(url); }).catch(() => { if (active) setQrUrl(null); });
+    return () => { active = false; };
+  }, [otpAuthUrl]);
 
   return (
     <div className="flex flex-col items-center gap-3 py-4">
       {/* RESPONSIVE: QR un poco más chico en celular */}
-      <img src={qrUrl} alt="2FA QR Code" className="w-40 h-40 sm:w-48 sm:h-48 rounded-xl border border-gray-200" />
+      {qrUrl ? <img src={qrUrl} alt="2FA QR Code" className="w-40 h-40 sm:w-48 sm:h-48 rounded-xl border border-gray-200" /> : <p className="text-sm text-slate-500">Generando QR. También puedes ingresar la clave manualmente.</p>}
       <p className="text-xs text-gray-500 text-center">
         Escanea este codigo con Google Authenticator o cualquier app TOTP
       </p>
@@ -235,7 +240,7 @@ export function SecuritySection() {
             <div className="min-w-0">
               <h3 className="text-sm font-semibold text-gray-700">Autenticacion de Dos Factores (2FA)</h3>
               <p className="text-xs text-gray-400">
-                {twoFAEnabled
+                {twoFASetup && !verifySuccess ? "Verifica el código para completar la activación de 2FA." : twoFAEnabled
                   ? "2FA activada. Al iniciar sesion te pedira un codigo de Google Authenticator."
                   : "Anade una capa extra de seguridad con Google Authenticator"}
               </p>
@@ -368,11 +373,8 @@ export function SecuritySection() {
         >
           {isLoading ? <><Loader2 className="w-4 h-4 animate-spin" /> Actualizando...</> : "Actualizar Contrasena"}
         </button>
-        <button className="inline-flex items-center justify-center rounded-xl border border-gray-200 px-5 py-2.5 text-sm font-medium text-gray-500 transition-colors hover:bg-gray-50 hover:text-gray-700">
+        <button onClick={() => { setCurrentPassword(""); setNewPassword(""); setConfirmPassword(""); setError(null); setSuccess(false); }} className="inline-flex items-center justify-center rounded-xl border border-gray-200 px-5 py-2.5 text-sm font-medium text-gray-500 transition-colors hover:bg-gray-50 hover:text-gray-700">
           Cancelar
-        </button>
-        <button className="inline-flex items-center justify-center rounded-xl bg-[#1B3A6B] px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#0EA5A0]">
-          Guardar Cambios
         </button>
       </div>
     </div>

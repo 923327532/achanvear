@@ -24,12 +24,12 @@ class SpeechToText:
         self._model = WhisperModel(self.model_name, device=device, compute_type=compute_type)
         return self._model
 
-    async def transcribe_webm(self, audio_bytes: bytes) -> str:
+    async def transcribe_webm(self, audio_bytes: bytes, context: str = "") -> str:
         if not audio_bytes:
             return ""
-        return await asyncio.to_thread(self._transcribe_sync, audio_bytes)
+        return await asyncio.to_thread(self._transcribe_sync, audio_bytes, context)
 
-    def _transcribe_sync(self, audio_bytes: bytes) -> str:
+    def _transcribe_sync(self, audio_bytes: bytes, context: str = "") -> str:
         model = self._load_model()
         with tempfile.NamedTemporaryFile(suffix=".webm", delete=False) as tmp:
             tmp.write(audio_bytes)
@@ -39,7 +39,9 @@ class SpeechToText:
                 tmp_path,
                 language="es",
                 vad_filter=True,
-                beam_size=1,
+                beam_size=5,
+                initial_prompt=("Entrevista de trabajo en español. Estoy listo para iniciar la entrevista. "
+                                "Programación: Python, Java, JavaScript, TypeScript, SQL, GitHub. " + context)[:1200],
                 condition_on_previous_text=False,
             )
             return " ".join(segment.text.strip() for segment in segments).strip()

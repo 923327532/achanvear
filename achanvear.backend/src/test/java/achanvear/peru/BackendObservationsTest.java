@@ -152,7 +152,7 @@ class BackendObservationsTest {
         var schedules=mock(InterviewScheduleRepository.class);
         var service=new achanvear.peru.interview.application.impl.InterviewScheduleService(schedules,
                 mock(InterviewRepository.class),mock(achanvear.peru.notifications.infrastructure.external.BrevoEmailClient.class),
-                mock(IdentityCandidateLookupPort.class),"http://localhost");
+                mock(IdentityCandidateLookupPort.class),"http://localhost",mock(achanvear.peru.interview.application.CompanyInterviewer.class));
         var result=service.execute(new achanvear.peru.interview.application.GenerateScheduleCommand(
                 UUID.randomUUID().toString(),UUID.randomUUID().toString(),UUID.randomUUID().toString(),"THEORY","Test","HTML"));
         var nine=java.time.OffsetDateTime.parse(result.proposedSlots().get(1).dateTime());
@@ -168,7 +168,7 @@ class BackendObservationsTest {
         when(profiles.findById(profile.getId())).thenReturn(Optional.of(profile));
         var service=new achanvear.peru.profile.application.impl.ProfileApplicationService(profiles,
                 mock(achanvear.peru.profile.domain.factory.TalentProfileFactory.class),
-                new achanvear.peru.profile.application.impl.ProfileApplicationMapper(),
+                new achanvear.peru.profile.application.impl.ProfileApplicationMapper(mock(achanvear.peru.profile.application.ProfileCvAccess.class)),
                 mock(achanvear.peru.profile.application.port.out.ProfileValidationPort.class),mock(EventPublisher.class),jdbc);
         assertThrows(achanvear.peru.shared.exception.ForbiddenOperationException.class, () -> service.execute(
                 new achanvear.peru.profile.application.command.RateProfileCommand(profile.getId().toString(),UUID.randomUUID().toString(),"COMPANY",5,true,"Test")));
@@ -246,7 +246,7 @@ class BackendObservationsTest {
                 new achanvear.peru.interview.domain.service.ScoreCalculator(),
                 mock(achanvear.peru.shared.infrastructure.EventPublisher.class),mock(JobPostRepository.class),
                 mock(InterviewScheduleRepository.class),mock(achanvear.peru.compliance.application.ValidateInterviewConsentUseCase.class),evaluations,
-                mock(achanvear.peru.interview.application.impl.InterviewAttendanceService.class));
+                mock(achanvear.peru.interview.application.impl.InterviewAttendanceService.class), mock(CompanyLookupPort.class), mock(achanvear.peru.interview.application.CompanyInterviewer.class),mock(achanvear.peru.interview.application.port.InterviewSessionSettingsPort.class));
         service.execute(new achanvear.peru.interview.application.command.CompleteInterviewCommand(interview.getId().toString(),100,"Approved","Fake evidence"));
         assertEquals(22,interview.getScore().getValue()); assertEquals(InterviewStatus.COMPLETED,interview.getStatus());
         service.execute(new achanvear.peru.interview.application.command.CompleteInterviewCommand(interview.getId().toString(),100,null,null));

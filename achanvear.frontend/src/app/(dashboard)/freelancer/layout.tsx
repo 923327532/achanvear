@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { useProtectedRoute } from "@/shared/hooks/useProtectedRoute";
+import { useConversations } from "@/features/chat/hooks/useChat";
 import { useNotifications } from "@/features/notifications/hooks/useNotifications";
 import { ConfirmModal } from "@/shared/components/ui/ConfirmModal";
 import { BrandLogo } from "@/shared/components/ui/BrandLogo";
@@ -54,6 +55,8 @@ export default function FreelancerLayout({ children }: { children: React.ReactNo
   }, [pathname]);
 
   const { unreadCount } = useNotifications();
+  const { conversations } = useConversations();
+  const unreadMessages = conversations.reduce((total, conversation) => total + conversation.unreadCount, 0);
 
   const fullName = user?.fullName ?? "";
   const initials = fullName
@@ -85,7 +88,7 @@ export default function FreelancerLayout({ children }: { children: React.ReactNo
         : pathname.startsWith(item.href);
 
     const Icon = item.icon;
-    const badgeCount = item.href === "/freelancer/notifications" ? unreadCount : 0;
+    const badgeCount = item.href === "/freelancer/notifications" ? unreadCount : item.href === "/freelancer/chat" ? unreadMessages : 0;
     const isComingSoon = item.href === "#";
 
     const handleClick = (e: React.MouseEvent) => {
@@ -272,7 +275,7 @@ export default function FreelancerLayout({ children }: { children: React.ReactNo
                 : pathname.startsWith(item.href);
 
             const Icon = item.icon;
-            const badgeCount = item.href === "/freelancer/notifications" ? unreadCount : 0;
+            const badgeCount = item.href === "/freelancer/notifications" ? unreadCount : item.href === "/freelancer/chat" ? unreadMessages : 0;
 
             return (
               <Link

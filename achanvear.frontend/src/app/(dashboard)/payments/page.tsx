@@ -17,7 +17,7 @@ export default function PaymentsRoute() {
   useEffect(() => {
     if (status === "PENDING") return;
     if (status === "UNAUTHENTICATED" || !user) {
-      router.replace("/login");
+      router.replace("/login?next=%2Fpayments");
       return;
     }
     const role = (user.role ?? "").toUpperCase();

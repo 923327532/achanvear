@@ -1,5 +1,6 @@
 // features/settings/hooks/useSettings.ts
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { saveDisplayPreferences } from "@/lib/displayPreferences";
 import { settingsApi } from "../api/settingsApi";
 import type { AvailabilityStatus, PreferredCurrency, PaymentMethodType } from "../types/settings.types";
 
@@ -60,6 +61,8 @@ function useProfileFieldUpdate(profile: SettingsProfile | null) {
       return settingsApi.updateProfile(profile.id, fullPayload);
     },
     onSuccess: (updatedProfile) => {
+      saveDisplayPreferences(updatedProfile.language, updatedProfile.timezone);
+      queryClient.invalidateQueries({ queryKey: ["display-preferences"] });
       queryClient.setQueryData(["settings", "profile"], updatedProfile);
       queryClient.invalidateQueries({ queryKey: ["settings", "profile"] });
       queryClient.invalidateQueries({ queryKey: ["profile", "me"] });

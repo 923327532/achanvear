@@ -15,6 +15,15 @@ public class InterviewScore {
         return value;
     }
 
+    public static Integer validatedValue(Object value) {
+        if (value == null) return null;
+        if (!(value instanceof Number number) || !Double.isFinite(number.doubleValue())
+                || number.doubleValue() < 0 || number.doubleValue() > 100) {
+            throw new IllegalStateException("Invalid interview score");
+        }
+        return (int) Math.round(number.doubleValue());
+    }
+
     public boolean isApproved(int threshold) {
         return value >= threshold;
     }

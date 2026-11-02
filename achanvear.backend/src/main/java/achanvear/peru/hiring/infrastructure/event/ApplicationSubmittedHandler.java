@@ -48,6 +48,7 @@ public class ApplicationSubmittedHandler {
     private final StartScreeningUseCase startScreeningUseCase;
     private final RecruitmentAutomationConfigRepository automationConfigRepository;
     private final StoragePort storagePort;
+    private final achanvear.peru.payments.application.CompanyAiAccess aiAccess;
 
     public ApplicationSubmittedHandler(
             JobPostRepository jobPostRepository,
@@ -56,7 +57,8 @@ public class ApplicationSubmittedHandler {
             IdentityCandidateLookupPort candidateLookupPort,
             StartScreeningUseCase startScreeningUseCase,
             RecruitmentAutomationConfigRepository automationConfigRepository,
-            StoragePort storagePort
+            StoragePort storagePort,
+            achanvear.peru.payments.application.CompanyAiAccess aiAccess
     ) {
         this.jobPostRepository = jobPostRepository;
         this.applicationRepository = applicationRepository;
@@ -65,6 +67,7 @@ public class ApplicationSubmittedHandler {
         this.startScreeningUseCase = startScreeningUseCase;
         this.automationConfigRepository = automationConfigRepository;
         this.storagePort = storagePort;
+        this.aiAccess = aiAccess;
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
@@ -82,6 +85,7 @@ public class ApplicationSubmittedHandler {
                 return;
             }
 
+            if (!aiAccess.forCompany(jobPost.getCompanyId())) return;
             IdentityCandidateLookupPort.CandidateSummary candidate = candidateLookupPort.findById(event.candidateUserId());
             if (candidate == null) {
                 log.warn("Candidato {} no encontrado", event.candidateUserId());

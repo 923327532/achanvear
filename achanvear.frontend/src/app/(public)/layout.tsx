@@ -22,9 +22,9 @@ const jobs = [
 ];
 
 const soluciones = [
-  { icon: "👥", title: "Gestión de Talento para Empresas", desc: "Reclutamiento IA + ATS integrado" },
-  { icon: "🔒", title: "Validación de Skills con Proctoring", desc: "Entrevistas anti-fraude con agentes IA" },
-  { icon: "💳", title: "Sistema de Escrow Seguro", desc: "Pagos protegidos por hitos completados" },
+  { icon: "👥", title: "Gestión de Talento para Empresas", desc: "Reclutamiento IA + ATS integrado", href: "/company/jobs" },
+  { icon: "🔒", title: "Validación de Skills con Proctoring", desc: "Entrevistas anti-fraude con agentes IA", href: "/company/jobs" },
+  { icon: "💳", title: "Sistema de Escrow Seguro", desc: "Pagos protegidos por hitos completados", href: "/payments" },
 ];
 
 // ─────────────────────────────────────────────
@@ -166,7 +166,7 @@ function Navbar() {
                   </p>
                   <div className="space-y-2">
                     {soluciones.map((s) => (
-                      <div key={s.title} className="flex items-start gap-3 rounded-xl border border-gray-100 p-3 hover:bg-gray-50 transition-colors cursor-pointer">
+                      <Link key={s.title} href={s.href} onClick={() => setActiveDropdown(null)} className="flex items-start gap-3 rounded-xl border border-gray-100 p-3 hover:bg-gray-50 transition-colors">
                         <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-teal-50 text-xl">
                           {s.icon}
                         </div>
@@ -174,16 +174,16 @@ function Navbar() {
                           <p className="text-sm font-semibold text-gray-900">{s.title}</p>
                           <p className="text-xs text-gray-500">{s.desc}</p>
                         </div>
-                      </div>
+                      </Link>
                     ))}
                   </div>
                   <Link
-                    href="/register"
+                    href="/payments"
                     className="mt-3 block w-full rounded-xl py-2.5 text-center text-sm font-semibold text-white transition-colors"
                     style={{ background: "linear-gradient(to right, #1B3A6B, #0EA5A0)" }}
                     onClick={() => setActiveDropdown(null)}
                   >
-                    Solicita una demo empresarial
+                    Gestionar pagos protegidos
                   </Link>
                 </div>
               )}

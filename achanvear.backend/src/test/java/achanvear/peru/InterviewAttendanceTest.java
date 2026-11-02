@@ -64,7 +64,7 @@ class InterviewAttendanceTest {
                 InterviewStatus.SCHEDULED,0,past,null,null,null,new RecordingSession(null,false),new ArrayList<>(),new ArrayList<>(),new ArrayList<>());
         var interviews=mock(InterviewRepository.class);var schedules=mock(InterviewScheduleRepository.class);
         when(schedules.findReserved()).thenReturn(List.of(schedule));when(interviews.findByCandidateId("candidate")).thenReturn(List.of(interview));
-        new InterviewAttendanceService(interviews,schedules).expireOverdue();
+        new InterviewAttendanceService(interviews,schedules, mock(achanvear.peru.payments.application.CompanyAiAccess.class)).expireOverdue();
         assertEquals(InterviewStatus.ABORTED,interview.getStatus());assertTrue(interview.getAbortReason().contains("inasistencia"));
         assertEquals(InterviewScheduleStatus.NO_SHOW,schedule.getStatus());verify(schedules).save(schedule);
     }
@@ -75,7 +75,7 @@ class InterviewAttendanceTest {
                 InterviewStatus.IN_PROGRESS,0,past,null,null,null,new RecordingSession(null,false),new ArrayList<>(),new ArrayList<>(),new ArrayList<>());
         var interviews=mock(InterviewRepository.class);var schedules=mock(InterviewScheduleRepository.class);
         when(schedules.findReserved()).thenReturn(List.of(schedule));when(interviews.findByCandidateId("candidate")).thenReturn(List.of(interview));
-        new InterviewAttendanceService(interviews,schedules).expireOverdue();
+        new InterviewAttendanceService(interviews,schedules, mock(achanvear.peru.payments.application.CompanyAiAccess.class)).expireOverdue();
         assertEquals(InterviewStatus.IN_PROGRESS,interview.getStatus());verify(schedules,never()).save(any());
     }
 }

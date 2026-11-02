@@ -17,15 +17,18 @@ public class AdvanceCandidateToTheoryInterviewService implements AdvanceCandidat
     private final HiringProcessRepository hiringProcessRepository;
     private final HiringProcessFactory hiringProcessFactory;
     private final EventPublisher eventPublisher;
+    private final achanvear.peru.payments.application.CompanyAiAccess aiAccess;
 
     public AdvanceCandidateToTheoryInterviewService(
             HiringProcessRepository hiringProcessRepository,
             HiringProcessFactory hiringProcessFactory,
-            EventPublisher eventPublisher
+            EventPublisher eventPublisher,
+            achanvear.peru.payments.application.CompanyAiAccess aiAccess
     ) {
         this.hiringProcessRepository = hiringProcessRepository;
         this.hiringProcessFactory = hiringProcessFactory;
         this.eventPublisher = eventPublisher;
+        this.aiAccess = aiAccess;
     }
 
     @Override
@@ -35,6 +38,7 @@ public class AdvanceCandidateToTheoryInterviewService implements AdvanceCandidat
             Double screeningScore,
             String summary
     ) {
+        aiAccess.requireJob(jobId);
         var existing = hiringProcessRepository.findByJobIdAndCandidateId(jobId, candidateId);
         if (existing.isPresent()) {
             HiringProcess process = existing.get();

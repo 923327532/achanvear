@@ -18,7 +18,6 @@ import {
   GraduationCap,
   CalendarDays,
   Star,
-  FileCheck,
   AlertCircle,
   Loader2,
   ChevronRight,
@@ -28,11 +27,12 @@ import {
   Users,
   Award,
 } from "lucide-react";
-import html2pdf from "html2pdf.js";
+import { InterviewReportsPanel } from "./InterviewReportsPanel";
 import { useCandidateDrawerDetail, useAdvanceCandidate } from "../hooks/useCandidateDrawerDetail";
 import { candidateDrawerApi } from "../api/candidateDrawerApi";
 import { profileApi } from "@/features/profile/api/profileApi";
 import type { CandidateDrawerDetail, ProcessContextType } from "../types/candidate-drawer.types";
+import { useCurrentPlan } from "@/features/settings/hooks/useCompanySettings";
 
 const STAGE_ACTION_LABELS: Record<string, string> = {
   THEORY_INTERVIEW: "Entrevista teórica en proceso",
@@ -80,133 +80,6 @@ function formatDate(dateStr?: string | null) {
   });
 }
 
-function formatScore(value: number | null) {
-  return value === null ? "Pendiente" : `${value}/100`;
-}
-
-function safeFileName(value: string) {
-  return value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-zA-Z0-9-_]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 80)
-    .toLowerCase();
-}
-
-async function downloadCandidateReportPdf(detail: CandidateDrawerDetail) {
-  const container = document.createElement("div");
-  container.style.position = "fixed";
-  container.style.left = "0";
-  container.style.top = "0";
-  container.style.zIndex = "-9999";
-  container.style.width = "210mm";
-  container.style.background = "white";
-  document.body.appendChild(container);
-
-  const root = document.createElement("div");
-  root.style.fontFamily = "Arial, sans-serif";
-  root.style.color = "#0f172a";
-  root.style.padding = "22mm";
-  root.style.lineHeight = "1.45";
-  root.style.fontSize = "12px";
-  container.appendChild(root);
-
-  const title = document.createElement("h1");
-  title.textContent = "Informe ejecutivo IA";
-  title.style.margin = "0 0 6px";
-  title.style.fontSize = "24px";
-  title.style.color = "#0f172a";
-  root.appendChild(title);
-
-  const subtitle = document.createElement("p");
-  subtitle.textContent = `${detail.name} - ${detail.jobTitle || detail.projectTitle || "Proceso de selección"}`;
-  subtitle.style.margin = "0 0 18px";
-  subtitle.style.color = "#475569";
-  root.appendChild(subtitle);
-
-  const section = (heading: string, body?: string | null) => {
-    const wrapper = document.createElement("section");
-    wrapper.style.marginTop = "16px";
-    const h2 = document.createElement("h2");
-    h2.textContent = heading;
-    h2.style.margin = "0 0 6px";
-    h2.style.fontSize = "14px";
-    h2.style.color = "#1e3a8a";
-    wrapper.appendChild(h2);
-    const p = document.createElement("p");
-    p.textContent = body || "Sin información registrada.";
-    p.style.margin = "0";
-    p.style.whiteSpace = "pre-wrap";
-    wrapper.appendChild(p);
-    root.appendChild(wrapper);
-  };
-
-  const meta = document.createElement("div");
-  meta.style.border = "1px solid #cbd5e1";
-  meta.style.borderRadius = "8px";
-  meta.style.padding = "12px";
-  meta.style.marginBottom = "14px";
-  meta.textContent = [
-    `Correo: ${detail.email}`,
-    `Postulación: ${formatDate(detail.generalInfo.appliedAt) || "Sin fecha"}`,
-    `Estado: ${detail.generalInfo.stageLabel}`,
-    `ID postulación: ${detail.id}`,
-  ].join(" | ");
-  root.appendChild(meta);
-
-  const table = document.createElement("table");
-  table.style.width = "100%";
-  table.style.borderCollapse = "collapse";
-  table.style.margin = "14px 0";
-  [
-    ["Screening", formatScore(detail.scores.screening)],
-    ["Entrevista teórica", formatScore(detail.scores.theory)],
-    ["Entrevista técnica", formatScore(detail.scores.technical)],
-    ["Comunicación / soft skills", formatScore(detail.scores.softSkills)],
-    ["Score general", formatScore(detail.scores.overall)],
-  ].forEach(([label, value]) => {
-    const row = table.insertRow();
-    [label, value].forEach((cellText, index) => {
-      const cell = row.insertCell();
-      cell.textContent = cellText;
-      cell.style.border = "1px solid #cbd5e1";
-      cell.style.padding = "8px";
-      cell.style.fontWeight = index === 0 ? "700" : "400";
-    });
-  });
-  root.appendChild(table);
-
-  section("Resumen IA", detail.report.summary);
-  section("Recomendación", detail.report.recommendation);
-  section("Fortalezas", detail.report.strengths);
-  section("Áreas de oportunidad", detail.report.areasOfOpportunity);
-  section("Carta / contexto del postulante", detail.coverLetter);
-
-  const footer = document.createElement("p");
-  footer.textContent = `Generado desde Achanvear para la empresa propietaria de la vacante. Fecha: ${new Date().toLocaleString("es-PE")}`;
-  footer.style.marginTop = "20px";
-  footer.style.fontSize = "10px";
-  footer.style.color = "#64748b";
-  root.appendChild(footer);
-
-  const fileName = `informe-ia-${safeFileName(detail.name)}-${safeFileName(detail.jobTitle || "postulacion")}.pdf`;
-
-  try {
-    await html2pdf()
-      .set({
-        margin: 0,
-        filename: fileName,
-        image: { type: "jpeg", quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, letterRendering: true },
-        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-      })
-      .from(root)
-      .save();
-  } finally {
-    document.body.removeChild(container);
-  }
-}
 
 type StageState = "done" | "current" | "pending";
 
@@ -343,6 +216,8 @@ interface CandidateDrawerProps {
 }
 
 export function CandidateDrawer({ jobId, applicationId, onClose }: CandidateDrawerProps) {
+  const { currentPlan } = useCurrentPlan();
+  const hasAi = !!currentPlan && currentPlan.planType !== "FREE";
   const router = useRouter();
   const { detail, isLoading, isError, refetch } = useCandidateDrawerDetail(jobId, applicationId);
   const advanceMutation = useAdvanceCandidate(jobId);
@@ -359,15 +234,14 @@ export function CandidateDrawer({ jobId, applicationId, onClose }: CandidateDraw
 
   const isJob = detail?.contextType === "JOB";
 
-  const hasScores = detail && (
+  const hasScores = hasAi && detail && (
     detail.scores.screening !== null ||
     detail.scores.theory !== null ||
     detail.scores.technical !== null ||
     detail.scores.softSkills !== null
   );
 
-  const hasReport = detail?.report.available === true;
-  const hasInterview = detail?.interview.exists === true;
+  const hasInterview = hasAi && detail?.interview.exists === true;
   const hasRecording = detail?.interview.recordingUrl !== null;
   const currentStage = detail?.generalInfo.currentStage ?? "";
   const stageActionLabel = STAGE_ACTION_LABELS[currentStage];
@@ -590,48 +464,16 @@ export function CandidateDrawer({ jobId, applicationId, onClose }: CandidateDraw
                 </div>
               )}
 
-              <div className="bg-white rounded-2xl border border-slate-200 p-5">
+              {hasAi && <div className="bg-white rounded-2xl border border-slate-200 p-5">
                 <h3 className="text-base font-bold text-slate-900 mb-4">Fases del Proceso</h3>
                 <StageTimeline
                   stages={detail.stages}
                   statuses={detail.stageStatuses}
                   currentIndex={detail.currentStageIndex}
                 />
-              </div>
+              </div>}
 
-              {hasReport && (
-                <div className="bg-gradient-to-br from-emerald-50 to-white rounded-2xl border border-emerald-200 p-5 space-y-3">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2.5 bg-emerald-100 rounded-xl">
-                      <FileCheck className="w-5 h-5 text-emerald-600" strokeWidth={1.5} />
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-slate-900">Reporte Ejecutivo IA</h3>
-                      <p className="text-xs text-slate-500">
-                        Generado el {formatDate(detail.report.generatedAt)}
-                      </p>
-                    </div>
-                  </div>
-                  {detail.report.summary && (
-                    <p className="text-sm text-slate-600 leading-relaxed">{detail.report.summary}</p>
-                  )}
-                  {detail.report.recommendation && (
-                    <div className="rounded-xl bg-white/70 border border-emerald-100 p-3">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
-                        Recomendación IA
-                      </p>
-                      <p className="text-sm text-slate-700 mt-1">{detail.report.recommendation}</p>
-                    </div>
-                  )}
-                  <button
-                    className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 transition"
-                    onClick={() => downloadCandidateReportPdf(detail)}
-                  >
-                    <Download className="w-4 h-4" />
-                    Descargar informe PDF
-                  </button>
-                </div>
-              )}
+              {hasAi && isJob && <InterviewReportsPanel jobId={jobId} applicationId={detail.id} candidateName={detail.name} jobTitle={detail.jobTitle} />}
 
               {hasInterview && (
                 <div className="bg-white rounded-2xl border border-slate-200 p-5 space-y-4">
@@ -706,7 +548,7 @@ export function CandidateDrawer({ jobId, applicationId, onClose }: CandidateDraw
                   ) : (
                     <CheckCircle2 className="w-4 h-4" />
                   )}
-                  {currentStage === "UNDER_REVIEW" ? "Aprobar candidato" : currentStage === "APPROVED" ? "Contratar" : stageActionLabel ?? "Aprobar para entrevista teórica"}
+                  {!hasAi ? (stageActionLabel ?? "Aprobar candidato") : currentStage === "UNDER_REVIEW" ? "Aprobar candidato" : currentStage === "APPROVED" ? "Contratar" : stageActionLabel ?? "Aprobar para entrevista teórica"}
                 </button>
                 <button
                   className="inline-flex items-center justify-center gap-1.5 px-4 py-3 rounded-xl border border-red-200 text-red-600 text-sm font-bold hover:bg-red-50 transition disabled:opacity-50"

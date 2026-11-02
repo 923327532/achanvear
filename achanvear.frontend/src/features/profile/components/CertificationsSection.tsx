@@ -19,17 +19,24 @@ export function CertificationsSection({ profile }: Props) {
   const [isEditing, setIsEditing]  = useState(false);
   const [items, setItems]          = useState<Certification[]>(initial);
   const [adding, setAdding]        = useState(false);
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [newCert, setNewCert]      = useState<Certification>({ ...EMPTY_CERT });
   const { updateAsync, isLoading } = useUpdateProfile();
 
   const handleSave = async () => {
     if (!profileId) return;
-    await updateAsync({ profileId, payload: { certifications: items } });
+    const updatedItems = adding && newCert.name.trim()
+      ? editingIndex === null ? [...items, { ...newCert }] : items.map((cert, index) => index === editingIndex ? { ...newCert } : cert)
+      : items;
+    await updateAsync({ profileId, payload: { certifications: updatedItems } });
+    setItems(updatedItems);
     setIsEditing(false);
     setAdding(false);
+    setEditingIndex(null);
   };
 
   const handleCancel = () => {
+    setEditingIndex(null);
     setItems(initial);
     setAdding(false);
     setNewCert({ ...EMPTY_CERT });
@@ -38,12 +45,13 @@ export function CertificationsSection({ profile }: Props) {
 
   const confirmAddCert = () => {
     if (!newCert.name.trim()) return;
-    setItems([...items, { ...newCert }]);
+    setItems(editingIndex === null ? [...items, { ...newCert }] : items.map((cert, index) => index === editingIndex ? { ...newCert } : cert));
+    setEditingIndex(null);
     setNewCert({ ...EMPTY_CERT });
     setAdding(false);
   };
 
-  const removeCert = (i: number) => setItems(items.filter((_, idx) => idx !== i));
+  const removeCert = (i: number) => { setItems(items.filter((_, idx) => idx !== i)); setAdding(false); setEditingIndex(null); };
 
   return (
     // RESPONSIVE: p-4 en celular, p-6 desde sm
@@ -57,7 +65,7 @@ export function CertificationsSection({ profile }: Props) {
             disabled={!profileId}
             className="flex flex-shrink-0 items-center gap-1.5 text-xs font-medium text-gray-500 border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-40"
           >
-            <Plus className="w-3.5 h-3.5" /> Agregar
+            <Pencil className="w-3.5 h-3.5" /> Editar
           </button>
         ) : (
           <div className="flex flex-shrink-0 items-center gap-2">
@@ -65,7 +73,7 @@ export function CertificationsSection({ profile }: Props) {
               className="flex items-center gap-1 text-xs text-gray-500 border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-50">
               <X className="w-3.5 h-3.5" /> Cancelar
             </button>
-            <button onClick={handleSave} disabled={isLoading}
+            <button onClick={handleSave} disabled={isLoading || (adding && !newCert.name.trim())}
               className="flex items-center gap-1 text-xs font-semibold text-white bg-[#1B3A6B] px-3 py-1.5 rounded-lg hover:bg-[#0EA5A0] disabled:opacity-50">
               {isLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
               Guardar
@@ -113,6 +121,11 @@ export function CertificationsSection({ profile }: Props) {
                 </div>
               </div>
               {isEditing && (
+                <button type="button" onClick={() => { setNewCert({ ...cert }); setEditingIndex(i); setAdding(true); }} aria-label={`Editar ${cert.name}`} className="text-sm text-blue-700">
+                  Editar
+                </button>
+              )}
+              {isEditing && (
                 <button onClick={() => removeCert(i)} aria-label="Quitar certificación"
                   className="flex-shrink-0 text-slate-300 hover:text-red-400 transition mt-0.5">
                   <X className="w-4 h-4" />
@@ -127,7 +140,7 @@ export function CertificationsSection({ profile }: Props) {
               <div className="rounded-xl border border-[#1B3A6B]/20 bg-blue-50/30 p-4 space-y-2.5">
                 <div className="flex items-center gap-2 mb-1">
                   <GraduationCap className="h-4 w-4 text-[#1B3A6B]" strokeWidth={1.5} />
-                  <span className="text-xs font-semibold text-[#1B3A6B]">Nueva certificación</span>
+                  <span className="text-xs font-semibold text-[#1B3A6B]">{editingIndex === null ? "Nueva certificación" : "Editar certificación"}</span>
                 </div>
                 <input type="text" value={newCert.name}
                   onChange={(e) => setNewCert({ ...newCert, name: e.target.value })}
@@ -145,18 +158,18 @@ export function CertificationsSection({ profile }: Props) {
                     placeholder="https://... (URL de verificación)" />
                 </div>
                 <div className="flex gap-2 pt-1">
-                  <button onClick={() => { setAdding(false); setNewCert({ ...EMPTY_CERT }); }}
+                  <button onClick={() => { setAdding(false); setEditingIndex(null); setNewCert({ ...EMPTY_CERT }); }}
                     className="flex-1 rounded-lg border border-slate-200 py-2 text-xs font-medium text-slate-500 hover:bg-slate-50 transition">
                     Cancelar
                   </button>
                   <button onClick={confirmAddCert} disabled={!newCert.name.trim()}
                     className="flex-1 rounded-lg bg-[#1B3A6B] py-2 text-xs font-semibold text-white hover:bg-[#162f58] disabled:opacity-40 transition">
-                    Agregar
+                    {editingIndex === null ? "Agregar" : "Aplicar cambios"}
                   </button>
                 </div>
               </div>
             ) : (
-              <button onClick={() => setAdding(true)}
+              <button onClick={() => { setEditingIndex(null); setNewCert({ ...EMPTY_CERT }); setAdding(true); }}
                 className="w-full flex items-center justify-center gap-2 rounded-xl border border-dashed border-gray-200 py-3 text-sm text-gray-400 hover:border-[#0EA5A0]/40 hover:text-[#0EA5A0] transition-colors">
                 <Plus className="w-4 h-4" /> Agregar certificación
               </button>

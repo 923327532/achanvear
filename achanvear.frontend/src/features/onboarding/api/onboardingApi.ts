@@ -150,11 +150,22 @@ export const onboardingService = {
     portfolioLinks: string[];
     achievements: string[];
   }): Promise<void> => {
-    const response = await api.patch<ApiResponse<void>>(
-      `${BASE_PATH}/personalize`,
-      data
-    );
-    return parseResponse(response);
+    // Personalization must use the persisted profile endpoint; /onboarding/personalize
+    // previously acknowledged the request without saving any fields.
+    const profileResponse = await api.get<ApiResponse<{ id: string }>>("/freelance/profiles/me");
+    const profile = parseResponse(profileResponse);
+    const response = await api.put<ApiResponse<unknown>>(`/freelance/profiles/${profile.id}`, {
+      profilePhotoUrl: data.profilePhotoUrl,
+      biography: data.biography,
+      achievements: data.achievements.join("\n"),
+      portfolioItems: data.portfolioLinks.filter((url) => url.trim()).map((url, index) => ({
+        title: `Portafolio ${index + 1}`,
+        description: "Enlace de portafolio profesional",
+        assetUrl: null,
+        projectUrl: url.trim(),
+      })),
+    });
+    parseResponse(response);
   },
 
   /** Sube un archivo a través del backend (evita CORS de S3) */

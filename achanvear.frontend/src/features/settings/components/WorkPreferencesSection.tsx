@@ -7,10 +7,10 @@ import { AVAILABILITY_CONFIG, type AvailabilityStatus } from "../types/settings.
 
 const STATUSES = Object.keys(AVAILABILITY_CONFIG) as AvailabilityStatus[];
 
-type CVVisibility = "VERIFIED_COMPANIES" | "ALL_COMPANIES" | "PRIVATE";
+type CVVisibility = "VERIFIED_COMPANIES_ONLY" | "ALL_COMPANIES" | "PRIVATE";
 
 const CV_VISIBILITY_CONFIG: Record<CVVisibility, { label: string; description: string; icon: any }> = {
-  VERIFIED_COMPANIES: {
+  VERIFIED_COMPANIES_ONLY: {
     label: "Solo empresas verificadas",
     description: "Solo empresas con cuenta verificada en Achanvear",
     icon: Building2,
@@ -38,22 +38,27 @@ export function WorkPreferencesSection({ profile }: Props) {
     (profile?.availabilityStatus as AvailabilityStatus) ?? "LOOKING_FOR_JOB"
   );
   const [cvVisibility, setCvVisibility] = useState<CVVisibility>(
-    (profile?.cvVisibility as CVVisibility) ?? "VERIFIED_COMPANIES"
+    (profile?.cvVisibility as CVVisibility) ?? "VERIFIED_COMPANIES_ONLY"
   );
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const { updateAsync: updateWorkPreferences, isLoading: isSaving } = useUpdateWorkPreferences(profile);
 
   const handleSave = async () => {
-    await updateWorkPreferences({ availabilityStatus: selected, cvVisibility });
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    setSaveError(null);
+    try {
+      await updateWorkPreferences({ availabilityStatus: selected, cvVisibility });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (error) { setSaveError(error instanceof Error ? error.message : "No se pudieron guardar tus preferencias"); }
   };
 
   return (
     // RESPONSIVE: p-4 en celular, p-6 desde sm
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-6">
       <h2 className="text-lg font-bold text-[#1B3A6B] mb-6">Preferencias de Trabajo</h2>
+      {saveError && <p role="alert" className="mb-3 text-sm text-red-600">{saveError}</p>}
 
       <div className="mb-6">
         <label className="block text-sm font-semibold text-gray-700 mb-3">

@@ -1,5 +1,7 @@
 // features/interview/components/InterviewReportModal.tsx
 "use client";
+import { useState } from "react";
+import { downloadInterviewReportPdf } from "../lib/interviewReportPdf";
 
 import { useInterviewReport } from "../hooks/useFreelancerInterviews";
 
@@ -21,6 +23,15 @@ function formatDate(dateStr: string | null | undefined): string {
 
 export function InterviewReportModal({ interviewId, onClose }: Props) {
   const { data: report, isLoading, isError } = useInterviewReport(interviewId);
+  const [downloadError, setDownloadError] = useState("");
+  const [downloading, setDownloading] = useState(false);
+  const download = async () => {
+    if (!report) return;
+    setDownloading(true); setDownloadError("");
+    try { await downloadInterviewReportPdf({ candidateName: "Candidato", reports: [report] }); }
+    catch { setDownloadError("No se pudo descargar el informe. Vuelve a intentarlo."); }
+    finally { setDownloading(false); }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -48,6 +59,11 @@ export function InterviewReportModal({ interviewId, onClose }: Props) {
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6">
+          {report?.status === "COMPLETED" && <div className="mb-5 space-y-2">
+            <button disabled={downloading} onClick={download} className="rounded-xl bg-teal-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{downloading ? "Preparando PDF…" : "Descargar informe PDF"}</button>
+            {typeof report.assessment?.summary === "string" && <p className="text-sm text-slate-600">{report.assessment.summary}</p>}
+            {downloadError && <p role="alert" className="text-sm text-red-700">{downloadError}</p>}
+          </div>}
           {isLoading ? (
             <div className="flex items-center justify-center py-16">
               <div className="w-8 h-8 border-2 border-[#1B3A6B] border-t-transparent rounded-full animate-spin" />

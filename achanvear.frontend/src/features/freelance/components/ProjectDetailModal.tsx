@@ -188,7 +188,7 @@ export function ProjectDetailModal({
             </span>
             <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-700">
               <MessageCircle className="h-3 w-3" />
-              {proposalCount} propuestas
+              {proposalCount} {proposalCount === 1 ? "propuesta" : "propuestas"}
             </span>
           </div>
 

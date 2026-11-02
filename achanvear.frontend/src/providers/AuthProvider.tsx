@@ -5,6 +5,7 @@ import { createContext, ReactNode, useContext, useEffect, useMemo, useState } fr
 import { useQueryClient } from "@tanstack/react-query";
 import { authApi } from "@/features/auth/api/authApi";
 import { clearAuthToken, getAuthToken, setAuthToken } from "@/lib/storage";
+import { clearDisplayPreferences } from "@/lib/displayPreferences";
 import type {
   AuthContextState,
   AuthStatus,
@@ -51,6 +52,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const login = async (payload: LoginRequest): Promise<UserProfile> => {
+    clearDisplayPreferences();
     const response = await authApi.login(payload);
 
     if (response.tokenType === "2FA_REQUIRED") {
@@ -93,6 +95,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const logout = () => {
+    clearDisplayPreferences();
     clearAuthToken();
     window.location.assign("/login");
   };

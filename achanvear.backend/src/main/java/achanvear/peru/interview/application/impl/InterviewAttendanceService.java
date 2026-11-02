@@ -13,8 +13,11 @@ import java.util.List;
 public class InterviewAttendanceService {
     private final InterviewRepository interviews;
     private final InterviewScheduleRepository schedules;
-    public InterviewAttendanceService(InterviewRepository interviews, InterviewScheduleRepository schedules) {
+    private final achanvear.peru.payments.application.CompanyAiAccess aiAccess;
+    public InterviewAttendanceService(InterviewRepository interviews, InterviewScheduleRepository schedules,
+            achanvear.peru.payments.application.CompanyAiAccess aiAccess) {
         this.interviews = interviews; this.schedules = schedules;
+        this.aiAccess = aiAccess;
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW, noRollbackFor = IllegalStateException.class)
@@ -37,6 +40,7 @@ public class InterviewAttendanceService {
     }
 
     private void validate(Interview interview, LocalDateTime now) {
+        aiAccess.requireJob(interview.getJobId());
         if (interview.getStatus() == InterviewStatus.IN_PROGRESS) return;
         if (interview.getStatus() != InterviewStatus.SCHEDULED) throw new IllegalStateException("La entrevista ya no esta disponible");
         var slot = interview.getAssignedSlotDateTime();

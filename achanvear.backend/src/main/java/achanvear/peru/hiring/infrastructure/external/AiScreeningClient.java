@@ -21,11 +21,17 @@ public class AiScreeningClient {
 
     private final RestClient restClient;
 
+    public AiScreeningClient(RestClient.Builder builder, String url) {
+        this(builder, url, "");
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
     public AiScreeningClient(
             RestClient.Builder restClientBuilder,
-            @Value("${ai.api.url}") String aiApiUrl
+            @Value("${ai.api.url}") String aiApiUrl,
+            @Value("${AGENT_SHARED_SECRET:}") String agentSecret
     ) {
-        this.restClient = restClientBuilder.baseUrl(aiApiUrl).build();
+        this.restClient = restClientBuilder.baseUrl(aiApiUrl).defaultHeader("X-Agent-Service-Key", agentSecret).build();
     }
 
     public ScreeningResult evaluate(StartScreeningCommand command) {

@@ -98,6 +98,8 @@ export interface FreelancerProfileResponse {
 }
 
 export interface CompanyProfileResponse {
+  email?: string | null;
+  phone?: string | null;
   id: string;
   ownerUserId: string;
   businessName: string;

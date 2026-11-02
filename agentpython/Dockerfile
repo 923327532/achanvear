@@ -32,6 +32,9 @@ RUN pip install --default-timeout 180 --retries 10 -r requirements.txt
 
 # Copiar código fuente
 COPY . .
+RUN npm install --global typescript@5.9.3
+RUN curl -fsSL https://downloads.mongodb.com/compass/mongosh-2.5.10-linux-x64.tgz -o /tmp/mongosh.tgz && tar -xzf /tmp/mongosh.tgz -C /opt && ln -sf /opt/mongosh-2.5.10-linux-x64/bin/mongosh /usr/local/bin/mongosh && rm /tmp/mongosh.tgz
+RUN mkdir -p /opt/go-cache && printf 'package main\nimport "fmt"\nfunc main(){fmt.Println(0)}\n' > /tmp/warm.go && GOCACHE=/opt/go-cache go run /tmp/warm.go && rm /tmp/warm.go
 
 # Puerto del agente
 EXPOSE 8001

@@ -50,6 +50,8 @@ class SessionState:
         self.scores: List[float] = []
         self.current_q: int = 0
         self.theory_score: float = 0.0
+        self.theory_evaluation: Optional[Dict] = None
+        self.presentation: Dict = {}
 
         # Técnica
         self.challenge: Optional[Any] = None
@@ -80,6 +82,8 @@ class SessionState:
             "scores": self.scores,
             "current_q": self.current_q,
             "theory_score": self.theory_score,
+            "theory_evaluation": self.theory_evaluation,
+            "presentation": self.presentation,
             "challenge": self.challenge,
             "tech_score": self.tech_score,
             "practical_evaluation": self.practical_evaluation,
@@ -107,6 +111,8 @@ class SessionState:
         state.scores = data.get("scores", [])
         state.current_q = data.get("current_q", 0)
         state.theory_score = data.get("theory_score", 0.0)
+        state.theory_evaluation = data.get("theory_evaluation")
+        state.presentation = data.get("presentation", {})
         state.challenge = data.get("challenge")
         state.tech_score = data.get("tech_score", 0.0)
         state.practical_evaluation = data.get("practical_evaluation")

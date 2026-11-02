@@ -145,7 +145,7 @@ export function CompanyAgentSection() {
           Match Score Mínimo para Notificaciones
         </label>
         <p className="text-xs text-gray-400 mb-4">
-          Solo recibirás notificaciones de candidatos que superen este umbral
+          Los avisos de candidatos con puntaje IA usan este mínimo. Las postulaciones manuales sin puntaje se notifican normalmente.
         </p>
         <div className="flex items-center gap-4">
           <input

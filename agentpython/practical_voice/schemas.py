@@ -12,6 +12,9 @@ class PracticalWorkspaceType(str, Enum):
 
 
 class PracticalSessionStartRequest(BaseModel):
+    interviewer_code: str | None = None
+    interviewer_name: str | None = None
+    interviewer_style: str | None = None
     session_id: str
     career: str
     job_title: str = "Senior"

@@ -1,7 +1,6 @@
 package achanvear.peru.interview.application.impl;
 
 import achanvear.peru.compliance.application.ValidateInterviewConsentUseCase;
-import achanvear.peru.hiring.domain.event.TheoryInterviewPassedEvent;
 import achanvear.peru.interview.application.*;
 import achanvear.peru.interview.application.command.*;
 import achanvear.peru.interview.application.dto.*;
@@ -15,10 +14,9 @@ import achanvear.peru.interview.domain.repository.InterviewRepository;
 import achanvear.peru.interview.domain.repository.InterviewScheduleRepository;
 import achanvear.peru.interview.domain.service.InterviewSlotManager;
 import achanvear.peru.interview.domain.service.ScoreCalculator;
-import achanvear.peru.interview.infrastructure.external.AiInterviewerClient;
-import achanvear.peru.interview.infrastructure.external.S3RecordingClient;
-import achanvear.peru.interview.infrastructure.external.TextToSpeechClient;
-import achanvear.peru.interview.infrastructure.external.impl.RealAiInterviewerClient;
+import achanvear.peru.interview.application.port.AiInterviewerClient;
+import achanvear.peru.interview.application.port.InterviewRecordingPort;
+import achanvear.peru.interview.application.port.InterviewAudioPort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -47,15 +45,18 @@ public class InterviewApplicationService implements
     private final InterviewRepository interviewRepository;
     private final InterviewSlotManager interviewSlotManager;
     private final AiInterviewerClient aiInterviewerClient;
-    private final TextToSpeechClient textToSpeechClient;
-    private final S3RecordingClient s3RecordingClient;
+    private final InterviewAudioPort textToSpeechClient;
+    private final InterviewRecordingPort s3RecordingClient;
     private final ScoreCalculator scoreCalculator;
     private final achanvear.peru.shared.infrastructure.EventPublisher eventPublisher;
     private final JobPostRepository jobPostRepository;
     private final InterviewScheduleRepository interviewScheduleRepository;
     private final ValidateInterviewConsentUseCase validateInterviewConsentUseCase;
-    private final achanvear.peru.interview.infrastructure.persistence.InterviewEvaluationStore evaluationStore;
+    private final achanvear.peru.interview.application.port.InterviewEvaluationPort evaluationStore;
     private final InterviewAttendanceService attendance;
+    private final achanvear.peru.shared.application.port.CompanyLookupPort companies;
+    private final achanvear.peru.interview.application.CompanyInterviewer companyInterviewer;
+    private final achanvear.peru.interview.application.port.InterviewSessionSettingsPort sessionSettings;
     private static final java.time.format.DateTimeFormatter DATE_FMT = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd");
     private static final java.time.format.DateTimeFormatter TIME_FMT = java.time.format.DateTimeFormatter.ofPattern("HH:mm");
 
@@ -63,15 +64,18 @@ public class InterviewApplicationService implements
             InterviewRepository interviewRepository,
             InterviewSlotManager interviewSlotManager,
             AiInterviewerClient aiInterviewerClient,
-            TextToSpeechClient textToSpeechClient,
-            S3RecordingClient s3RecordingClient,
+            InterviewAudioPort textToSpeechClient,
+            InterviewRecordingPort s3RecordingClient,
             ScoreCalculator scoreCalculator,
             achanvear.peru.shared.infrastructure.EventPublisher eventPublisher,
             JobPostRepository jobPostRepository,
             InterviewScheduleRepository interviewScheduleRepository,
             ValidateInterviewConsentUseCase validateInterviewConsentUseCase,
-            achanvear.peru.interview.infrastructure.persistence.InterviewEvaluationStore evaluationStore,
-            InterviewAttendanceService attendance
+            achanvear.peru.interview.application.port.InterviewEvaluationPort evaluationStore,
+            InterviewAttendanceService attendance,
+            achanvear.peru.shared.application.port.CompanyLookupPort companies,
+            achanvear.peru.interview.application.CompanyInterviewer companyInterviewer,
+            achanvear.peru.interview.application.port.InterviewSessionSettingsPort sessionSettings
     ) {
         this.interviewRepository = interviewRepository;
         this.interviewSlotManager = interviewSlotManager;
@@ -85,18 +89,20 @@ public class InterviewApplicationService implements
         this.validateInterviewConsentUseCase = validateInterviewConsentUseCase;
         this.evaluationStore = evaluationStore;
         this.attendance = attendance;
+        this.companies = companies;
+        this.companyInterviewer = companyInterviewer;
+        this.sessionSettings = sessionSettings;
     }
 
     @Override
     public InterviewSessionResponse execute(ScheduleInterviewCommand command) {
         InterviewId interviewId = InterviewId.of(UUID.randomUUID().toString());
+        InterviewerProfile profile = companyInterviewer.forJob(command.hiringProcessId());
 
         Optional<Integer> slot = interviewSlotManager.acquireSlot(interviewId.toString());
         if (slot.isEmpty()) {
             throw new IllegalStateException("No interview slots available right now");
         }
-
-        InterviewerProfile profile = resolveProfile(command, slot.get());
 
         Interview interview = Interview.restore(
                 interviewId,
@@ -149,14 +155,14 @@ public class InterviewApplicationService implements
         String pythonSessionId = null;
         String challengeJson = null;
         try {
-            RealAiInterviewerClient realClient = (RealAiInterviewerClient) aiInterviewerClient;
-            var sessionResult = realClient.createPythonSession(
+            var sessionResult = aiInterviewerClient.createPythonSession(
                     interview.getCandidateId(),
                     interview.getJobId(),
                     "", // career - se resolvera del perfil del candidato
                     jobTitle,
                     null,
-                    null
+                    null,
+                    sessionSettings.presentationSettings(interview.getId().toString())
             );
             // Python genera su propio session_id (uuid.uuid4()), capturarlo
             if (sessionResult != null && sessionResult.get("session_id") instanceof String sid) {
@@ -252,7 +258,9 @@ public class InterviewApplicationService implements
         }
 
         if (evaluation.interviewCompleted()) {
-            InterviewScore finalScore = scoreCalculator.calculate(interview);
+            var result = aiInterviewerClient.completeTheoryInterview(interview.getPythonSessionId());
+            evaluationStore.save(interview.getId().toString(), result.evaluation());
+            InterviewScore finalScore = new InterviewScore((int) Math.round(result.theory_score()));
             interview.complete(finalScore);
             interviewSlotManager.releaseSlot(command.interviewId());
         }
@@ -299,8 +307,8 @@ public class InterviewApplicationService implements
         if (alreadyCompleted) {
             return execute(command.interviewId());
         } else if (interview.getType() == InterviewType.TECHNICAL) {
-            var evaluation = ((RealAiInterviewerClient) aiInterviewerClient).getPracticalEvaluation(interview.getId().toString());
-            int agentScore = achanvear.peru.interview.infrastructure.persistence.InterviewEvaluationStore.score(evaluation.get("score"));
+            var evaluation = aiInterviewerClient.getPracticalEvaluation(interview.getId().toString());
+            int agentScore = InterviewScore.validatedValue(evaluation.get("score"));
             evaluationStore.save(interview.getId().toString(), evaluation);
             finalScore = new InterviewScore(agentScore);
             if (interview.getStatus() == InterviewStatus.SCHEDULED) interview.start();
@@ -312,6 +320,7 @@ public class InterviewApplicationService implements
         } else {
             if (interview.getPythonSessionId() == null) throw new IllegalStateException("Interview not started");
             var result = aiInterviewerClient.completeTheoryInterview(interview.getPythonSessionId());
+            evaluationStore.save(interview.getId().toString(), result.evaluation());
             finalScore = new InterviewScore((int) Math.round(result.theory_score()));
         }
         boolean passed = finalScore.getValue() >= 75;
@@ -325,55 +334,7 @@ public class InterviewApplicationService implements
             publishInterviewCompleted(interview, finalScore);
         }
 
-        return new InterviewReportResponse(
-                interview.getId().toString(),
-                interview.getStatus().name(),
-                interview.getType().name(),
-                finalScore.getValue(),
-                passed,
-                interview.getInterviewerProfile() != null ? new InterviewReportResponse.InterviewerProfile(
-                        interview.getInterviewerProfile().getName(),
-                        interview.getInterviewerProfile().getVoice().name()
-                ) : null,
-                interview.getAssignedSlot() != null ? new InterviewReportResponse.AssignedSlot(
-                        interview.getAssignedSlot(),
-                        interview.getAssignedSlot().toString(),
-                        (interview.getAssignedSlot() + 1) + ":00 PM"
-                ) : null,
-                interview.getRecordingSession() != null ? new InterviewReportResponse.RecordingInfo(
-                        interview.getRecordingSession().getFileKey()
-                ) : null,
-                interview.getAbortReason() != null ? new InterviewReportResponse.AbortReason(
-                        interview.getAbortReason()
-                ) : null,
-                new InterviewReportResponse.Totals(
-                        interview.getQuestions().size(),
-                        interview.getAnswers().size(),
-                        interview.getViolations().size()
-                ),
-                interview.getQuestions().stream()
-                        .map(q -> new InterviewReportResponse.QuestionItem(
-                                q.getId(),
-                                q.getContent(),
-                                null
-                        ))
-                        .toList(),
-                interview.getAnswers().stream()
-                        .map(a -> new InterviewReportResponse.AnswerItem(
-                                a.getId(),
-                                a.getQuestionId(),
-                                a.getContent(),
-                                a.getScore()
-                        ))
-                        .toList(),
-                interview.getViolations().stream()
-                        .map(v -> new InterviewReportResponse.ViolationItem(
-                                v.type(),
-                                v.count(),
-                                v.occurredAt().toString()
-                        ))
-                        .toList()
-        );
+        return execute(command.interviewId());
     }
 
     @Override
@@ -426,7 +387,7 @@ public class InterviewApplicationService implements
                         answers.size(),
                         violations.size()
                 ),
-                questions, answers, violations
+                questions, answers, violations, evaluationStore.find(interviewId)
         );
     }
 
@@ -534,7 +495,9 @@ public class InterviewApplicationService implements
             return new InterviewSummaryResponse(
                     interview.getId().toString(),
                     jobTitle,
-                    "Achanvear",
+                    jobPostRepository.findById(JobPostId.from(interview.getJobId()))
+                            .flatMap(job -> companies.findById(job.getCompanyId()))
+                            .map(company -> company.businessName()).orElse("Empresa no disponible"),
                     date,
                     time,
                     interview.getInterviewerProfile() != null ? interview.getInterviewerProfile().getName() : "",
@@ -586,7 +549,7 @@ public class InterviewApplicationService implements
 
         boolean hadActiveSlot = interview.getStatus() == InterviewStatus.IN_PROGRESS;
 
-        interview.abort();
+        interview.abort(command.reason());
         interviewRepository.save(interview);
         markRelatedScheduleFinished(interview);
 
@@ -607,36 +570,6 @@ public class InterviewApplicationService implements
     private Interview getInterview(String interviewId) {
         return interviewRepository.findById(InterviewId.of(interviewId))
                 .orElseThrow(() -> new IllegalArgumentException("Interview not found: " + interviewId));
-    }
-
-    private InterviewerProfile resolveProfile(ScheduleInterviewCommand command, int slotNumber) {
-        if (command.interviewerProfileCode() != null && !command.interviewerProfileCode().isBlank()) {
-            return profileByCode(command.interviewerProfileCode());
-        }
-        if (Boolean.TRUE.equals(command.leadershipProfile())) {
-            return profileByCode("PROFILE_4");
-        }
-        if (command.theoryScore() != null && command.theoryScore() >= 85) {
-            return profileByCode("PROFILE_3");
-        }
-        if (Boolean.TRUE.equals(command.conciseAnswers())) {
-            return profileByCode("PROFILE_1");
-        }
-        return switch (slotNumber) {
-            case 1 -> profileByCode("PROFILE_1");
-            case 2 -> profileByCode("PROFILE_2");
-            case 3 -> profileByCode("PROFILE_3");
-            default -> profileByCode("PROFILE_4");
-        };
-    }
-
-    private InterviewerProfile profileByCode(String code) {
-        return switch (code) {
-            case "PROFILE_1" -> new InterviewerProfile("PROFILE_1", "Carlos Mendoza", "Formal y directo", InterviewerVoice.MALE1);
-            case "PROFILE_2" -> new InterviewerProfile("PROFILE_2", "Ana Quispe", "Amigable y exploratorio", InterviewerVoice.FEMALE1);
-            case "PROFILE_3" -> new InterviewerProfile("PROFILE_3", "Diego Torres", "Muy tecnico y detallista", InterviewerVoice.MALE2);
-            default -> new InterviewerProfile("PROFILE_4", "Sofia Vargas", "Estrategico y orientado a impacto", InterviewerVoice.FEMALE2);
-        };
     }
 
     private void publishInterviewCompleted(Interview interview, InterviewScore finalScore) {

@@ -76,6 +76,7 @@ public class JobController {
     private final GetAppliedJobIdsUseCase getAppliedJobIdsUseCase;
     private final GetMyJobApplicationsUseCase getMyJobApplicationsUseCase;
     private final JobAiSuggestionService jobAiSuggestionService;
+    private final achanvear.peru.payments.application.CompanyAiAccess aiAccess;
 
     public JobController(
             CreateJobUseCase createJobUseCase,
@@ -94,7 +95,8 @@ public class JobController {
             GetAppliedJobIdsUseCase getAppliedJobIdsUseCase,
             GetMyJobApplicationsUseCase getMyJobApplicationsUseCase,
             JobAiSuggestionService jobAiSuggestionService,
-            AdvanceCandidateToTheoryInterviewUseCase advanceCandidateToTheoryInterviewUseCase
+            AdvanceCandidateToTheoryInterviewUseCase advanceCandidateToTheoryInterviewUseCase,
+            achanvear.peru.payments.application.CompanyAiAccess aiAccess
     ) {
         this.getAppliedJobIdsUseCase = getAppliedJobIdsUseCase;
         this.getMyJobApplicationsUseCase = getMyJobApplicationsUseCase;
@@ -114,6 +116,7 @@ public class JobController {
         this.deleteJobUseCase = deleteJobUseCase;
         this.getCandidateDrawerDetailUseCase = getCandidateDrawerDetailUseCase;
         this.advanceCandidateToTheoryInterviewUseCase = advanceCandidateToTheoryInterviewUseCase;
+        this.aiAccess = aiAccess;
     }
 
     @PostMapping
@@ -386,7 +389,7 @@ public class JobController {
     }
 
     @PutMapping("/{id}/automation")
-    @PreAuthorize("hasAnyAuthority('COMPANY', 'COMPANY_COLLABORATOR', 'SUPERADMIN')")
+    @PreAuthorize("hasAnyAuthority('COMPANY', 'COMPANY_COLLABORATOR', 'SUPERADMIN') and @companyAiAccess.allowed(authentication)")
     public ResponseEntity<ApiResponse<RecruitmentAutomationConfigResponse>> configureAutomation(
             @PathVariable String id,
             @Valid @RequestBody ConfigureAutomationRequest request,
@@ -437,7 +440,7 @@ public class JobController {
     }
 
     @GetMapping("/{id}/automation")
-    @PreAuthorize("hasAnyAuthority('COMPANY', 'COMPANY_COLLABORATOR', 'SUPERADMIN')")
+    @PreAuthorize("hasAnyAuthority('COMPANY', 'COMPANY_COLLABORATOR', 'SUPERADMIN') and @companyAiAccess.allowed(authentication)")
     public ResponseEntity<ApiResponse<RecruitmentAutomationConfigResponse>> getAutomationConfig(
 
             @PathVariable String id,
@@ -498,6 +501,14 @@ public class JobController {
         }
 
         if (advance) {
+            if (!aiAccess.forCompany(java.util.UUID.fromString(companyId))) {
+                if ("REJECTED".equalsIgnoreCase(current.applicationStatus()))
+                    throw new BusinessRuleViolationException("Un candidato descartado no puede ser aprobado");
+                updateApplicationStatusUseCase.execute(new UpdateApplicationStatusCommand(
+                        applicationId, jobPostId, companyId, principal.isSuperAdmin(), "HIRED"));
+                return ResponseEntity.ok(ApiResponse.success(getCandidateDrawerDetailUseCase.execute(
+                        jobPostId, applicationId, companyId, principal.isSuperAdmin()), "Candidato aprobado manualmente"));
+            }
             if ("REJECTED".equalsIgnoreCase(current.applicationStatus())) {
                 throw new BusinessRuleViolationException("A rejected candidate cannot be advanced");
             }
