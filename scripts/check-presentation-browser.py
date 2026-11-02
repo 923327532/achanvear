@@ -65,13 +65,29 @@ def main():
                         page.keyboard.press("Control+A")
                         page.keyboard.insert_text(code)
                         page.wait_for_timeout(300)
-                        page.get_by_label("Entrada estándar", exact=True).fill(stdin)
+                        page.get_by_label("Entrada del programa", exact=True).click()
+                        page.get_by_label("Entrada de terminal", exact=True).fill(stdin)
                         with page.expect_response("**/code-runner/run", timeout=45000) as response:
                             page.get_by_role("button", name="Ejecutar", exact=True).click()
                         result = response.value.json()
                         if not result["stdout"]:
                             print("Payload de archivo:", response.value.request.post_data_json.get("files"), flush=True)
                         assert result["success"] and "5" in result["stdout"], result
+                        if label == "Python":
+                            separator = page.get_by_role("separator", name="Ajustar altura de la terminal")
+                            before = separator.locator("..").bounding_box()["height"]
+                            bounds = separator.bounding_box()
+                            page.mouse.move(bounds["x"] + 50, bounds["y"] + 4)
+                            page.mouse.down()
+                            page.mouse.move(bounds["x"] + 50, bounds["y"] - 45, steps=5)
+                            page.mouse.up()
+                            assert separator.locator("..").bounding_box()["height"] > before
+                            page.get_by_label("Maximizar panel", exact=True).click()
+                            page.get_by_label("Restaurar panel", exact=True).click()
+                            page.get_by_label("Ocultar panel", exact=True).click()
+                            expect(page.get_by_label("Salida de terminal", exact=True)).to_have_count(0)
+                            page.get_by_label("Mostrar panel", exact=True).click()
+                            expect(page.get_by_label("Salida de terminal", exact=True)).to_contain_text("5")
                     else:
                         expect(page.get_by_placeholder("Escribe tu analisis, supuestos, calculos o decisiones mientras conversas con el agente...", exact=True)).to_be_visible(timeout=45000)
                         expect(page.get_by_role("button", name="Ejecutar", exact=True)).to_have_count(0)

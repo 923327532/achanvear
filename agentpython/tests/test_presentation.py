@@ -68,6 +68,13 @@ class RoleChallengeTest(unittest.IsolatedAsyncioTestCase):
 
 
 class PresentationPolicyTest(unittest.TestCase):
+    def test_inline_result_checks_count_as_validation_without_a_test_framework(self):
+        check = 'if (result.averageScore !== 89.5) throw new Error("Fallo promedio");'
+        evidence = _workspace_evidence({"code": check}, {}, [])
+        self.assertTrue(evidence["has_tests_or_validation"])
+        validation = 'if (score < 0) throw new Error("Datos invalidos");'
+        self.assertFalse(_workspace_evidence({"code": validation}, {}, [])["has_tests_or_validation"])
+
     def token(self, session_id="one", expires=None):
         body = {"session_id": session_id, "exp": expires or time.time()+60, "presentation": {"question_count": 3}}
         payload = base64.urlsafe_b64encode(json.dumps(body).encode()).decode().rstrip("=")

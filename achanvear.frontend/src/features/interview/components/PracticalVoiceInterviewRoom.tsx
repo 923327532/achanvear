@@ -2,6 +2,7 @@
 import { downloadInterviewReportPdf } from "../lib/interviewReportPdf";
 
 import dynamic from "next/dynamic";
+import { PracticalTerminalPanel } from "./PracticalTerminalPanel";
 import { createSpanishUtterance } from "@/lib/browserSpeech";
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
 import { AlertTriangle, CheckCircle2, ChevronRight, Code2, Download, EyeOff, FileCode2, FilePlus2, FileText, Folder, FolderPlus, History, Layers3, Loader2, Mic, MicOff, PhoneOff, Play, Send, Stethoscope, UserRound, Video, X } from "lucide-react";
@@ -1729,26 +1730,16 @@ export function PracticalVoiceInterviewRoom({
                       }}
                     />
                     </div>
-                    <label className="block bg-black/20 p-3 text-xs text-slate-300">
-                      Entrada estándar (stdin): números, operador u otros datos, separados por espacios o líneas.
-                      <textarea aria-label="Entrada estándar" value={standardInput} onChange={event => setStandardInput(event.target.value)}
-                        placeholder="Ejemplo: 8 + 2" rows={2} className="mt-2 w-full rounded bg-slate-950 p-2 font-mono text-white" />
-                    </label>
-                    {codeOutput && (
-                  <div className="grid max-h-56 grid-cols-1 overflow-hidden border-t border-white/10 lg:grid-cols-2">
-                    <pre className="overflow-auto bg-black/30 p-3 text-xs text-emerald-100">
-                      {codeOutput}
-                    </pre>
-                    {previewHtml && (
-                      <iframe
-                        title="Vista previa"
-                        sandbox="allow-scripts"
-                        srcDoc={`<!doctype html><html><body style="font-family:Inter,Arial,sans-serif;padding:16px;background:#f8fafc">${previewHtml}</body></html>`}
-                        className="h-56 w-full bg-white"
-                      />
-                    )}
-                  </div>
-                    )}
+                    <PracticalTerminalPanel
+                      output={codeOutput}
+                      input={standardInput}
+                      onInputChange={setStandardInput}
+                      onRun={() => { void runCode(); }}
+                      previewHtml={previewHtml}
+                      success={lastRun?.success}
+                      stdout={lastRun?.stdout}
+                      stderr={lastRun?.stderr}
+                    />
                   </div>
                 </div>
             ) : (

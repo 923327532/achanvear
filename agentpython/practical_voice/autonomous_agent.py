@@ -120,6 +120,7 @@ def _evaluation_rules(challenge: Dict[str, Any]) -> str:
         "- Si dejo TODOs principales, codigo casi vacio o solo hablo sin construir, debe reprobar.\n"
         "- Si ejecuto con errores pero el diseno es razonable, puede quedar en revision manual, no aprobar automatico.\n"
         "- Penaliza incumplimiento de requisitos esperados del reto.\n\n"
+        "- Reconoce comprobaciones inline que comparan resultados y fallan cuando no coinciden. No exijas un framework de pruebas si el caso y los requisitos no lo solicitan.\n"
     )
 
 
@@ -247,7 +248,10 @@ def _workspace_evidence(
     )
     architecture_hits = sum(1 for token in architecture_terms if token in lower_code or token in lower_paths)
     has_project_structure = len(files) >= 2 or len(folders) >= 1 or "/" in lower_paths
-    has_tests_or_validation = any(token in lower_paths or token in lower_code for token in ("test", "spec", "assert", "expect(", "describe(", "it(", "console.assert"))
+    inline_checks = bool(re.search(
+        r'''if\s*\(.{1,400}?\)\s*(?:\{\s*)?throw\s+new\s+Error\s*\(\s*["'](?:fallo|fail|assert|prueba|test)''',
+        code, re.IGNORECASE | re.DOTALL))
+    has_tests_or_validation = inline_checks or any(token in lower_paths or token in lower_code for token in ("test", "spec", "assert", "expect(", "describe(", "it(", "console.assert"))
     has_error_handling = any(token in lower_code for token in ("try", "catch", "except", "raise", "throw", "error", "validation", "validar"))
     expected_hits = 0
     if any(word in expected_text for word in ("sql", "indice", "index", "trigger")):
