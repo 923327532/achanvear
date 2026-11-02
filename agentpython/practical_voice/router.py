@@ -36,7 +36,7 @@ async def start_practical_interview(req: PracticalSessionStartRequest, request: 
     if state.completed_at is not None:
         raise HTTPException(status_code=409, detail="Interview already completed")
     workspace_type = req.workspace_type or infer_workspace_type(req.career, req.job_title)
-    challenge = build_workspace_challenge(workspace_type, req.career, req.job_title)
+    challenge = build_workspace_challenge(workspace_type, req.career, req.job_title, req.job_description, req.job_requirements)
     presentation = getattr(request.state, "grant", {}).get("presentation", {}) if request else {}
     challenge["workspace_type"] = workspace_type.value
     challenge["job_description"] = req.job_description

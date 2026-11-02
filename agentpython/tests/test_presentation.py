@@ -16,6 +16,42 @@ from practical_voice.schemas import PracticalSessionStartRequest
 
 
 class RoleChallengeTest(unittest.IsolatedAsyncioTestCase):
+    def test_vacancy_language_wins_over_candidate_career_and_generic_template(self):
+        from practical_voice.schemas import PracticalWorkspaceType
+        for title, requirements, language in [
+            ("Desarrollador Java", "React, TypeScript", "java"),
+            ("Desarrollador backend", "Java y Spring Boot", "java"),
+            ("Desarrollador backend", "TypeScript", "typescript"),
+            ("Desarrollador JavaScript", "JavaScript", "javascript"),
+            ("Desarrollador Java y Python", "Python", "java"),
+            ("Desarrollador Python", "Java", "python"),
+            ("Desarrollador fullstack", "TypeScript, SQL", "typescript"),
+            ("Desarrollador React con TypeScript", "React", "typescript"),
+            ("Desarrollador Node.js TypeScript", "Node.js", "typescript"),
+            ("Desarrollador C#", ".NET", "csharp"),
+            ("Desarrollador Go", "Go", "go"),
+            ("Desarrollador PHP", "PHP", "php"),
+            ("Desarrollador Ruby", "Ruby", "ruby"),
+            ("Desarrollador de datos PostgreSQL", "SQL", "postgresql"),
+            ("Desarrollador MongoDB", "MongoDB", "mongodb"),
+        ]:
+            with self.subTest(title=title):
+                case = build_workspace_challenge(PracticalWorkspaceType.CODING, "Java", title,
+                                                 "Puesto profesional", requirements)
+                self.assertEqual(case["language"], language)
+                if language == "typescript" and case.get("files"):
+                    self.assertTrue(any(f["path"].endswith(".ts") for f in case["files"]))
+                if title == "Desarrollador fullstack" and language == "typescript":
+                    self.assertEqual(case["function_name"], "buildPipelineSummary")
+
+    async def test_start_uses_vacancy_requirements_for_language_and_keeps_normal_twenty_minutes(self):
+        with patch.object(practical, "get_session", AsyncMock(return_value=None)), patch.object(practical, "update_session", AsyncMock()):
+            result = await practical.start_practical_interview(PracticalSessionStartRequest(
+                session_id="requirements-java", career="TypeScript", job_title="Desarrollador backend",
+                job_requirements="Java, Spring Boot y PostgreSQL"))
+            self.assertEqual(result.challenge["language"], "java")
+            self.assertEqual(result.time_limit_minutes, 20)
+
     async def test_presentation_never_replaces_role_challenge_with_calculator(self):
         request = SimpleNamespace(state=SimpleNamespace(grant={"presentation": {
             "case_code": "java_calculator", "time_limit_minutes": 5}}))

@@ -1,5 +1,6 @@
 from practical_voice.schemas import PracticalWorkspaceType
 import unicodedata
+import re
 
 
 TECH_KEYWORDS = (
@@ -102,7 +103,7 @@ def interviewer_profile(workspace_type: PracticalWorkspaceType, career: str, job
 
 
 def _tech_profile(career: str, job_title: str) -> str:
-    text = f"{career} {job_title}".lower()
+    text = job_title.lower()
     if any(word in text for word in ("frontend", "front-end", "react", "next", "vue", "angular", "ui")):
         return "frontend"
     if any(word in text for word in ("backend", "back-end", "java", ".net", "spring", "api", "microservicio")):
@@ -140,14 +141,84 @@ def infer_workspace_type(career: str, job_title: str) -> PracticalWorkspaceType:
     return PracticalWorkspaceType.SIMULATION
 
 
-def build_workspace_challenge(
+def _required_language(text: str) -> str | None:
+    patterns = [
+        ("javascript", r"\bjavascript\b"),
+        ("typescript", r"\btypescript\b"),
+        ("java", r"\bjava\b"),
+        ("python", r"\bpython\b"),
+        ("csharp", r"(?:c\#|\.net|\bcsharp\b|\basp\.net\b)"),
+        ("go", r"\b(?:golang|go)\b"),
+        ("php", r"\b(?:php|laravel)\b"),
+        ("ruby", r"\b(?:ruby|rails)\b"),
+        ("mongodb", r"\b(?:mongodb|mongo)\b"),
+        ("postgresql", r"\b(?:postgresql|postgres|sql)\b"),
+        ("html", r"\bhtml\b"),
+    ]
+    matches = [(match.start(), language) for language, pattern in patterns
+               if (match := re.search(pattern, text, re.IGNORECASE))]
+    if not matches:
+        frameworks = [("javascript", r"\b(?:node(?:\.js)?|react|vue)\b"),
+                      ("typescript", r"\bangular\b"), ("java", r"\bspring\b"),
+                      ("python", r"\b(?:django|flask|fastapi)\b")]
+        matches = [(match.start(), language) for language, pattern in frameworks
+                   if (match := re.search(pattern, text, re.IGNORECASE))]
+    return min(matches)[1] if matches else None
+
+
+def build_workspace_challenge(workspace_type: PracticalWorkspaceType, career: str,
+                              job_title: str, job_description: str = "",
+                              job_requirements: str = "") -> dict:
+    if workspace_type != PracticalWorkspaceType.CODING:
+        return _build_role_challenge(workspace_type, career, job_title)
+    # The vacancy takes precedence over the candidate's career or a generic template.
+    language = (_required_language(job_title) or _required_language(job_requirements)
+                or _required_language(job_description))
+    if language in {"java", "python", "html"}:
+        return _build_role_challenge(workspace_type, career, language + " - " + job_title)
+    challenge = _build_role_challenge(workspace_type, career, job_title)
+    incompatible_typescript_files = language == "typescript" and challenge.get("files") and not any(
+        f["path"].endswith(".ts") for f in challenge["files"])
+    if not language or (challenge.get("language") == language and not incompatible_typescript_files):
+        return challenge
+    if language == "javascript" and any(f["path"].endswith(".js") for f in challenge.get("files", [])):
+        challenge["language"] = language
+        return challenge
+    if language in {"javascript", "typescript"}:
+        function = challenge.get("function_name", "solve")
+        starter = f"function {function}(input) {{\n  // Implementa el caso solicitado por la vacante.\n  return [];\n}}\n\nconsole.log(JSON.stringify({function}([]), null, 2));\n"
+        filename = "main.js" if language == "javascript" else "main.ts"
+    else:
+        starters = {
+            "csharp": ("Program.cs", 'using System; class Program { static void Main() { /* Implementa y prueba el caso. */ Console.WriteLine("Inicio"); } }'),
+            "go": ("main.go", 'package main\nimport "fmt"\nfunc main() { /* Implementa y prueba el caso. */ fmt.Println("Inicio") }'),
+            "php": ("main.php", '<?php\n// Implementa y prueba el caso de la vacante.\necho "Inicio";'),
+            "ruby": ("main.rb", '# Implementa y prueba el caso de la vacante.\nputs "Inicio"'),
+            "postgresql": ("main.sql", '-- Modela los datos, agrega ejemplos y consulta resultados.\n'),
+            "mongodb": ("main.mongo", '// Modela documentos, inserta ejemplos y consulta resultados.\n'),
+        }
+        filename, starter = starters[language]
+        challenge["title"] = f"{language}: caso para {job_title}"
+        challenge["prompt"] = f"Resuelve un caso del puesto {job_title} utilizando {language}. Requisitos publicados: {job_requirements}. Contexto: {job_description}. Incluye datos de ejemplo, validaciones y pruebas."
+        if language in {"postgresql", "mongodb"}:
+            challenge["prompt"] += " Modela y consulta los datos del dominio del puesto; demuestra filtros, agrupaciones o relaciones pertinentes."
+        challenge["expected_output"] = ["Solucion acorde al puesto", "Datos de ejemplo", "Validaciones", "Pruebas ejecutadas"]
+        challenge.pop("function_name", None)
+        challenge.pop("test_cases", None)
+        challenge.pop("preview", None)
+    challenge.update(language=language, entry_file=filename, starter_code=starter,
+                     files=[{"path": filename, "language": language, "content": starter}])
+    return challenge
+
+
+def _build_role_challenge(
     workspace_type: PracticalWorkspaceType,
     career: str,
     job_title: str,
 ) -> dict:
     if workspace_type == PracticalWorkspaceType.CODING:
         title = job_title.splitlines()[0].lower()
-        if "python" in title:
+        if "python" in title and not title.startswith(("java - ", "html - ")):
             starter = "def filtrar_postulantes(postulantes, puntaje_minimo=75):\n    # Valida los datos y devuelve los postulantes que cumplen el puntaje.\n    pass\n\nif __name__ == '__main__':\n    # Agrega ejemplos y pruebas de casos borde.\n    pass\n"
             return {
                 "title": "Python: validacion y filtrado de postulantes",
@@ -161,7 +232,7 @@ def build_workspace_challenge(
                 "starter_code": starter,
                 "expected_output": ["Filtrado correcto", "Validacion de datos", "Casos borde probados", "Explicacion de la solucion"],
             }
-        if "java" in title and "javascript" not in title:
+        if re.search(r"\bjava\b", title) and not re.match(r"^(?:javascript|typescript|python|html)\b", title):
             return {
                 "title": "Java: servicio para una API de postulaciones",
                 "workspace_tool": "code_project",
