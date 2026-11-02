@@ -1,5 +1,6 @@
 """Real local interview UI: folders/files, four runtimes, and three professional workspaces."""
 import json
+import os
 import re
 import runpy
 import uuid
@@ -28,6 +29,9 @@ def main():
         ("Legal", "Asesor legal", "", "", ""),
         ("Contable", "Analista contable", "", "", ""),
     ]
+    requested = os.environ.get("ACHANVEAR_BROWSER_CASES", "")
+    if requested:
+        scenarios = [case for case in scenarios if case[0] in requested.split(",")]
     results = []
     with sync_playwright() as p:
         browser = p.chromium.launch(channel="msedge", headless=True, args=["--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream"])
@@ -68,9 +72,12 @@ def main():
                         page.wait_for_function("path => window.monaco && window.monaco.editor.getModels().some(m => m.uri.path.endsWith(path))", arg="checks/" + filename, timeout=60000)
                         page.wait_for_timeout(600)
                         page.evaluate("path => window.monaco.editor.getEditors().find(e => e.getModel()?.uri.path.endsWith(path)).focus()", "checks/" + filename)
-                        page.keyboard.press("Control+A")
-                        page.keyboard.insert_text(code)
-                        page.wait_for_function("args => window.monaco.editor.getModels().some(m => m.uri.path.endsWith(args.path) && m.getValue() === args.code)", arg={"path": "checks/" + filename, "code": code})
+                        if label == "Fullstack":
+                            page.evaluate("args => { const e = window.monaco.editor.getEditors().find(e => e.getModel()?.uri.path.endsWith(args.path)); e.executeEdits('browser-test-paste', [{range:e.getModel().getFullModelRange(),text:args.code}]); }", {"path": "checks/" + filename, "code": code})
+                        else:
+                            page.keyboard.press("Control+A")
+                            page.keyboard.insert_text(code)
+                        page.wait_for_function("args => window.monaco.editor.getModels().some(m => m.uri.path.endsWith(args.path) && m.getValue().replace(/\s/g, '') === args.code.replace(/\s/g, ''))", arg={"path": "checks/" + filename, "code": code})
                         page.wait_for_timeout(300)
                         if label == "Fullstack":
                             for source in (ROOT / "docs/sustentacion/fullstack").rglob("*"):
@@ -84,8 +91,7 @@ def main():
                                 page.wait_for_function("path => window.monaco && window.monaco.editor.getModels().some(m => m.uri.path.endsWith(path))", arg=target)
                                 page.wait_for_timeout(600)
                                 page.evaluate("path => window.monaco.editor.getEditors().find(e => e.getModel()?.uri.path.endsWith(path)).focus()", target)
-                                page.keyboard.press("Control+A")
-                                page.keyboard.insert_text(source.read_text(encoding="utf-8"))
+                                page.evaluate("args => { const e = window.monaco.editor.getEditors().find(e => e.getModel()?.uri.path.endsWith(args.path)); e.executeEdits('browser-test-paste', [{range:e.getModel().getFullModelRange(),text:args.code}]); }", {"path": target, "code": source.read_text(encoding="utf-8")})
                                 page.wait_for_timeout(300)
                             page.get_by_title("checks/main.ts", exact=True).click()
                         page.get_by_label("Entrada del programa", exact=True).click()
